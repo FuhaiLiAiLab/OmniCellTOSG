@@ -1,0 +1,15 @@
+# pycache
+/__pycache__/*
+**.DS_Store
+**.pdf
+**.h5
+**.pyc
+
+# data download
+/download_links.txt
+/download.sh
+
+# BioMedGraphica
+/BioMedGraphica/*
+/sc_meta_cell/*
+/sc_raw_data/*
