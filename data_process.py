@@ -164,7 +164,8 @@ def main():
     # # SEA-AD "majority_voting"
     # # brain_sc "cell_type"
     # gene_mapping.generate_mapping_table_from_h5ad(root_dir, biomed_transcript_file, biomed_protein_file, output_dir)
-    # process_h5ad_files(root_dir, mapping_table_file, grouped_clusters_file, cell_type_obs, processed_data_dir)
+
+    process_h5ad_files(root_dir, mapping_table_file, grouped_clusters_file, cell_type_obs, processed_data_dir)
 
 if __name__ == "__main__":
     main()
