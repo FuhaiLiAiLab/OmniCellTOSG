@@ -14,6 +14,10 @@ def create_meta_cells(ad, out_dir, file_name, target_obs, obs_columns, input_dat
     if target_obs not in ad.obs.columns:
         print(f"Skipping {file_name}: target_obs '{target_obs}' not found in ad.obs")
         return
+    
+    output_columns = ["disease", "organ", "substructure", "cell_type"]
+    if len(obs_columns) != len(output_columns):
+        raise ValueError(f"Error: The number of input columns ({len(obs_columns)}) does not match the expected number ({len(output_columns)}).")
 
     file_str = os.path.splitext(os.path.basename(file_name))[0]  # Extract only the file name without path
     print(f"Processing {file_str}...")
@@ -26,39 +30,47 @@ def create_meta_cells(ad, out_dir, file_name, target_obs, obs_columns, input_dat
 
     # Handle raw layer based on input_data_is_log_normalized
     if input_data_is_log_normalized:
-        print("Input data is log-normalized. Checking raw layer...")
+        print("Input data is log-normalized. Checking consistency with raw layer...")
         if ad.raw is None:
             raise ValueError("Error: Input data is log-normalized but no raw layer is provided.")
+        
         raw_max = np.max(ad.raw.X)
-        is_raw_log_normalized = raw_max < 100  # Heuristic check
-        if is_raw_log_normalized:
-            raise ValueError("Error: The raw layer is already log-normalized, expected raw counts.")
-        print("Raw layer check passed: raw counts detected.")
+        x_max = np.max(ad.X)
+        
+        print(f"Max value in raw layer: {raw_max}")
+        print(f"Max value in X layer: {x_max}")
+
+        if raw_max == x_max:
+            raise ValueError("Error: The raw layer and X layer have identical maximum values, indicating potential data issues.")
+        print("Raw layer and X layer check passed: values are consistent.")
     else:
-        print("Input data is raw counts. Checking and processing...")
+        print("Input data is raw counts. Checking raw layer if exists...")
+        
         if ad.raw is not None:
             raw_max = np.max(ad.raw.X)
-            is_raw_log_normalized = raw_max < 100  # Heuristic check
-            if is_raw_log_normalized:
-                raise ValueError("Error: Expected raw counts but found log-normalized data.")
-            print("Raw layer check passed: raw counts detected.")
+            x_max = np.max(ad.X)
+
+            print(f"Max value in raw layer: {raw_max}")
+            print(f"Max value in X layer: {x_max}")
+
+            if raw_max == x_max:
+                raise ValueError("Error: The raw layer and X layer have identical maximum values, indicating potential data issues.")
+            print("Raw layer and X layer check passed: values are consistent.")
         else:
             print("Raw layer not found. Creating raw layer from X...")
             ad.raw = ad.copy()
-        
-        print("Applying normalization and log1p transformation")
+            print("Raw layer created successfully.")
+
+        print("Applying normalization and log1p transformation...")
         sc.pp.normalize_total(ad, target_sum=1e4, inplace=True)
         sc.pp.log1p(ad)
         print("Normalization and log1p transformation completed.")
-    
+
     print(f"Min value in raw: {np.min(ad.raw.X)}")
     print(f"Max value in raw: {np.max(ad.raw.X)}")
 
     print(f"Min value in X: {np.min(ad.X)}")
     print(f"Max value in X: {np.max(ad.X)}")
-
-    # sc.pp.normalize_total(ad, target_sum=1e4, inplace=True)
-    # sc.pp.log1p(ad)
 
     # Perform dimensionality reduction and clustering on X
     sc.pp.highly_variable_genes(ad, n_top_genes=1500)
@@ -132,15 +144,24 @@ def create_meta_cells(ad, out_dir, file_name, target_obs, obs_columns, input_dat
                 .agg(lambda x: x.mode().iloc[0] if not x.mode().empty else np.nan)
             )
 
-    # Rename obs columns
-    target_columns = ["disease", "tissue", "cell_type"]
+    # Step 1: Rename all non-empty columns
+    for original_col, output_col in zip(obs_columns, output_columns):
+        if original_col.strip() != "":  # Handle space input
+            if original_col in SEACell_ad.obs.columns:
+                SEACell_ad.obs.rename(columns={original_col: output_col}, inplace=True)
+                print(f"Renamed column '{original_col}' to '{output_col}'.")
+            else:
+                print(f"Warning: Column '{original_col}' not found in SEACell_ad.obs.")
 
-    for original_col, target_col in zip(obs_columns, target_columns):
-        if original_col in SEACell_ad.obs.columns:
-            SEACell_ad.obs.rename(columns={original_col: target_col}, inplace=True)
-            print(f"Renamed column '{original_col}' to '{target_col}'.")
-        else:
-            print(f"Warning: Column '{original_col}' not found in SEACell_ad.obs.")
+    # Step 2: Handle empty column
+    if "organ" not in SEACell_ad.obs.columns:
+        SEACell_ad.obs["organ"] = "unknown"
+        print("'organ' column missing. Filled with 'unknown'.")
+
+    if "substructure" not in SEACell_ad.obs.columns:
+        SEACell_ad.obs["substructure"] = "unknown"
+        print("'substructure' column missing. Filled with 'unknown'.")
+
 
     # Save processed h5ad
     output_file = os.path.join(meta_cells_out_dir, f"{file_str}_SEACells.h5ad")
@@ -174,6 +195,9 @@ if __name__ == '__main__':
     # Run metacell processing
     create_meta_cells(ad, args.out_dir, args.file, args.target_obs, args.obs_columns, args.input_data_is_log_normalized)
 
-    # python SEACell_process.py --file "acute myeloid leukemia_bone marrow_partition_0.h5ad" --in_dir data --out_dir results --target_obs "cell_type" --obs_columns "disease" "tissue" "cell_type" --input_data_is_log_normalized "False"
 
-    # python SEACell_process.py --file "GSM4116579_labeled.h5ad" --in_dir data --out_dir results --target_obs "majority_voting" --obs_columns "disease" "tissue" "majority_voting" --input_data_is_log_normalized "True"
+    # python SEACell_process.py --file "acute myeloid leukemia_bone marrow_partition_0.h5ad" --in_dir data --out_dir results --target_obs "cell_type" --obs_columns "disease"  " " "tissue" "cell_type" --input_data_is_log_normalized "False"
+
+    # python SEACell_process.py --file "GSM4116579_labeled.h5ad" --in_dir data --out_dir results --target_obs "majority_voting" --obs_columns "disease" "organ" "tissue" "majority_voting" --input_data_is_log_normalized "True"
+
+    # python SEACell_process.py --file "human_brain_microglia_Gerrits_2021_10x_Cerebral cortex_Brain_Homo sapiens_Adult_occipital cortex_Alzheimer’s disease_Unclassified_partition_0.h5ad" --in_dir data --out_dir results --target_obs "cell_type" --obs_columns "sample_status" "organ" "region" "cell_type" --input_data_is_log_normalized "False"
