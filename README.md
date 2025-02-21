@@ -1,1 +1,1 @@
-# CellGraph
+# Omni-CellTOG

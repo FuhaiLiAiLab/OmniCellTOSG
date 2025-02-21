@@ -11,5 +11,6 @@
 
 # BioMedGraphica
 /BioMedGraphica/*
+/CellTOG/*
 /sc_meta_cell/*
 /sc_raw_data/*
