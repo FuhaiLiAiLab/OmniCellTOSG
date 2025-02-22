@@ -449,6 +449,7 @@ class MaskGAE(nn.Module):
         self,
         input_dim,
         num_node,
+        text_encoder,
         encoder,
         internal_encoder,
         edge_decoder,
@@ -458,10 +459,12 @@ class MaskGAE(nn.Module):
         loss="ce",
     ):
         super().__init__()
+        self.text_encoder = text_encoder
         self.encoder = encoder
         self.edge_decoder = edge_decoder
         self.internal_encoder = internal_encoder
         self.degree_decoder = degree_decoder
+        
         self.mask = mask
 
         self.num_node = num_node
@@ -542,18 +545,15 @@ class MaskGAE(nn.Module):
             z = self.internal_encoder(x, internal_edge_index)
             # x = self.att_linear(x)
 
-
             z = self.encoder(z, remaining_edges)
 
             batch_masked_edges = masked_edges[:, perm]
             batch_neg_edges = neg_edges[:, perm]
 
             # ******************* loss for edge reconstruction *********************
-            pos_out = self.edge_decoder(
-                z, batch_masked_edges, sigmoid=False
-            )
-            neg_out = self.edge_decoder(z, batch_neg_edges, sigmoid=False)
-            loss = self.loss_fn(pos_out, neg_out)
+            # neg_out = self.edge_decoder(z, batch_neg_edges, sigmoid=False)
+            pos_out = self.edge_decoder(z, batch_masked_edges, sigmoid=False)
+            loss = F.binary_cross_entropy(pos_out.sigmoid(), torch.ones_like(pos_out))
             # **********************************************************************
 
             # ******************* loss for degree prediction ***********************
@@ -591,7 +591,7 @@ class MaskGAE(nn.Module):
         return pred
 
     @torch.no_grad()
-    def test_step(self, data, pos_edge_index, neg_edge_index, batch_size=2**16):
+    def test_step(self, data, pos_edge_index, batch_size=2**16):
         self.eval()
         num_node = self.num_node * batch_size
         x, edge_index = data.x, data.edge_index
@@ -599,17 +599,13 @@ class MaskGAE(nn.Module):
 
         z = self.internal_encoder(x, internal_edge_index)
         z = self(z, edge_index)
-        pos_pred = self.batch_predict(z, pos_edge_index)
-        neg_pred = self.batch_predict(z, neg_edge_index)
 
-        pred = torch.cat([pos_pred, neg_pred], dim=0)
-        pos_y = pos_pred.new_ones(pos_pred.size(0))
-        neg_y = neg_pred.new_zeros(neg_pred.size(0))
+        pred = self.batch_predict(z, pos_edge_index)
+        y = pred.new_ones(pred.size(0))
 
-        y = torch.cat([pos_y, neg_y], dim=0)
+        y = torch.cat([y], dim=0)
         y, pred = y.cpu().numpy(), pred.cpu().numpy()
-
-        return roc_auc_score(y, pred), average_precision_score(y, pred)
+        return average_precision_score(y, pred)
 
     @torch.no_grad()
     def test_step_ogb(self, data, evaluator, 

@@ -15,5 +15,9 @@
 /sc_meta_cell/*
 /sc_raw_data/*
 
-# Models
+# Model Checkpoints
 dna_gpt0.1b_h.pth
+pretrained_glm.pt
+
+# Models
+/desert/*

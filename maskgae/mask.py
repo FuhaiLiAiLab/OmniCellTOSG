@@ -95,7 +95,7 @@ class MaskPath(nn.Module):
 
 
 class MaskEdge(nn.Module):
-    def __init__(self, p: float=0.7, undirected: bool=True):
+    def __init__(self, p: float=0.7, undirected: bool=False):
         super().__init__()
         self.p = p
         self.undirected = undirected

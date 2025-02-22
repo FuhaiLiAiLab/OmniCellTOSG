@@ -36,9 +36,8 @@ class ReadGeoGraph():
         return geo_datalist
 
 
-def read_batch(index, upper_index, x_input, y_input, num_feature, num_node, all_edge_index, internal_edge_index, ppi_edge_index, graph_output_folder):
+def read_batch(index, upper_index, x_input, y_input, num_feature, num_node, all_edge_index, internal_edge_index, ppi_edge_index):
     # FORMING BATCH FILES
-    form_data_path = './' + graph_output_folder + '/form_data'
     print('--------------' + str(index) + ' to ' + str(upper_index) + '--------------')
     xBatch = x_input[index : upper_index, :]
     yBatch = y_input[index : upper_index, :]

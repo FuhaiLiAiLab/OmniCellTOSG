@@ -18,7 +18,7 @@ class GeoGraphLoader():
                                         shuffle=False,
                                         num_workers=args.num_workers,
                                         collate_fn=collate_fn)
-        return dataset_loader, dataset_sampler.node_num, dataset_sampler.feature_dim
+        return dataset_loader
 
 # Custom graph dataset with [init, len, getitem]
 class GeoGraphSampler(torch.utils.data.Dataset):
