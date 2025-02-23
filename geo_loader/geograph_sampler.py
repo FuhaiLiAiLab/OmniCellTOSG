@@ -10,13 +10,13 @@ class GeoGraphLoader():
     def __init__(self):
         pass
 
-    def load_graph(geo_datalist, args):
+    def load_graph(geo_datalist, batch_size, num_workers):
         dataset_sampler = GeoGraphSampler(geo_datalist)
         dataset_loader = torch.utils.data.DataLoader(
                                         dataset=dataset_sampler, 
-                                        batch_size=args.batch_size, 
+                                        batch_size=batch_size, 
                                         shuffle=False,
-                                        num_workers=args.num_workers,
+                                        num_workers=num_workers,
                                         collate_fn=collate_fn)
         return dataset_loader
 

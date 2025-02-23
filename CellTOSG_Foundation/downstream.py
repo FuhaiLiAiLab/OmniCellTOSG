@@ -29,10 +29,7 @@ from torch import Tensor
 from torch_geometric.nn.dense.linear import Linear
 from torch_geometric.typing import Adj, OptTensor, PairTensor, SparseTensor
 from torch_geometric.utils import softmax
-
-
-# custom modules
-from maskgae.loss import info_nce_loss, ce_loss, log_rank_loss, hinge_auc_loss, auc_loss
+from torch_geometric.nn import aggr
 
 
 def to_sparse_tensor(edge_index, num_nodes):
@@ -313,314 +310,104 @@ class GNNEncoder(nn.Module):
         x = self.activation(x)
         return x
 
-    @torch.no_grad()
-    def get_embedding(self, x, edge_index, mode="cat"):
 
-        self.eval()
-        assert mode in {"cat", "last"}, mode
-
-        x = self.create_input_feat(x)
-        edge_index = to_sparse_tensor(edge_index, x.size(0))
-        out = []
-        for i, conv in enumerate(self.convs[:-1]):
-            x = self.dropout(x)
-            x = conv(x, edge_index)
-            x = self.bns[i](x)
-            x = self.activation(x)
-            out.append(x)
-        x = self.dropout(x)
-        x = self.convs[-1](x, edge_index)
-        x = self.bns[-1](x)
-        x = self.activation(x)
-        out.append(x)
-
-        if mode == "cat":
-            embedding = torch.cat(out, dim=1)
-        else:
-            embedding = out[-1]
-
-        return embedding
-
-
-class DotEdgeDecoder(nn.Module):
-    """Simple Dot Product Edge Decoder"""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-
-    def reset_parameters(self):
-        return
-
-    def forward(self, z, edge, sigmoid=True):
-        x = z[edge[0]] * z[edge[1]]
-        x = x.sum(-1)
-
-        if sigmoid:
-            return x.sigmoid()
-        else:
-            return x
-
-
-class EdgeDecoder(nn.Module):
-    """Simple MLP Edge Decoder"""
-
-    def __init__(
-        self, in_channels, hidden_channels, out_channels=1,
-        num_layers=2, dropout=0.5, activation='relu'
-    ):
-
-        super().__init__()
-        self.mlps = nn.ModuleList()
-
-        for i in range(num_layers):
-            first_channels = in_channels if i == 0 else hidden_channels
-            second_channels = out_channels if i == num_layers - 1 else hidden_channels
-            self.mlps.append(nn.Linear(first_channels, second_channels))
-
-        self.dropout = nn.Dropout(dropout)
-        self.activation = creat_activation_layer(activation)
-
-    def reset_parameters(self):
-        for mlp in self.mlps:
-            mlp.reset_parameters()
-
-    def forward(self, z, edge, sigmoid=True, reduction=False):
-        x = z[edge[0]] * z[edge[1]]
-
-        if reduction:
-            x = x.mean(1)
-
-        for i, mlp in enumerate(self.mlps[:-1]):
-            x = self.dropout(x)
-            x = mlp(x)
-            x = self.activation(x)
-
-        x = self.mlps[-1](x)
-
-        if sigmoid:
-            return x.sigmoid()
-        else:
-            return x
-
-
-class DegreeDecoder(nn.Module):
-    """Simple MLP Degree Decoder"""
-
-    def __init__(
-        self, in_channels, hidden_channels, out_channels=1,
-        num_layers=2, dropout=0.5, activation='relu',
-    ):
-
-        super().__init__()
-        self.mlps = nn.ModuleList()
-
-        for i in range(num_layers):
-            first_channels = in_channels if i == 0 else hidden_channels
-            second_channels = out_channels if i == num_layers - 1 else hidden_channels
-            self.mlps.append(nn.Linear(first_channels, second_channels))
-
-        self.dropout = nn.Dropout(dropout)
-        self.activation = creat_activation_layer(activation)
-
-    def reset_parameters(self):
-        for mlp in self.mlps:
-            mlp.reset_parameters()
-
-    def forward(self, x):
-
-        for i, mlp in enumerate(self.mlps[:-1]):
-            x = mlp(x)
-            x = self.dropout(x)
-            x = self.activation(x)
-
-        x = self.mlps[-1](x)
-        x = self.activation(x)
-
-        return x
-
-
-def random_negative_sampler(edge_index, num_nodes, num_neg_samples):
-    neg_edges = torch.randint(0, num_nodes, size=(2, num_neg_samples)).to(edge_index)
-    return neg_edges
-
-
-class MaskGAE(nn.Module):
+class CellTOSG_Class(nn.Module):
     def __init__(
         self,
+        text_input_dim,
+        omic_input_dim,
         input_dim,
-        num_node,
+        pre_input_dim,
+        output_dim,
+        num_class,
         text_encoder,
         encoder,
-        internal_encoder,
-        edge_decoder,
-        degree_decoder=None,
-        mask=None,
-        random_negative_sampling=False,
-        loss="ce",
+        internal_encoder
     ):
         super().__init__()
+
+        self.num_class = num_class
+
         self.text_encoder = text_encoder
         self.encoder = encoder
-        self.edge_decoder = edge_decoder
         self.internal_encoder = internal_encoder
-        self.degree_decoder = degree_decoder
-        
-        self.mask = mask
 
-        self.num_node = num_node
+        self.name_linear_transform = nn.Linear(text_input_dim, text_input_dim)
+        self.desc_linear_transform = nn.Linear(text_input_dim, text_input_dim)
+        self.seq_linear_transform = nn.Linear(text_input_dim, text_input_dim)
+        self.omic_linear_transform = nn.Linear(omic_input_dim, omic_input_dim)
 
-        # self.att_linear = torch.nn.Linear(input_dim * 2, input_dim)
+        self.cross_modal_fusion = nn.Linear(text_input_dim * 3 + omic_input_dim, input_dim)
 
-        if loss == "ce":
-            self.loss_fn = ce_loss
-        elif loss == "auc":
-            self.loss_fn = auc_loss
-        elif loss == "info_nce":
-            self.loss_fn = info_nce_loss
-        elif loss == "log_rank":
-            self.loss_fn = log_rank_loss
-        elif loss == "hinge_auc":
-            self.loss_fn = hinge_auc_loss
-        else:
-            raise ValueError(loss)
+        self.pre_transform = nn.Linear(pre_input_dim, input_dim)
+        self.fusion = nn.Linear(input_dim * 2, input_dim)
 
-        if random_negative_sampling:
-            # this will be faster than pyg negative_sampling
-            self.negative_sampler = random_negative_sampler
-        else:
-            self.negative_sampler = negative_sampling
+        # Simple aggregations
+        self.mean_aggr = aggr.MeanAggregation()
+        self.max_aggr = aggr.MaxAggregation()
+        # Learnable aggregations
+        self.softmax_aggr = aggr.SoftmaxAggregation(learn=True)
+        self.powermean_aggr = aggr.PowerMeanAggregation(learn=True)
+
+        self.classifier = nn.Linear(output_dim, num_class)
+
 
     def reset_parameters(self):
         self.encoder.reset_parameters()
         self.internal_encoder.reset_parameters()
-        self.edge_decoder.reset_parameters()
 
-        if self.degree_decoder is not None:
-            self.degree_decoder.reset_parameters()
+    def forward(self, x, pre_x, edge_index, internal_edge_index, ppi_edge_index,
+                num_entity, name_embeddings, desc_embeddings, seq_embeddings, batch_size):
+        
+        # import pdb; pdb.set_trace()
+        num_node = num_entity * batch_size
 
-    def forward(self, x, edge_index):
-        return self.encoder(x, edge_index)
+        # ********************** Cross-modality Fusion *************************
+        name_emb = self.name_linear_transform(name_embeddings).clone()
+        name_emb = name_emb.repeat(batch_size, 1)
+        desc_emb = self.desc_linear_transform(desc_embeddings).clone()
+        desc_emb = desc_emb.repeat(batch_size, 1)
+        seq_emb = self.seq_linear_transform(seq_embeddings).clone()
+        seq_emb = seq_emb.repeat(batch_size, 1)
+        omic_emb = self.omic_linear_transform(x).clone()
+        merged_emb = torch.cat([name_emb, desc_emb, seq_emb, omic_emb], dim=-1)
+        cross_x = self.cross_modal_fusion(merged_emb)
+        # **********************************************************************
 
-    def train_step(self, data, optimizer, alpha=0.002,
-        batch_size=2 ** 16, grad_norm=1.0
-    ):
-        self.train()
+        # ********************** Pre + Down Fusion *****************************
+        pre_x_transformed = self.pre_transform(pre_x)
+        pre_cross_x = torch.cat([pre_x_transformed, cross_x], dim=-1)
+        fused_x = self.fusion(pre_cross_x)
+        # ****************************************************************
 
-        num_node = self.num_node * batch_size
-        x, edge_index = data.x, data.edge_index
-        internal_edge_index = data.internal_edge_index
+        # ********************** Graph Encoder *********************************
+        z = self.internal_encoder(fused_x, internal_edge_index) + x
+        z = self.encoder(z, ppi_edge_index)
+        # **********************************************************************
 
-        if self.mask is not None:
-            # MaskGAE
-            remaining_edges, masked_edges = self.mask(edge_index)
-        else:
-            # Plain GAE
-            remaining_edges = edge_index
-            masked_edges = getattr(data, "pos_edge_label_index", edge_index)
+        # ********************** Classification ********************************
+        z = z.view(batch_size, num_entity, -1)
+        z = self.powermean_aggr(z).view(batch_size, -1)
+        output = self.classifier(z)
+        _, pred = torch.max(output, dim=1)
+        # **********************************************************************
 
-        batch_count = 0
-        loss_total = 0.0
-        aug_edge_index, _ = add_self_loops(edge_index)
-        neg_edges = self.negative_sampler(
-            aug_edge_index,
-            num_nodes=num_node,
-            num_neg_samples=masked_edges.view(2, -1).size(1),
-        ).view_as(masked_edges)
-
-        # Create a tqdm progress bar
-        progress_bar = tqdm(DataLoader(
-            range(masked_edges.size(1)), batch_size=batch_size, shuffle=True
-        ), desc="Processing Batches")
-
-        for perm in progress_bar:
-
-            optimizer.zero_grad()
-
-            ### BUILD UP ASSIGNMENT MATRIX
-
-            # x_norm = self.x_norm(x)
-            # x_norm = x_norm.reshape(-1, self.node_num, self.input_dim)
-            # x = self.gcn(x, internal_edge_index)
-
-            z = self.internal_encoder(x, internal_edge_index)
-            # x = self.att_linear(x)
-
-            z = self.encoder(z, remaining_edges)
-
-            batch_masked_edges = masked_edges[:, perm]
-            batch_neg_edges = neg_edges[:, perm]
-
-            # ******************* loss for edge reconstruction *********************
-            # neg_out = self.edge_decoder(z, batch_neg_edges, sigmoid=False)
-            pos_out = self.edge_decoder(z, batch_masked_edges, sigmoid=False)
-            loss = F.binary_cross_entropy(pos_out.sigmoid(), torch.ones_like(pos_out))
-            # **********************************************************************
-
-            # ******************* loss for degree prediction ***********************
-            if self.degree_decoder is not None and alpha:
-                deg = degree(masked_edges[1].flatten(), num_node).float()
-                loss = loss + alpha * F.mse_loss(self.degree_decoder(z).squeeze(), deg)
-            # **********************************************************************
-
-            torch.autograd.set_detect_anomaly(True)
-            with torch.autograd.detect_anomaly():
-                # loss.backward() 
-                loss.backward(retain_graph=True) 
-
-            if grad_norm > 0:
-                # gradient clipping
-                nn.utils.clip_grad_norm_(self.parameters(), grad_norm)
-
-            optimizer.step()
-
-            loss_total = loss_total + loss.item()
-            batch_count = batch_count + 1
-
-            avg_loss = loss_total / batch_count
-            progress_bar.set_postfix(avg_loss=avg_loss)
-
-        return loss_total
-
-    @torch.no_grad()
-    def batch_predict(self, z, edges, batch_size=2 ** 16):
-        preds = []
-        for perm in DataLoader(range(edges.size(1)), batch_size):
-            edge = edges[:, perm]
-            preds = preds + [self.edge_decoder(z, edge).squeeze().cpu()]
-        pred = torch.cat(preds, dim=0)
-        return pred
-
-    @torch.no_grad()
-    def test_step(self, data, pos_edge_index, batch_size=2**16):
-        self.eval()
-        num_node = self.num_node * batch_size
-        x, edge_index = data.x, data.edge_index
-        internal_edge_index = data.internal_edge_index
-
-        z = self.internal_encoder(x, internal_edge_index)
-        z = self(z, edge_index)
-
-        pred = self.batch_predict(z, pos_edge_index)
-        y = pred.new_ones(pred.size(0))
-
-        y = torch.cat([y], dim=0)
-        y, pred = y.cpu().numpy(), pred.cpu().numpy()
-        return average_precision_score(y, pred)
-
-    @torch.no_grad()
-    def test_step_ogb(self, data, evaluator, 
-                      pos_edge_index, neg_edge_index, batch_size=2**16):
-        self.eval()
-        z = self(data.x, data.edge_index)
-        pos_pred = self.batch_predict(z, pos_edge_index)
-        neg_pred = self.batch_predict(z, neg_edge_index)
-
-        results = {}
-        for K in [20, 50, 100]:
-            evaluator.K = K
-            hits = evaluator.eval(
-                {"y_pred_pos": pos_pred, "y_pred_neg": neg_pred, }
-            )[f"hits@{K}"]
-            results[f"Hits@{K}"] = hits
-
-        return results
+        return output, pred
+    
+    def loss(self, output, label):
+        # import pdb; pdb.set_trace()
+        num_class = self.num_class
+        # Use weight vector to balance the loss
+        weight_vector = torch.zeros([num_class]).to(device='cuda')
+        label = label.long()
+        for i in range(num_class):
+            n_samplei = torch.sum(label == i)
+            if n_samplei == 0:
+                weight_vector[i] = 0
+            else:
+                weight_vector[i] = len(label) / (n_samplei)
+        # Calculate the loss
+        output = torch.log_softmax(output, dim=-1)
+        loss = F.nll_loss(output, label, weight_vector)
+        return loss
+    
