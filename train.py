@@ -442,7 +442,7 @@ def arg_parse():
     parser.add_argument('--prot_model_name', default='nferruz/ProtGPT2', help='Name of the pretrained protein language model. (default: nferruz/ProtGPT2)')
 
     parser.add_argument('--layer', nargs='?', default='gcn', help='GNN layer, (default: gcn)')
-    parser.add_argument('--encoder_activation', nargs='?', default='elu', help='Activation function for GNN encoder, (default: elu)')
+    parser.add_argument('--encoder_activation', nargs='?', default='leaky_relu', help='Activation function for GNN encoder, (default: leaky_relu)')
 
     parser.add_argument('--num_omic_feature', type=int, default=1, help='Omic feature size. (default: 1)')
     parser.add_argument('--lm_emb_dim', type=int, default=1, help='Text embedding dimension. (default: 1)')
@@ -480,7 +480,7 @@ def arg_parse():
 
     parser.add_argument('--train_lr', type=float, default=0.005, help='Learning rate for training. (default: 0.005)')
     parser.add_argument('--num_train_epoch', type=int, default=100, help='Number of training epochs. (default: 100)')
-    parser.add_argument('--train_batch_size', type=int, default=4, help='Batch size for training. (default: 4)')
+    parser.add_argument('--train_batch_size', type=int, default=2, help='Batch size for training. (default: 2)')
     parser.add_argument('--train_num_workers', type=int, default=0, help='Number of workers to load data.')
     parser.add_argument('--fold_n', type=int, default=1, help='Fold number for training. (default: 1)')
 
