@@ -411,7 +411,7 @@ def arg_parse():
 
     # dataset loading parameters
     parser.add_argument('--seed', type=int, default=2025, help='Random seed for model and dataset. (default: 2025)')
-    parser.add_argument('--sample_ratio', type=float, default=0.001, help='Sample ratio for dataset. (default: 0.002)')
+    parser.add_argument('--sample_ratio', type=float, default=0.03, help='Sample ratio for dataset. (default: 0.03)')
     parser.add_argument('--split_ratio', type=float, default=0.9, help='Split ratio for dataset. (default: 0.9)')
     parser.add_argument('--train_text', type=bool, default=False, help='Whether to train text embeddings. (default: False)')
     parser.add_argument('--train_bio', type=bool, default=False, help='Whether to train bio-sequence embeddings. (default: False)')
@@ -425,7 +425,7 @@ def arg_parse():
     parser.add_argument('--prot_model_name', default='nferruz/ProtGPT2', help='Name of the pretrained protein language model. (default: nferruz/ProtGPT2)')
 
     parser.add_argument('--layer', nargs='?', default='gcn', help='GNN layer, (default: gcn)')
-    parser.add_argument('--encoder_activation', nargs='?', default='leaky_relu', help='Activation function for GNN encoder, (default: leaky_relu)')
+    parser.add_argument('--encoder_activation', nargs='?', default='elu', help='Activation function for GNN encoder, (default: elu)')
 
     parser.add_argument('--num_omic_feature', type=int, default=1, help='Omic feature size. (default: 1)')
     parser.add_argument('--lm_emb_dim', type=int, default=1, help='Text embedding dimension. (default: 1)')
@@ -462,10 +462,9 @@ def arg_parse():
     parser.add_argument('--num_class', type=int, default=2, help='Number of classes for classification. (default: 2)')
 
     parser.add_argument('--train_lr', type=float, default=0.005, help='Learning rate for training. (default: 0.005)')
-    parser.add_argument('--num_train_epoch', type=int, default=100, help='Number of training epochs. (default: 100)')
+    parser.add_argument('--num_train_epoch', type=int, default=10, help='Number of training epochs. (default: 10)')
     parser.add_argument('--train_batch_size', type=int, default=2, help='Batch size for training. (default: 2)')
     parser.add_argument('--train_num_workers', type=int, default=0, help='Number of workers to load data.')
-    parser.add_argument('--fold_n', type=int, default=1, help='Fold number for training. (default: 1)')
 
     parser.add_argument('--pre_input_dim', type=int, default=8, help='Input feature dimension for pretraining. (default: 8)')
     parser.add_argument('--train_input_dim', type=int, default=1, help='Input feature dimension for training. (default: 1)')
