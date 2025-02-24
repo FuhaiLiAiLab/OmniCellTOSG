@@ -174,6 +174,7 @@ def pretrain_foundation(args, device):
             all_step_avg_loss_list.extend(step_avg_loss_list)
             if avg_loss < best_loss:
                 best_loss = avg_loss
+                print(f'Best Loss: {best_loss}')
                 torch.save(pretrain_model.state_dict(), args.save_path)
             # save loss list to text file
             with open(args.save_path.replace('.pt', '_batch_avg_loss_list.txt'), 'w') as f:
@@ -220,7 +221,7 @@ def arg_parse():
     parser.add_argument('--prot_model_name', default='nferruz/ProtGPT2', help='Name of the pretrained protein language model. (default: nferruz/ProtGPT2)')
 
     parser.add_argument('--layer', nargs='?', default='gcn', help='GNN layer, (default: gcn)')
-    parser.add_argument('--encoder_activation', nargs='?', default='leaky_relu', help='Activation function for GNN encoder, (default: leaky_relu)')
+    parser.add_argument('--encoder_activation', nargs='?', default='relu', help='Activation function for GNN encoder, (default: leaky_relu)')
 
     parser.add_argument('--num_omic_feature', type=int, default=1, help='Omic feature size. (default: 1)')
     parser.add_argument('--lm_emb_dim', type=int, default=1, help='Text embedding dimension. (default: 1)')
