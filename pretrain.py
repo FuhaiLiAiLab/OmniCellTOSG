@@ -66,8 +66,8 @@ def pretrain_foundation(args, device):
         categories="get_organ_disease",
         name="brain-AD",
         label_type="status",
-        seed=2025,
-        ratio = 0.01,
+        seed=args.seed,
+        ratio=args.sample_ratio,
         shuffle=True
     )
 
@@ -209,6 +209,7 @@ def arg_parse():
     parser.add_argument('--seed', type=int, default=2025, help='Random seed for dataset. (default: 2025)')
     parser.add_argument('--train_text', type=bool, default=False, help='Whether to train text embeddings. (default: False)')
     parser.add_argument('--train_bio', type=bool, default=False, help='Whether to train bio-sequence embeddings. (default: False)')
+    parser.add_argument('--sample_ratio', type=float, default=0.3, help='Sample ratio for dataset. (default: 0.3)')
 
     # pre-training parameters
     parser.add_argument('--pretrain_batch_size', type=int, default=2, help='Batch size for pretraining. (default: 2)')
