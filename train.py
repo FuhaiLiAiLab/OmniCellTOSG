@@ -68,11 +68,11 @@ def build_model(args, device):
     prot_seq_encoder = ProtGPT_LM(args.prot_model_name, device)
 
     internal_graph_encoder = GNNEncoder(args.num_omic_feature, args.input_dim, args.input_dim,
-                            num_layers=args.internal_encoder_layers, dropout=args.encoder_dropout,
+                            num_layers=args.train_internal_encoder_layers, dropout=args.encoder_dropout,
                             bn=args.bn, layer=args.layer, activation=args.encoder_activation)
 
     graph_encoder = GNNEncoder(args.num_omic_feature, args.encoder_channels, args.hidden_channels,
-                    num_layers=args.encoder_layers, dropout=args.encoder_dropout,
+                    num_layers=args.train_encoder_layers, dropout=args.encoder_dropout,
                     bn=args.bn, layer=args.layer, activation=args.encoder_activation)
 
     model = CellTOSG_Class(text_input_dim=args.lm_emb_dim,
@@ -103,8 +103,8 @@ def write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list
         file.write(best_model_info)
 
 
-def train_model(train_dataset_loader, current_cell_num, num_entity, name_embeddings, desc_embeddings, seq_embeddings, pretrain_model, model, device, args, learning_rate):
-    optimizer = torch.optim.Adam(filter(lambda p : p.requires_grad, model.parameters()), lr=learning_rate, eps=1e-7, weight_decay=1e-20)
+def train_model(train_dataset_loader, current_cell_num, num_entity, name_embeddings, desc_embeddings, seq_embeddings, pretrain_model, model, device, args):
+    optimizer = torch.optim.Adam(filter(lambda p : p.requires_grad, model.parameters()), lr=args.train_lr, eps=args.train_eps, weight_decay=args.train_weight_decay)
     batch_loss = 0
     for batch_idx, data in enumerate(train_dataset_loader):
         optimizer.zero_grad()
@@ -240,7 +240,6 @@ def train(args, pretrain_model, device):
     # Train the model depends on the task
     model = build_model(args, device)
     epoch_num = args.num_train_epoch
-    learning_rate = args.train_lr
     train_batch_size = args.train_batch_size
 
     epoch_loss_list = []
@@ -279,7 +278,7 @@ def train(args, pretrain_model, device):
             geo_train_datalist = read_batch(index, upper_index, xTr, yTr, num_feature, num_entity, all_edge_index, internal_edge_index, ppi_edge_index)
             train_dataset_loader = GeoGraphLoader.load_graph(geo_train_datalist, args.train_batch_size, args.train_num_workers)
             current_cell_num = upper_index - index # current batch size
-            model, batch_loss, batch_acc, batch_ypred = train_model(train_dataset_loader, current_cell_num, num_entity, name_embeddings, desc_embeddings, seq_embeddings, pretrain_model, model, device, args, learning_rate)
+            model, batch_loss, batch_acc, batch_ypred = train_model(train_dataset_loader, current_cell_num, num_entity, name_embeddings, desc_embeddings, seq_embeddings, pretrain_model, model, device, args)
             print('BATCH LOSS: ', batch_loss)
             print('BATCH ACCURACY: ', batch_acc)
             batch_loss_list.append(batch_loss)
@@ -462,9 +461,15 @@ def arg_parse():
     parser.add_argument('--num_class', type=int, default=2, help='Number of classes for classification. (default: 2)')
 
     parser.add_argument('--train_lr', type=float, default=0.005, help='Learning rate for training. (default: 0.005)')
+    parser.add_argument('--train_eps', type=float, default=1e-7, help='Epsilon for Adam optimizer. (default: 1e-7)')
+    parser.add_argument('--train_weight_decay', type=float, default=1e-5, help='Weight decay for Adam optimizer. (default: 1e-5)')
+
     parser.add_argument('--num_train_epoch', type=int, default=10, help='Number of training epochs. (default: 10)')
     parser.add_argument('--train_batch_size', type=int, default=2, help='Batch size for training. (default: 2)')
     parser.add_argument('--train_num_workers', type=int, default=0, help='Number of workers to load data.')
+
+    parser.add_argument('--train_internal_encoder_layers', type=int, default=1, help='Number of layers for internal encoder. (default: 1)')
+    parser.add_argument('--train_encoder_layers', type=int, default=2, help='Number of layers for encoder. (default: 2)')
 
     parser.add_argument('--pre_input_dim', type=int, default=8, help='Input feature dimension for pretraining. (default: 8)')
     parser.add_argument('--train_input_dim', type=int, default=1, help='Input feature dimension for training. (default: 1)')
