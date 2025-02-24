@@ -5,34 +5,31 @@ import numpy as np
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch_geometric.transforms as T
-from tqdm.auto import tqdm
-
 from torch.autograd import Variable
-from torch.utils.data import DataLoader
 
 # custom modules
-from CellTOSG_Foundation.utils import set_seed, tab_printer, get_dataset
+from CellTOSG_Foundation.utils import tab_printer
 from CellTOSG_Foundation.model import CellTOSG_Foundation, DegreeDecoder, EdgeDecoder, GNNEncoder
-from CellTOSG_Foundation.mask import MaskEdge, MaskPath
+from CellTOSG_Foundation.mask import MaskEdge
 
 # custom dataloader
-from geo_loader.read_geograph import read_batch
-from geo_loader.geograph_sampler import GeoGraphLoader
+from GeoDataLoader.read_geograph import read_batch
+from GeoDataLoader.geograph_sampler import GeoGraphLoader
 
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, precision_score, recall_score
-from enc_dec.geo_pretrain_gformer_decoder import GraphFormerDecoder
 
-from CellTOSG_Foundation.lm_model import TextEncoder
-
+from CellTOSG_Foundation.lm_model import TextEncoder, RNAGPT_LM, ProtGPT_LM
 from CellTOSG_Foundation.downstream import CellTOSG_Class
 
 
 def build_pretrain_model(args, device):
     mask = MaskEdge(p=args.p)
 
-    text_encoder = TextEncoder(args.name_lm_model_path, device)
+    text_encoder = TextEncoder(args.text_lm_model_path, device)
+
+    rna_seq_encoder = RNAGPT_LM(args.rna_seq_lm_model_path, args.rna_model_name, device)
+
+    prot_seq_encoder = ProtGPT_LM(args.prot_model_name, device)
 
     graph_encoder = GNNEncoder(args.num_omic_feature, args.encoder_channels, args.hidden_channels,
                         num_layers=args.encoder_layers, dropout=args.encoder_dropout,
@@ -48,10 +45,12 @@ def build_pretrain_model(args, device):
     degree_decoder = DegreeDecoder(args.hidden_channels, args.decoder_channels,
                                 num_layers=args.decoder_layers, dropout=args.decoder_dropout)
 
-    pretrain_model = CellTOSG_Foundation(text_input_dim=args.text_emb_dim,
+    pretrain_model = CellTOSG_Foundation(text_input_dim=args.lm_emb_dim,
                     omic_input_dim=args.num_omic_feature,
-                    input_dim=args.input_dim,
+                    input_dim=args.input_dim, 
                     text_encoder=text_encoder,
+                    rna_seq_encoder=rna_seq_encoder,
+                    prot_seq_encoder=prot_seq_encoder,
                     encoder=graph_encoder,
                     internal_encoder=internal_graph_encoder,
                     edge_decoder=edge_decoder,
@@ -62,7 +61,11 @@ def build_pretrain_model(args, device):
 
 
 def build_model(args, device):
-    text_encoder = TextEncoder(args.name_lm_model_path, device)
+    text_encoder = TextEncoder(args.text_lm_model_path, device)
+
+    rna_seq_encoder = RNAGPT_LM(args.rna_seq_lm_model_path, args.rna_model_name, device)
+
+    prot_seq_encoder = ProtGPT_LM(args.prot_model_name, device)
 
     internal_graph_encoder = GNNEncoder(args.num_omic_feature, args.input_dim, args.input_dim,
                             num_layers=args.internal_encoder_layers, dropout=args.encoder_dropout,
@@ -72,13 +75,15 @@ def build_model(args, device):
                     num_layers=args.encoder_layers, dropout=args.encoder_dropout,
                     bn=args.bn, layer=args.layer, activation=args.encoder_activation)
 
-    model = CellTOSG_Class(text_input_dim=args.text_emb_dim,
+    model = CellTOSG_Class(text_input_dim=args.lm_emb_dim,
                     omic_input_dim=args.num_omic_feature,
                     input_dim=args.input_dim,
                     pre_input_dim=args.pre_input_dim,
                     output_dim=args.train_output_dim,
                     num_class=args.num_class,
                     text_encoder=text_encoder,
+                    rna_seq_encoder=rna_seq_encoder,
+                    prot_seq_encoder=prot_seq_encoder,
                     encoder=graph_encoder,
                     internal_encoder=internal_graph_encoder).to(device)
     return model
@@ -177,17 +182,40 @@ def train(args, pretrain_model, device):
     pretrain_model = build_pretrain_model(args, device)
     num_feature = args.num_omic_feature
 
-    # # Use language model to embed the name and description
-    # name_sentence_list = s_name_df['Name'].tolist()
-    # desc_sentence_list = s_desc_df['Description'].tolist()
-    # text_encoder = pretrain_model.text_encoder
-    # text_encoder.load_model()
-    # name_embeddings = text_encoder.generate_embeddings(name_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=1)
-    # desc_embeddings = text_encoder.generate_embeddings(desc_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=1)
-
-    name_embeddings = np.load('./CellTOSG/x_name_emb.npy').reshape(-1, args.text_emb_dim)
-    desc_embeddings = np.load('./CellTOSG/x_desc_emb.npy').reshape(-1, args.text_emb_dim)
-    seq_embeddings = np.load('./CellTOSG/x_bio_emb.npy').reshape(-1, args.text_emb_dim)
+    if args.train_text:
+        # Use language model to embed the name and description
+        s_name_df = pd.read_csv('./CellTOSG/s_name.csv')
+        s_desc_df = pd.read_csv('./CellTOSG/s_desc.csv')
+        name_sentence_list = s_name_df['Name'].tolist()
+        name_sentence_list = [str(name) for name in name_sentence_list]
+        desc_sentence_list = s_desc_df['Description'].tolist()
+        desc_sentence_list = [str(desc) for desc in desc_sentence_list]
+        text_encoder = pretrain_model.text_encoder
+        text_encoder.load_model()
+        name_embeddings = text_encoder.generate_embeddings(name_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.lm_emb_dim)
+        desc_embeddings = text_encoder.generate_embeddings(desc_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.lm_emb_dim)
+    else:
+        name_embeddings = np.load('./CellTOSG/x_name_emb.npy').reshape(-1, args.lm_emb_dim)
+        desc_embeddings = np.load('./CellTOSG/x_desc_emb.npy').reshape(-1, args.lm_emb_dim)
+    
+    if args.train_bio:
+        # Use language model to embed the RNA and protein sequences
+        s_bio = pd.read_csv('./CellTOSG/s_bio.csv')
+        # sequence list where type == transcript
+        rna_seq_list = s_bio[s_bio['Type'] == 'Transcript']['Sequence'].tolist()
+        rna_seq_encoder = pretrain_model.rna_seq_encoder
+        rna_seq_encoder.load_model()
+        rna_replaced_seq_list = ['' if type(i) == float else i.replace('U', 'T') for i in rna_seq_list]
+        rna_seq_embeddings = rna_seq_encoder.generate_embeddings(rna_replaced_seq_list, batch_size=args.pretrain_text_batch_size, max_len=args.rna_seq_max_len, seq_emb_dim=args.lm_emb_dim)
+        # sequence list where type == protein
+        prot_seq_list = s_bio[s_bio['Type'] == 'Protein']['Sequence'].tolist()
+        prot_seq_encoder = pretrain_model.prot_seq_encoder
+        prot_seq_encoder.load_model()
+        prot_replaced_seq_list = ['X' if type(i) == float else i for i in prot_seq_list]
+        prot_seq_embeddings = prot_seq_encoder.generate_embeddings(prot_replaced_seq_list, seq_emb_dim=args.lm_emb_dim)
+        seq_embeddings = np.concatenate((rna_seq_embeddings, prot_seq_embeddings), axis=0)
+    else:
+        seq_embeddings = np.load('./CellTOSG/x_bio_emb.npy').reshape(-1, args.lm_emb_dim)
 
     # load textual embeddings into torch tensor
     name_embeddings = torch.from_numpy(name_embeddings).float().to(device)
@@ -209,12 +237,12 @@ def train(args, pretrain_model, device):
 
     # Clean result previous epoch_i_pred files
     folder_name = 'epoch_' + str(epoch_num)
-    path = './' + args.dataset_name + '-result/' + args.model_name + '/%s' % (folder_name)
+    path = './' + args.train_result_folder  + '/' + args.dataset_name + '/' + args.model_name + '/%s' % (folder_name)
     unit = 1
     # Ensure the parent directories exist
-    os.makedirs('./' + args.dataset_name + '-result/' + args.model_name, exist_ok=True)
+    os.makedirs('./' + args.train_result_folder  + '/' + args.dataset_name + '/' + args.model_name, exist_ok=True)
     while os.path.exists(path):
-        path = './' + args.dataset_name + '-result/' + args.model_name + '/%s_%d' % (folder_name, unit)
+        path = './' + args.train_result_folder  + '/' + args.dataset_name + '/' + args.model_name + '/%s_%d' % (folder_name, unit)
         unit += 1
     os.mkdir(path)
 
@@ -342,12 +370,12 @@ def test(args, pretrain_model, model, device, i):
     # desc_sentence_list = s_desc_df['Description'].tolist()
     # text_encoder = pretrain_model.text_encoder
     # text_encoder.load_model()
-    # name_embeddings = text_encoder.generate_embeddings(name_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=1)
-    # desc_embeddings = text_encoder.generate_embeddings(desc_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=1)
+    # name_embeddings = text_encoder.generate_embeddings(name_sentence_list, batch_size=args.pretrain_text_batch_size, lm_emb_dim=1)
+    # desc_embeddings = text_encoder.generate_embeddings(desc_sentence_list, batch_size=args.pretrain_text_batch_size, lm_emb_dim=1)
 
-    name_embeddings = np.load('./CellTOSG/x_name_emb.npy').reshape(-1, args.text_emb_dim)
-    desc_embeddings = np.load('./CellTOSG/x_desc_emb.npy').reshape(-1, args.text_emb_dim)
-    seq_embeddings = np.load('./CellTOSG/x_bio_emb.npy').reshape(-1, args.text_emb_dim)
+    name_embeddings = np.load('./CellTOSG/x_name_emb.npy').reshape(-1, args.lm_emb_dim)
+    desc_embeddings = np.load('./CellTOSG/x_desc_emb.npy').reshape(-1, args.lm_emb_dim)
+    seq_embeddings = np.load('./CellTOSG/x_bio_emb.npy').reshape(-1, args.lm_emb_dim)
 
     # load textual embeddings into torch tensor
     name_embeddings = torch.from_numpy(name_embeddings).float().to(device)
@@ -399,17 +427,25 @@ def test(args, pretrain_model, model, device, i):
 
 def arg_parse():
     parser = argparse.ArgumentParser()
-    # pre-training parameters
+
+    # dataset loading parameters
     parser.add_argument('--seed', type=int, default=2025, help='Random seed for model and dataset. (default: 2025)')
+    parser.add_argument('--train_text', type=bool, default=False, help='Whether to train text embeddings. (default: False)')
+    parser.add_argument('--train_bio', type=bool, default=False, help='Whether to train bio-sequence embeddings. (default: False)')
+
+    # pre-training parameters
     parser.add_argument('--pretrain', type=int, default=1, help='Whether to pretrain the model. (default: False)')
     parser.add_argument('--pretrain_text_batch_size', type=int, default=64, help='Batch size for pretraining text. (default: 64)')
-    parser.add_argument('--name_lm_model_path', nargs='?', default='microsoft/deberta-v3-small', help='Path to the pretrained language model. (default: microsoft/deberta-v3-small)')
+    parser.add_argument('--text_lm_model_path', nargs='?', default='microsoft/deberta-v3-small', help='Path to the pretrained language model. (default: microsoft/deberta-v3-small)')
+    parser.add_argument('--rna_seq_lm_model_path', default='./Checkpoints/pretrained_dnagpt', help='Path to the pretrained language model. (default: ./Checkpoints/pretrained_dnagpt)')
+    parser.add_argument('--rna_model_name', default='dna_gpt0.1b_h', help='Name of the pretrained rna language model. (default: dna_gpt0.1b_h)')
+    parser.add_argument('--prot_model_name', default='nferruz/ProtGPT2', help='Name of the pretrained protein language model. (default: nferruz/ProtGPT2)')
 
-    parser.add_argument('--layer', nargs='?', default='gin', help='GNN layer, (default: gin)')
+    parser.add_argument('--layer', nargs='?', default='gcn', help='GNN layer, (default: gcn)')
     parser.add_argument('--encoder_activation', nargs='?', default='elu', help='Activation function for GNN encoder, (default: elu)')
 
     parser.add_argument('--num_omic_feature', type=int, default=1, help='Omic feature size. (default: 1)')
-    parser.add_argument('--text_emb_dim', type=int, default=1, help='Text embedding dimension. (default: 1)')
+    parser.add_argument('--lm_emb_dim', type=int, default=1, help='Text embedding dimension. (default: 1)')
 
     parser.add_argument('--input_dim', type=int, default=1, help='Input feature dimension. (default: 1)')
     parser.add_argument('--encoder_channels', type=int, default=8, help='Channels of GNN encoder layers. (default: 8)')
@@ -453,8 +489,9 @@ def arg_parse():
     parser.add_argument('--train_hidden_dim', type=int, default=8, help='Hidden feature dimension for training. (default: 8)')
     parser.add_argument('--train_output_dim', type=int, default=8, help='Output feature dimension for training. (default: 8)')
 
+    parser.add_argument('--train_result_folder', nargs='?', default='Results', help='Path to save training results. (default: Results)')
     parser.add_argument('--dataset_name', nargs='?', default='AD', help='Datasets. (default: AD)')
-    parser.add_argument('--model_name', nargs='?', default='CellTOSG-Class', help='Path to save training results. (default: train_result)')
+    parser.add_argument('--model_name', nargs='?', default='CellTOSG-Class', help='Model names. (default: CellTOSG-Class)')
 
 
     return parser.parse_args()

@@ -321,6 +321,8 @@ class CellTOSG_Class(nn.Module):
         output_dim,
         num_class,
         text_encoder,
+        rna_seq_encoder,
+        prot_seq_encoder,
         encoder,
         internal_encoder
     ):
@@ -329,6 +331,8 @@ class CellTOSG_Class(nn.Module):
         self.num_class = num_class
 
         self.text_encoder = text_encoder
+        self.rna_seq_encoder = rna_seq_encoder
+        self.prot_seq_encoder = prot_seq_encoder
         self.encoder = encoder
         self.internal_encoder = internal_encoder
 

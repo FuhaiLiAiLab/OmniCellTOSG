@@ -13,8 +13,8 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
 # custom dataloader
-from geo_loader.read_geograph import read_batch
-from geo_loader.geograph_sampler import GeoGraphLoader
+from GeoDataLoader.read_geograph import read_batch
+from GeoDataLoader.geograph_sampler import GeoGraphLoader
 
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, precision_score, recall_score
 

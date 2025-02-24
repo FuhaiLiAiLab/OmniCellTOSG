@@ -453,6 +453,8 @@ class CellTOSG_Foundation(nn.Module):
         omic_input_dim,
         input_dim,
         text_encoder,
+        rna_seq_encoder,
+        prot_seq_encoder,
         encoder,
         internal_encoder,
         edge_decoder,
@@ -462,18 +464,21 @@ class CellTOSG_Foundation(nn.Module):
         loss="ce",
     ):
         super().__init__()
+        # Language model encoder
         self.text_encoder = text_encoder
+        self.rna_seq_encoder = rna_seq_encoder
+        self.prot_seq_encoder = prot_seq_encoder
+        # Graph model encoder
         self.encoder = encoder
         self.edge_decoder = edge_decoder
         self.internal_encoder = internal_encoder
         self.degree_decoder = degree_decoder
         self.mask = mask
-
+        # Cross modality fusion
         self.name_linear_transform = nn.Linear(text_input_dim, text_input_dim)
         self.desc_linear_transform = nn.Linear(text_input_dim, text_input_dim)
         self.seq_linear_transform = nn.Linear(text_input_dim, text_input_dim)
         self.omic_linear_transform = nn.Linear(omic_input_dim, omic_input_dim)
-
         self.cross_modal_fusion = nn.Linear(text_input_dim * 3 + omic_input_dim, input_dim)
 
         if loss == "ce":

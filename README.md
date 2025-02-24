@@ -23,11 +23,17 @@
 ```python
 import CellTOSGDataset
 
-x, y, edge_index, internal_edge_index, ppi_edge_index, s_name, s_desc, s_bio =  CellTOSGDataset(root="path", categories=["get_organ", "get_disease", "get_organ_disease"], name = "brain" / "AD" / "brain-AD", label_type = "ct" / "og" / "ds" / "status", seed = 2025, ratio = 0.01, return_bio = False, shffule = True)
+x, y, edge_index, internal_edge_index, ppi_edge_index, s_name, s_desc, s_bio =  CellTOSGDataset(root="path", categories=["get_organ", "get_disease", "get_organ_disease"], name = "brain" / "AD" / "brain-AD", label_type = "ct" / "og" / "ds" / "status", seed = 2025, ratio = 0.01, train_text = False, train_bio = False, shffule = True)
 
-# if return_bio == False: s_bio = None
+if train_text == False:
+    return x_name_emb, x_desc_emb
+else:
+    return s_name, s_desc
 
-
+if train_bio == False: 
+    return x_bio_emb
+else:
+    return s_bio
 ```
 
 
