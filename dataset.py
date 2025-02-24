@@ -1,5 +1,5 @@
 # dataset.py
-from .data_loader import load_data_from_dict
+from data_loader import load_data_from_dict
 
 import numpy as np
 
