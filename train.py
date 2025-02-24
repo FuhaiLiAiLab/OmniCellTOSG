@@ -88,6 +88,22 @@ def build_model(args, device):
                     internal_encoder=internal_graph_encoder).to(device)
     return model
 
+
+def write_best_model_info(fold_n, path, max_test_acc_id, epoch_loss_list, epoch_acc_list, test_loss_list, test_acc_list):
+    best_model_info = (
+        f'\n-------------Fold: {fold_n} -------------\n'
+        f'\n-------------BEST TEST ACCURACY MODEL ID INFO: {max_test_acc_id} -------------\n'
+        '--- TRAIN ---\n'
+        f'BEST MODEL TRAIN LOSS: {epoch_loss_list[max_test_acc_id - 1]}\n'
+        f'BEST MODEL TRAIN ACCURACY: {epoch_acc_list[max_test_acc_id - 1]}\n'
+        '--- TEST ---\n'
+        f'BEST MODEL TEST LOSS: {test_loss_list[max_test_acc_id - 1]}\n'
+        f'BEST MODEL TEST ACCURACY: {test_acc_list[max_test_acc_id - 1]}\n'
+    )
+    with open(os.path.join(path, 'best_model_info.txt'), 'w') as file:
+        file.write(best_model_info)
+
+
 def train_model(train_dataset_loader, current_cell_num, num_entity, name_embeddings, desc_embeddings, seq_embeddings, pretrain_model, model, device, args, learning_rate):
     optimizer = torch.optim.Adam(filter(lambda p : p.requires_grad, model.parameters()), lr=learning_rate, eps=1e-7, weight_decay=1e-20)
     batch_loss = 0
@@ -314,6 +330,7 @@ def train(args, pretrain_model, device):
             torch.save(model.state_dict(), path + '/best_train_model.pt')
             tmp_training_input_df.to_csv(path + '/BestTrainingPred.txt', index=False, header=True)
             tmp_test_input_df.to_csv(path + '/BestTestPred.txt', index=False, header=True)
+            write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list, test_loss_list, test_acc_list)
         print('\n-------------BEST TEST ACCURACY MODEL ID INFO:' + str(max_test_acc_id) + '-------------')
         print('--- TRAIN ---')
         print('BEST MODEL TRAIN LOSS: ', epoch_loss_list[max_test_acc_id - 1])
@@ -321,6 +338,7 @@ def train(args, pretrain_model, device):
         print('--- TEST ---')
         print('BEST MODEL TEST LOSS: ', test_loss_list[max_test_acc_id - 1])
         print('BEST MODEL TEST ACCURACY: ', test_acc_list[max_test_acc_id - 1])
+
 
 
 def test(args, pretrain_model, model, device, i):
