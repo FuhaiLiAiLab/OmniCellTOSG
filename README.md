@@ -21,10 +21,10 @@
 ## 2. Import Dataset
 
 ```python
-import CellTOGDataset
+import CellTOSGDataset
 
-datset_list =  CellTOGDataset(root="path", categories=["get_organ", "get_disease", "get_organ_disease"], name = "brain" / "AD" / "brain-AD", label_type = "ct" / "og" / "ds" / "status", shffule = True)
-# dataset list should contain [x, y, x_name, x_desc, x_bio, edge_index, internal_edge_index (ts-pt), ppi_edge_index]
+x, y, edge_index, internal_edge_index, ppi_edge_index, s_name, s_desc =  CellTOSGDataset(root="path", categories=["get_organ", "get_disease", "get_organ_disease"], name = "brain" / "AD" / "brain-AD", label_type = "ct" / "og" / "ds" / "status", seed = 2025, ratio = 0.01, shffule = True)
+
 
 ```
 
@@ -40,8 +40,9 @@ def glm(data = Dataset, graph_encoder = 'GCN' / 'GAT' / 'UniMP', text_language_e
 
 
 ```python
-x, y, x_name, x_desc, x_bio, edge_index = dataset_list
-xTr, yTr, xTe, yTe = CellTOGDataset.split(ratio=0.9)
+
+```
+
 
 # Bacth loading data into torch.geometric data
 cell_num, node_num, feature_num = x.shape

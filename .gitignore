@@ -21,5 +21,8 @@
 dna_gpt0.1b_h.pth
 pretrained_glm.pt
 
+# Model results
+/**result**/*
+
 # Models
 /desert/*

@@ -150,8 +150,8 @@ def train(args, pretrain_model, device):
     x_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_X_partition_0.npy'
     y_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_Y_partition_0.npy'
 
-    xAll = np.load(x_file_path)[:5, :]
-    yAll = np.load(y_file_path)[:5]
+    xAll = np.load(x_file_path)
+    yAll = np.load(y_file_path)
     xAll = xAll.reshape(xAll.shape[0], xAll.shape[1], 1)
 
     # process the xTr
@@ -208,13 +208,13 @@ def train(args, pretrain_model, device):
     max_test_acc_id = 0
 
     # Clean result previous epoch_i_pred files
-    folder_name = 'epoch_' + str(epoch_num) + '_fold_' + str(args.fold_n)
-    path = './' + args.dataset_name + '-result/' + args.train_result_path + '/%s' % (folder_name)
+    folder_name = 'epoch_' + str(epoch_num)
+    path = './' + args.dataset_name + '-result/' + args.model_name + '/%s' % (folder_name)
     unit = 1
     # Ensure the parent directories exist
-    os.makedirs('./' + args.dataset_name + '-result/' + args.train_result_path, exist_ok=True)
+    os.makedirs('./' + args.dataset_name + '-result/' + args.model_name, exist_ok=True)
     while os.path.exists(path):
-        path = './' + args.dataset_name + '-result/' + args.train_result_path + '/%s_%d' % (folder_name, unit)
+        path = './' + args.dataset_name + '-result/' + args.model_name + '/%s_%d' % (folder_name, unit)
         unit += 1
     os.mkdir(path)
 
@@ -309,11 +309,11 @@ def test(args, pretrain_model, model, device, i):
 
     # Read these feature label files
     print('--- LOADING TRAINING FILES ... ---')
-    x_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_X_partition_0.npy'
-    y_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_Y_partition_0.npy'
+    x_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_X_partition_1.npy'
+    y_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_Y_partition_1.npy'
 
-    xAll = np.load(x_file_path)[:5, :]
-    yAll = np.load(y_file_path)[:5]
+    xAll = np.load(x_file_path)
+    yAll = np.load(y_file_path)
     xAll = xAll.reshape(xAll.shape[0], xAll.shape[1], 1)
 
     # process the xTe
@@ -405,7 +405,7 @@ def arg_parse():
     parser.add_argument('--pretrain_text_batch_size', type=int, default=64, help='Batch size for pretraining text. (default: 64)')
     parser.add_argument('--name_lm_model_path', nargs='?', default='microsoft/deberta-v3-small', help='Path to the pretrained language model. (default: microsoft/deberta-v3-small)')
 
-    parser.add_argument('--layer', nargs='?', default='gcn', help='GNN layer, (default: gcn)')
+    parser.add_argument('--layer', nargs='?', default='gin', help='GNN layer, (default: gin)')
     parser.add_argument('--encoder_activation', nargs='?', default='elu', help='Activation function for GNN encoder, (default: elu)')
 
     parser.add_argument('--num_omic_feature', type=int, default=1, help='Omic feature size. (default: 1)')
@@ -447,8 +447,6 @@ def arg_parse():
     parser.add_argument('--train_batch_size', type=int, default=4, help='Batch size for training. (default: 4)')
     parser.add_argument('--train_num_workers', type=int, default=0, help='Number of workers to load data.')
     parser.add_argument('--fold_n', type=int, default=1, help='Fold number for training. (default: 1)')
-    parser.add_argument('--train_result_path', nargs='?', default='train_result', help='Path to save training results. (default: train_result)')
-    parser.add_argument('--test_result_path', nargs='?', default='test_result', help='Path to save test results. (default: test_result)')
 
     parser.add_argument('--pre_input_dim', type=int, default=8, help='Input feature dimension for pretraining. (default: 8)')
     parser.add_argument('--train_input_dim', type=int, default=1, help='Input feature dimension for training. (default: 1)')
@@ -456,6 +454,8 @@ def arg_parse():
     parser.add_argument('--train_output_dim', type=int, default=8, help='Output feature dimension for training. (default: 8)')
 
     parser.add_argument('--dataset_name', nargs='?', default='AD', help='Datasets. (default: AD)')
+    parser.add_argument('--model_name', nargs='?', default='CellTOSG-Class', help='Path to save training results. (default: train_result)')
+
 
     return parser.parse_args()
 

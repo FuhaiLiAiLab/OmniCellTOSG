@@ -4,25 +4,16 @@ import pandas as pd
 import numpy as np
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import torch_geometric.transforms as T
-from tqdm.auto import tqdm
-
-from torch.autograd import Variable
-from torch.utils.data import DataLoader
 
 # custom modules
-from CellTOSG_Foundation.utils import set_seed, tab_printer, get_dataset
+from CellTOSG_Foundation.utils import tab_printer
 from CellTOSG_Foundation.model import CellTOSG_Foundation, DegreeDecoder, EdgeDecoder, GNNEncoder
-from CellTOSG_Foundation.mask import MaskEdge, MaskPath
+from CellTOSG_Foundation.mask import MaskEdge
 
 # custom dataloader
 from geo_loader.read_geograph import read_batch
 from geo_loader.geograph_sampler import GeoGraphLoader
-
-from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, precision_score, recall_score
-from enc_dec.geo_pretrain_gformer_decoder import GraphFormerDecoder
 
 from CellTOSG_Foundation.lm_model import TextEncoder
 
@@ -109,11 +100,17 @@ def pretrain_foundation(args, device):
         upper_index = 0
         batch_size = args.pretrain_batch_size
 
+        batch_avg_loss_list = []
+        all_step_avg_loss_list = []
+        batch_auc_list = []
+        batch_acc_list = []
+        best_loss = 1000
         for index in range(0, num_cell, batch_size):
             if (index + batch_size) < num_cell:
                 upper_index = index + batch_size
             else:
                 upper_index = num_cell
+            current_cell_num = upper_index - index
             geo_datalist = read_batch(index, upper_index, xAll, yAll, num_feature, num_entity, all_edge_index, internal_edge_index, ppi_edge_index)
             dataset_loader = GeoGraphLoader.load_graph(geo_datalist, args.pretrain_batch_size, args.pretrain_num_workers) # read by batch size
 
@@ -133,18 +130,38 @@ def pretrain_foundation(args, device):
                 
                 pretrain_model.reset_parameters()
                 train_data = train_data.to(device)
-                loss = pretrain_model.train_step(train_data,
+                avg_loss, step_avg_loss_list = pretrain_model.train_step(train_data,
                                             num_entity,
                                             name_embeddings, desc_embeddings, seq_embeddings,
                                             optimizer,
                                             alpha=args.alpha, 
-                                            batch_size=args.pretrain_batch_size)
-                torch.save(pretrain_model.state_dict(), args.save_path)
+                                            batch_size=current_cell_num)
+                batch_avg_loss_list.append(avg_loss)
+                all_step_avg_loss_list.extend(step_avg_loss_list)
+                if avg_loss < best_loss:
+                    best_loss = avg_loss
+                    torch.save(pretrain_model.state_dict(), args.save_path)
+                # save loss list to text file
+                with open(args.save_path.replace('.pt', '_batch_avg_loss_list.txt'), 'w') as f:
+                    for item in batch_avg_loss_list:
+                        f.write("%s\n" % item)
+                with open(args.save_path.replace('.pt', '_all_step_avg_loss_list.txt'), 'w') as f:
+                    for item in all_step_avg_loss_list:
+                        f.write("%s\n" % item)
 
                 test_data = test_data.to(device)
                 test_auc, test_ap = pretrain_model.test_step(test_data, 
                                         test_data.pos_edge_label_index, 
-                                        test_data.neg_edge_label_index)   
+                                        test_data.neg_edge_label_index) 
+                batch_auc_list.append(test_auc)
+                batch_acc_list.append(test_ap)
+                # save auc list to text file
+                with open(args.save_path.replace('.pt', '_batch_auc.txt'), 'w') as f:
+                    for item in batch_auc_list:
+                        f.write("%s\n" % item) 
+                with open(args.save_path.replace('.pt', '_batch_ap.txt'), 'w') as f:
+                    for item in batch_acc_list:
+                        f.write("%s\n" % item) 
                 print(f'Link Prediction Pretraining Results:\n'
                     f'AUC: {test_auc:.2%}',
                     f'AP: {test_ap:.2%}')
@@ -165,7 +182,7 @@ def arg_parse():
     parser.add_argument('--name_lm_model_path', nargs='?', default='microsoft/deberta-v3-small', help='Path to the pretrained language model. (default: microsoft/deberta-v3-small)')
 
     parser.add_argument('--layer', nargs='?', default='gcn', help='GNN layer, (default: gcn)')
-    parser.add_argument('--encoder_activation', nargs='?', default='elu', help='Activation function for GNN encoder, (default: elu)')
+    parser.add_argument('--encoder_activation', nargs='?', default='leaky_relu', help='Activation function for GNN encoder, (default: leaky_relu)')
 
     parser.add_argument('--num_omic_feature', type=int, default=1, help='Omic feature size. (default: 1)')
     parser.add_argument('--text_emb_dim', type=int, default=1, help='Text embedding dimension. (default: 1)')
@@ -188,7 +205,7 @@ def arg_parse():
     parser.add_argument('--pretrain_num_workers', dest = 'pretrain_num_workers', type = int, default=0, help = 'Number of workers to load data.')
 
     parser.add_argument('--start', nargs='?', default='node', help='Which Type to sample starting nodes for random walks, (default: node)')
-    parser.add_argument('--p', type=float, default=0.000001, help='Mask ratio or sample ratio for MaskEdge')
+    parser.add_argument('--p', type=float, default=0.00001, help='Mask ratio for MaskEdge')
 
     parser.add_argument('--bn', action='store_true', help='Whether to use batch normalization for GNN encoder. (default: False)')
     parser.add_argument('--l2_normalize', action='store_true', help='Whether to use l2 normalize output embedding. (default: False)')

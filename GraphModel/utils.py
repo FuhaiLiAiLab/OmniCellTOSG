@@ -1,13 +1,8 @@
-import sys
 import os
 import torch
 import random
 import numpy as np
 from texttable import Texttable
-import torch_geometric.transforms as T
-from torch_geometric.datasets import Amazon, Coauthor, Planetoid, Reddit
-from torch_geometric.data import Data
-from torch_geometric.utils import index_to_mask
 
 def set_seed(seed: int):
     random.seed(seed)

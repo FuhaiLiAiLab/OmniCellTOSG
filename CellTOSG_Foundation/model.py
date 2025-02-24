@@ -76,6 +76,8 @@ def creat_activation_layer(activation):
         return nn.Identity()
     elif activation == "relu":
         return nn.ReLU(inplace=False)
+    elif activation == "leaky_relu":
+        return nn.LeakyReLU(negative_slope=0.2, inplace=False)
     elif activation == "elu":
         return nn.ELU(inplace=False)
     else:
@@ -530,6 +532,7 @@ class CellTOSG_Foundation(nn.Module):
             num_neg_samples=masked_edges.view(2, -1).size(1),
         ).view_as(masked_edges)
 
+        step_avg_loss_list = []
         # Create a tqdm progress bar
         progress_bar = tqdm(DataLoader(
             range(masked_edges.size(1)), batch_size=batch_size, shuffle=True
@@ -591,8 +594,9 @@ class CellTOSG_Foundation(nn.Module):
 
             avg_loss = loss_total / batch_count
             progress_bar.set_postfix(avg_loss=avg_loss)
+            step_avg_loss_list.append(avg_loss)
 
-        return loss_total
+        return avg_loss, step_avg_loss_list
 
     @torch.no_grad()
     def batch_predict(self, z, edges, batch_size=2 ** 16):
