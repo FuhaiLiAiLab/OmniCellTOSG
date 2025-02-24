@@ -20,7 +20,7 @@ from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, precisio
 
 from CellTOSG_Foundation.lm_model import TextEncoder, RNAGPT_LM, ProtGPT_LM
 from CellTOSG_Foundation.downstream import CellTOSG_Class
-
+from dataset import CellTOSGDataset
 
 def build_pretrain_model(args, device):
     mask = MaskEdge(p=args.p)
@@ -89,9 +89,8 @@ def build_model(args, device):
     return model
 
 
-def write_best_model_info(fold_n, path, max_test_acc_id, epoch_loss_list, epoch_acc_list, test_loss_list, test_acc_list):
+def write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list, test_loss_list, test_acc_list):
     best_model_info = (
-        f'\n-------------Fold: {fold_n} -------------\n'
         f'\n-------------BEST TEST ACCURACY MODEL ID INFO: {max_test_acc_id} -------------\n'
         '--- TRAIN ---\n'
         f'BEST MODEL TRAIN LOSS: {epoch_loss_list[max_test_acc_id - 1]}\n'
@@ -161,38 +160,38 @@ def test_model(test_dataset_loader, current_cell_num, num_entity, name_embedding
 
 def train(args, pretrain_model, device):
     # Load data
-    os.makedirs(os.path.dirname(args.save_path), exist_ok=True)
-    # Read the static data
-    s_name_df = pd.read_csv('./CellTOSG/s_name.csv')
-    s_desc_df = pd.read_csv('./CellTOSG/s_desc.csv')
-
-    # Read these feature label files
     print('--- LOADING TRAINING FILES ... ---')
-    x_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_X_partition_0.npy'
-    y_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_Y_partition_0.npy'
+    dataset = CellTOSGDataset(
+        root="./CellTOSG_dataset",
+        categories="get_organ_disease",
+        name="brain-AD",
+        label_type="status",
+        seed=args.seed,
+        ratio=args.sample_ratio,
+        shuffle=True
+    )
 
-    xAll = np.load(x_file_path)
-    yAll = np.load(y_file_path)
-    xAll = xAll.reshape(xAll.shape[0], xAll.shape[1], 1)
+    xAll = dataset.data
+    yAll = dataset.labels
+    all_edge_index = dataset.edge_index
+    internal_edge_index = dataset.internal_edge_index
+    ppi_edge_index = dataset.ppi_edge_index
+    print(xAll.shape, yAll.shape)
 
-    # process the xTr
-    xTr = xAll.copy()
-    num_cell = xTr.shape[0]
-    num_entity = xTr.shape[1]
-    # process the yTr
-    unique_labels = np.unique(yAll)
-    label_mapping = {label: idx for idx, label in enumerate(unique_labels)}
-    yAll = np.vectorize(label_mapping.get)(yAll)
-    yAll = yAll.reshape(num_cell, -1)
-    yTr = yAll.copy()
-    print(xTr.shape, yTr.shape)
-
-    num_cell = xTr.shape[0]
-    num_entity = xTr.shape[1]
-
-    all_edge_index = torch.from_numpy(np.load('./CellTOSG/edge_index.npy')).long()
-    internal_edge_index = torch.from_numpy(np.load('./CellTOSG/internal_edge_index.npy')).long()
-    ppi_edge_index = torch.from_numpy(np.load('./CellTOSG/ppi_edge_index.npy')).long()
+    all_num_cell = xAll.shape[0]
+    num_entity = xAll.shape[1]
+    yAll = yAll.reshape(all_num_cell, -1)
+    # split the data into training and testing with ratio of 0.9
+    train_num_cell = int(all_num_cell*args.split_ratio)
+    xTr = xAll[:train_num_cell]
+    yTr = yAll[:train_num_cell]
+    xTe = xAll[train_num_cell:]
+    yTe = yAll[train_num_cell:]
+    print(xTr.shape, yTr.shape, xTe.shape, yTe.shape)
+    
+    all_edge_index = torch.from_numpy(all_edge_index).long()
+    internal_edge_index = torch.from_numpy(internal_edge_index).long()
+    ppi_edge_index = torch.from_numpy(ppi_edge_index).long()
 
     # Build Pretrain Model
     pretrain_model = build_pretrain_model(args, device)
@@ -200,8 +199,8 @@ def train(args, pretrain_model, device):
 
     if args.train_text:
         # Use language model to embed the name and description
-        s_name_df = pd.read_csv('./CellTOSG/s_name.csv')
-        s_desc_df = pd.read_csv('./CellTOSG/s_desc.csv')
+        s_name_df = pd.read_csv('./CellTOSG_dataset/s_name.csv')
+        s_desc_df = pd.read_csv('./CellTOSG_dataset/s_desc.csv')
         name_sentence_list = s_name_df['Name'].tolist()
         name_sentence_list = [str(name) for name in name_sentence_list]
         desc_sentence_list = s_desc_df['Description'].tolist()
@@ -211,12 +210,12 @@ def train(args, pretrain_model, device):
         name_embeddings = text_encoder.generate_embeddings(name_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.lm_emb_dim)
         desc_embeddings = text_encoder.generate_embeddings(desc_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.lm_emb_dim)
     else:
-        name_embeddings = np.load('./CellTOSG/x_name_emb.npy').reshape(-1, args.lm_emb_dim)
-        desc_embeddings = np.load('./CellTOSG/x_desc_emb.npy').reshape(-1, args.lm_emb_dim)
+        name_embeddings = np.load('./CellTOSG_dataset/x_name_emb.npy').reshape(-1, args.lm_emb_dim)
+        desc_embeddings = np.load('./CellTOSG_dataset/x_desc_emb.npy').reshape(-1, args.lm_emb_dim)
     
     if args.train_bio:
         # Use language model to embed the RNA and protein sequences
-        s_bio = pd.read_csv('./CellTOSG/s_bio.csv')
+        s_bio = pd.read_csv('./CellTOSG_dataset/s_bio.csv')
         # sequence list where type == transcript
         rna_seq_list = s_bio[s_bio['Type'] == 'Transcript']['Sequence'].tolist()
         rna_seq_encoder = pretrain_model.rna_seq_encoder
@@ -231,7 +230,7 @@ def train(args, pretrain_model, device):
         prot_seq_embeddings = prot_seq_encoder.generate_embeddings(prot_replaced_seq_list, seq_emb_dim=args.lm_emb_dim)
         seq_embeddings = np.concatenate((rna_seq_embeddings, prot_seq_embeddings), axis=0)
     else:
-        seq_embeddings = np.load('./CellTOSG/x_bio_emb.npy').reshape(-1, args.lm_emb_dim)
+        seq_embeddings = np.load('./CellTOSG_dataset/x_bio_emb.npy').reshape(-1, args.lm_emb_dim)
 
     # load textual embeddings into torch tensor
     name_embeddings = torch.from_numpy(name_embeddings).float().to(device)
@@ -272,11 +271,11 @@ def train(args, pretrain_model, device):
         epoch_ypred = np.zeros((1, 1))
         upper_index = 0
         batch_loss_list = []
-        for index in range(0, num_cell, train_batch_size):
-            if (index + train_batch_size) < num_cell:
+        for index in range(0, train_num_cell, train_batch_size):
+            if (index + train_batch_size) < train_num_cell:
                 upper_index = index + train_batch_size
             else:
-                upper_index = num_cell
+                upper_index = train_num_cell
             geo_train_datalist = read_batch(index, upper_index, xTr, yTr, num_feature, num_entity, all_edge_index, internal_edge_index, ppi_edge_index)
             train_dataset_loader = GeoGraphLoader.load_graph(geo_train_datalist, args.train_batch_size, args.train_num_workers)
             current_cell_num = upper_index - index # current batch size
@@ -314,7 +313,7 @@ def train(args, pretrain_model, device):
         print(epoch_loss_list)
 
         # # # Test model on test dataset
-        test_acc, test_loss, tmp_test_input_df = test(args, pretrain_model, model, device, i)
+        test_acc, test_loss, tmp_test_input_df = test(args, pretrain_model, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_index, device, i)
         test_acc_list.append(test_acc)
         test_loss_list.append(test_loss)
         tmp_test_input_df.to_csv(path + '/TestPred' + str(i) + '.txt', index=False, header=True)
@@ -341,59 +340,23 @@ def train(args, pretrain_model, device):
 
 
 
-def test(args, pretrain_model, model, device, i):
+def test(args, pretrain_model, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_index, device, i):
     print('-------------------------- TEST START --------------------------')
     print('-------------------------- TEST START --------------------------')
     print('-------------------------- TEST START --------------------------')
     print('-------------------------- TEST START --------------------------')
     print('-------------------------- TEST START --------------------------')
-    # Load data
-    os.makedirs(os.path.dirname(args.save_path), exist_ok=True)
-    # Read the static data
-    s_name_df = pd.read_csv('./CellTOSG/s_name.csv')
-    s_desc_df = pd.read_csv('./CellTOSG/s_desc.csv')
-
-    # Read these feature label files
-    print('--- LOADING TRAINING FILES ... ---')
-    x_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_X_partition_1.npy'
-    y_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_Y_partition_1.npy'
-
-    xAll = np.load(x_file_path)
-    yAll = np.load(y_file_path)
-    xAll = xAll.reshape(xAll.shape[0], xAll.shape[1], 1)
-
-    # process the xTe
-    xTe = xAll.copy()
-    num_cell = xTe.shape[0]
+    
+    print('--- LOADING TESTING FILES ... ---')
+    print('xTe: ', xTe.shape)
+    print('yTe: ', yTe.shape)
+    test_num_cell = xTe.shape[0]
     num_entity = xTe.shape[1]
-    # process the yTe
-    unique_labels = np.unique(yAll)
-    label_mapping = {label: idx for idx, label in enumerate(unique_labels)}
-    yAll = np.vectorize(label_mapping.get)(yAll)
-    yAll = yAll.reshape(num_cell, -1)
-    yTe = yAll.copy()
-    print(xTe.shape, yTe.shape)
-
-
-    all_edge_index = torch.from_numpy(np.load('./CellTOSG/edge_index.npy')).long()
-    internal_edge_index = torch.from_numpy(np.load('./CellTOSG/internal_edge_index.npy')).long()
-    ppi_edge_index = torch.from_numpy(np.load('./CellTOSG/ppi_edge_index.npy')).long()
-
-    # Build Pretrain Model
-    pretrain_model = build_pretrain_model(args, device)
     num_feature = args.num_omic_feature
 
-    # # Use language model to embed the name and description
-    # name_sentence_list = s_name_df['Name'].tolist()
-    # desc_sentence_list = s_desc_df['Description'].tolist()
-    # text_encoder = pretrain_model.text_encoder
-    # text_encoder.load_model()
-    # name_embeddings = text_encoder.generate_embeddings(name_sentence_list, batch_size=args.pretrain_text_batch_size, lm_emb_dim=1)
-    # desc_embeddings = text_encoder.generate_embeddings(desc_sentence_list, batch_size=args.pretrain_text_batch_size, lm_emb_dim=1)
-
-    name_embeddings = np.load('./CellTOSG/x_name_emb.npy').reshape(-1, args.lm_emb_dim)
-    desc_embeddings = np.load('./CellTOSG/x_desc_emb.npy').reshape(-1, args.lm_emb_dim)
-    seq_embeddings = np.load('./CellTOSG/x_bio_emb.npy').reshape(-1, args.lm_emb_dim)
+    name_embeddings = np.load('./CellTOSG_dataset/x_name_emb.npy').reshape(-1, args.lm_emb_dim)
+    desc_embeddings = np.load('./CellTOSG_dataset/x_desc_emb.npy').reshape(-1, args.lm_emb_dim)
+    seq_embeddings = np.load('./CellTOSG_dataset/x_bio_emb.npy').reshape(-1, args.lm_emb_dim)
 
     # load textual embeddings into torch tensor
     name_embeddings = torch.from_numpy(name_embeddings).float().to(device)
@@ -407,11 +370,11 @@ def test(args, pretrain_model, model, device, i):
     all_ypred = np.zeros((1, 1))
     upper_index = 0
     batch_loss_list = []
-    for index in range(0, num_cell, test_batch_size):
-        if (index + test_batch_size) < num_cell:
+    for index in range(0, test_num_cell, test_batch_size):
+        if (index + test_batch_size) < test_num_cell:
             upper_index = index + test_batch_size
         else:
-            upper_index = num_cell
+            upper_index = test_num_cell
         geo_datalist = read_batch(index, upper_index, xTe, yTe, num_feature, num_entity, all_edge_index, internal_edge_index, ppi_edge_index)
         test_dataset_loader = GeoGraphLoader.load_graph(geo_datalist, args.train_batch_size, args.train_num_workers)
         print('TEST MODEL...')
@@ -448,6 +411,8 @@ def arg_parse():
 
     # dataset loading parameters
     parser.add_argument('--seed', type=int, default=2025, help='Random seed for model and dataset. (default: 2025)')
+    parser.add_argument('--sample_ratio', type=float, default=0.001, help='Sample ratio for dataset. (default: 0.002)')
+    parser.add_argument('--split_ratio', type=float, default=0.9, help='Split ratio for dataset. (default: 0.9)')
     parser.add_argument('--train_text', type=bool, default=False, help='Whether to train text embeddings. (default: False)')
     parser.add_argument('--train_bio', type=bool, default=False, help='Whether to train bio-sequence embeddings. (default: False)')
 
@@ -494,7 +459,7 @@ def arg_parse():
 
     # downstream task parameters
     parser.add_argument('--task', nargs='?', default='class', help='Task for training downstream tasks. (default: class)')
-    parser.add_argument('--num_class', type=int, default=8, help='Number of classes for classification. (default: 2)')
+    parser.add_argument('--num_class', type=int, default=2, help='Number of classes for classification. (default: 2)')
 
     parser.add_argument('--train_lr', type=float, default=0.005, help='Learning rate for training. (default: 0.005)')
     parser.add_argument('--num_train_epoch', type=int, default=100, help='Number of training epochs. (default: 100)')

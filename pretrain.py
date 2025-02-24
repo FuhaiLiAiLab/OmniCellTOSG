@@ -16,7 +16,7 @@ from GeoDataLoader.read_geograph import read_batch
 from GeoDataLoader.geograph_sampler import GeoGraphLoader
 
 from CellTOSG_Foundation.lm_model import TextEncoder, RNAGPT_LM, ProtGPT_LM
-
+from dataset import CellTOSGDataset
 
 def build_pretrain_model(args, device):
     mask = MaskEdge(p=args.p)
@@ -61,20 +61,29 @@ def pretrain_foundation(args, device):
     os.makedirs(os.path.dirname(args.save_path), exist_ok=True)
     # Load data
     print('--- LOADING TRAINING FILES ... ---')
-    x_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_X_partition_0.npy'
-    y_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_Y_partition_0.npy'
+    dataset = CellTOSGDataset(
+        root="./CellTOSG_dataset",
+        categories="get_organ_disease",
+        name="brain-AD",
+        label_type="status",
+        seed=2025,
+        ratio = 0.01,
+        shuffle=True
+    )
 
-    xAll = np.load(x_file_path)
-    yAll = np.load(y_file_path)
+    xAll = dataset.data
+    yAll = dataset.labels
+    all_edge_index = dataset.edge_index
+    internal_edge_index = dataset.internal_edge_index
+    ppi_edge_index = dataset.ppi_edge_index
     print(xAll.shape, yAll.shape)
 
     num_cell = xAll.shape[0]
     num_entity = xAll.shape[1]
     yAll = yAll.reshape(num_cell, -1)
-
-    all_edge_index = torch.from_numpy(np.load('./CellTOSG/edge_index.npy')).long()
-    internal_edge_index = torch.from_numpy(np.load('./CellTOSG/internal_edge_index.npy')).long()
-    ppi_edge_index = torch.from_numpy(np.load('./CellTOSG/ppi_edge_index.npy')).long()
+    all_edge_index = torch.from_numpy(all_edge_index).long()
+    internal_edge_index = torch.from_numpy(internal_edge_index).long()
+    ppi_edge_index = torch.from_numpy(ppi_edge_index).long()
 
     # Build Pretrain Model
     pretrain_model = build_pretrain_model(args, device)
@@ -82,8 +91,8 @@ def pretrain_foundation(args, device):
 
     if args.train_text:
         # Use language model to embed the name and description
-        s_name_df = pd.read_csv('./CellTOSG/s_name.csv')
-        s_desc_df = pd.read_csv('./CellTOSG/s_desc.csv')
+        s_name_df = pd.read_csv('./CellTOSG_dataset/s_name.csv')
+        s_desc_df = pd.read_csv('./CellTOSG_dataset/s_desc.csv')
         name_sentence_list = s_name_df['Name'].tolist()
         name_sentence_list = [str(name) for name in name_sentence_list]
         desc_sentence_list = s_desc_df['Description'].tolist()
@@ -93,12 +102,12 @@ def pretrain_foundation(args, device):
         # name_embeddings = text_encoder.generate_embeddings(name_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.lm_emb_dim)
         desc_embeddings = text_encoder.generate_embeddings(desc_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.lm_emb_dim)
     else:
-        name_embeddings = np.load('./CellTOSG/x_name_emb.npy').reshape(-1, args.lm_emb_dim)
-        desc_embeddings = np.load('./CellTOSG/x_desc_emb.npy').reshape(-1, args.lm_emb_dim)
+        name_embeddings = np.load('./CellTOSG_dataset/x_name_emb.npy').reshape(-1, args.lm_emb_dim)
+        desc_embeddings = np.load('./CellTOSG_dataset/x_desc_emb.npy').reshape(-1, args.lm_emb_dim)
     
     if args.train_bio:
         # Use language model to embed the RNA and protein sequences
-        s_bio = pd.read_csv('./CellTOSG/s_bio.csv')
+        s_bio = pd.read_csv('./CellTOSG_dataset/s_bio.csv')
         # sequence list where type == transcript
         rna_seq_list = s_bio[s_bio['Type'] == 'Transcript']['Sequence'].tolist()
         rna_seq_encoder = pretrain_model.rna_seq_encoder
@@ -113,7 +122,7 @@ def pretrain_foundation(args, device):
         prot_seq_embeddings = prot_seq_encoder.generate_embeddings(prot_replaced_seq_list, seq_emb_dim=args.lm_emb_dim)
         seq_embeddings = np.concatenate((rna_seq_embeddings, prot_seq_embeddings), axis=0)
     else:
-        seq_embeddings = np.load('./CellTOSG/x_bio_emb.npy').reshape(-1, args.lm_emb_dim)
+        seq_embeddings = np.load('./CellTOSG_dataset/x_bio_emb.npy').reshape(-1, args.lm_emb_dim)
 
 
     # load textual embeddings into torch tensor

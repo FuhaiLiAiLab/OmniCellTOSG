@@ -21,6 +21,8 @@ from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, precisio
 from GraphModel.model import GraphDecoder
 from GraphModel.utils import tab_printer
 
+from dataset import CellTOSGDataset
+
 
 def build_model(args, num_entity, device):
     model = GraphDecoder(model_name=args.model_name,
@@ -32,6 +34,20 @@ def build_model(args, num_entity, device):
                         device=device, 
                         num_class=args.num_class).to(device)
     return model
+
+
+def write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list, test_loss_list, test_acc_list):
+    best_model_info = (
+        f'\n-------------BEST TEST ACCURACY MODEL ID INFO: {max_test_acc_id} -------------\n'
+        '--- TRAIN ---\n'
+        f'BEST MODEL TRAIN LOSS: {epoch_loss_list[max_test_acc_id - 1]}\n'
+        f'BEST MODEL TRAIN ACCURACY: {epoch_acc_list[max_test_acc_id - 1]}\n'
+        '--- TEST ---\n'
+        f'BEST MODEL TEST LOSS: {test_loss_list[max_test_acc_id - 1]}\n'
+        f'BEST MODEL TEST ACCURACY: {test_acc_list[max_test_acc_id - 1]}\n'
+    )
+    with open(os.path.join(path, 'best_model_info.txt'), 'w') as file:
+        file.write(best_model_info)
 
 
 def train_model(train_dataset_loader, current_cell_num, model, device, args, learning_rate):
@@ -86,33 +102,39 @@ def test_model(test_dataset_loader, current_cell_num, model, device, args):
 
 
 def train(args, device):
-    # Read these feature label files
+    # Load data
     print('--- LOADING TRAINING FILES ... ---')
-    x_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_X_partition_0.npy'
-    y_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_Y_partition_0.npy'
+    dataset = CellTOSGDataset(
+        root="./CellTOSG_dataset",
+        categories="get_organ_disease",
+        name="brain-AD",
+        label_type="status",
+        seed=args.seed,
+        ratio=args.sample_ratio,
+        shuffle=True
+    )
 
-    xAll = np.load(x_file_path)
-    yAll = np.load(y_file_path)
-    xAll = xAll.reshape(xAll.shape[0], xAll.shape[1], 1)
+    xAll = dataset.data
+    yAll = dataset.labels
+    all_edge_index = dataset.edge_index
+    internal_edge_index = dataset.internal_edge_index
+    ppi_edge_index = dataset.ppi_edge_index
+    print(xAll.shape, yAll.shape)
 
-    # process the xTr
-    xTr = xAll.copy()
-    num_cell = xTr.shape[0]
-    num_entity = xTr.shape[1]
-    # process the yTr
-    unique_labels = np.unique(yAll)
-    label_mapping = {label: idx for idx, label in enumerate(unique_labels)}
-    yAll = np.vectorize(label_mapping.get)(yAll)
-    yAll = yAll.reshape(num_cell, -1)
-    yTr = yAll.copy()
-    print(xTr.shape, yTr.shape)
-
-    num_cell = xTr.shape[0]
-    num_entity = xTr.shape[1]
-
-    all_edge_index = torch.from_numpy(np.load('./CellTOSG/edge_index.npy')).long()
-    internal_edge_index = torch.from_numpy(np.load('./CellTOSG/internal_edge_index.npy')).long()
-    ppi_edge_index = torch.from_numpy(np.load('./CellTOSG/ppi_edge_index.npy')).long()
+    all_num_cell = xAll.shape[0]
+    num_entity = xAll.shape[1]
+    yAll = yAll.reshape(all_num_cell, -1)
+    # split the data into training and testing with ratio of 0.9
+    train_num_cell = int(all_num_cell*args.split_ratio)
+    xTr = xAll[:train_num_cell]
+    yTr = yAll[:train_num_cell]
+    xTe = xAll[train_num_cell:]
+    yTe = yAll[train_num_cell:]
+    print(xTr.shape, yTr.shape, xTe.shape, yTe.shape)
+    
+    all_edge_index = torch.from_numpy(all_edge_index).long()
+    internal_edge_index = torch.from_numpy(internal_edge_index).long()
+    ppi_edge_index = torch.from_numpy(ppi_edge_index).long()
 
     # Build Pretrain Model
     num_feature = args.num_omic_feature
@@ -148,11 +170,11 @@ def train(args, device):
         epoch_ypred = np.zeros((1, 1))
         upper_index = 0
         batch_loss_list = []
-        for index in range(0, num_cell, train_batch_size):
-            if (index + train_batch_size) < num_cell:
+        for index in range(0, train_num_cell, train_batch_size):
+            if (index + train_batch_size) < train_num_cell:
                 upper_index = index + train_batch_size
             else:
-                upper_index = num_cell
+                upper_index = train_num_cell
             geo_train_datalist = read_batch(index, upper_index, xTr, yTr, num_feature, num_entity, all_edge_index, internal_edge_index, ppi_edge_index)
             train_dataset_loader = GeoGraphLoader.load_graph(geo_train_datalist, args.train_batch_size, args.train_num_workers)
             current_cell_num = upper_index - index # current batch size
@@ -190,7 +212,7 @@ def train(args, device):
         print(epoch_loss_list)
 
         # # # Test model on test dataset
-        test_acc, test_loss, tmp_test_input_df = test(args, model, device, i)
+        test_acc, test_loss, tmp_test_input_df = test(args, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_index, device, i)
         test_acc_list.append(test_acc)
         test_loss_list.append(test_loss)
         tmp_test_input_df.to_csv(path + '/TestPred' + str(i) + '.txt', index=False, header=True)
@@ -206,6 +228,7 @@ def train(args, device):
             torch.save(model.state_dict(), path + '/best_train_model.pt')
             tmp_training_input_df.to_csv(path + '/BestTrainingPred.txt', index=False, header=True)
             tmp_test_input_df.to_csv(path + '/BestTestPred.txt', index=False, header=True)
+            write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list, test_loss_list, test_acc_list)
         print('\n-------------BEST TEST ACCURACY MODEL ID INFO:' + str(max_test_acc_id) + '-------------')
         print('--- TRAIN ---')
         print('BEST MODEL TRAIN LOSS: ', epoch_loss_list[max_test_acc_id - 1])
@@ -215,35 +238,16 @@ def train(args, device):
         print('BEST MODEL TEST ACCURACY: ', test_acc_list[max_test_acc_id - 1])
 
 
-def test(args, model, device, i):
+def test(args, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_index, device, i):
     for _ in range(5):
         print('-------------------------- TEST START --------------------------')
 
-    # Read these feature label files
-    print('--- LOADING TRAINING FILES ... ---')
-    x_file_path = "./CellTOSG/brain_sc_output/processed_data/brain/alzheimer's_disease/alzheimer's_disease_X_partition_1.npy"
-    y_file_path = "./CellTOSG/brain_sc_output/processed_data/brain/alzheimer's_disease/alzheimer's_disease_Y_partition_1.npy"
-
-    xAll = np.load(x_file_path)
-    yAll = np.load(y_file_path)
-    xAll = xAll.reshape(xAll.shape[0], xAll.shape[1], 1)
-
-    # process the xTe
-    xTe = xAll.copy()
-    num_cell = xTe.shape[0]
+    print('--- LOADING TESTING FILES ... ---')
+    print('xTe: ', xTe.shape)
+    print('yTe: ', yTe.shape)
+    test_num_cell = xTe.shape[0]
     num_entity = xTe.shape[1]
-    # process the yTe
-    unique_labels = np.unique(yAll)
-    label_mapping = {label: idx for idx, label in enumerate(unique_labels)}
-    yAll = np.vectorize(label_mapping.get)(yAll)
-    yAll = yAll.reshape(num_cell, -1)
-    yTe = yAll.copy()
-    print(xTe.shape, yTe.shape)
-
-
-    all_edge_index = torch.from_numpy(np.load('./CellTOSG/edge_index.npy')).long()
-    internal_edge_index = torch.from_numpy(np.load('./CellTOSG/internal_edge_index.npy')).long()
-    ppi_edge_index = torch.from_numpy(np.load('./CellTOSG/ppi_edge_index.npy')).long()
+    num_feature = args.num_omic_feature
 
     # Build Pretrain Model
     num_feature = args.num_omic_feature
@@ -254,11 +258,11 @@ def test(args, model, device, i):
     all_ypred = np.zeros((1, 1))
     upper_index = 0
     batch_loss_list = []
-    for index in range(0, num_cell, test_batch_size):
-        if (index + test_batch_size) < num_cell:
+    for index in range(0, test_num_cell, test_batch_size):
+        if (index + test_batch_size) < test_num_cell:
             upper_index = index + test_batch_size
         else:
-            upper_index = num_cell
+            upper_index = test_num_cell
         geo_datalist = read_batch(index, upper_index, xTe, yTe, num_feature, num_entity, all_edge_index, internal_edge_index, ppi_edge_index)
         test_dataset_loader = GeoGraphLoader.load_graph(geo_datalist, args.train_batch_size, args.train_num_workers)
         print('TEST MODEL...')
@@ -295,6 +299,8 @@ def arg_parse():
 
     # dataset loading parameters
     parser.add_argument('--seed', type=int, default=2025, help='Random seed for model and dataset. (default: 2025)')
+    parser.add_argument('--sample_ratio', type=float, default=0.001, help='Sample ratio for dataset. (default: 0.002)')
+    parser.add_argument('--split_ratio', type=float, default=0.9, help='Split ratio for dataset. (default: 0.9)')
     parser.add_argument('--train_text', type=bool, default=False, help='Whether to train text embeddings. (default: False)')
     parser.add_argument('--train_bio', type=bool, default=False, help='Whether to train bio-sequence embeddings. (default: False)')
     
@@ -305,7 +311,7 @@ def arg_parse():
     parser.add_argument('--train_lr', type=float, default=0.001, help='Learning rate for training (default: 0.001)')
 
     parser.add_argument('--num_omic_feature', type=int, default=1, help='Number of omic features (default: 1)')
-    parser.add_argument('--num_class', type=int, default=8, help='Number of classes (default: 8)')
+    parser.add_argument('--num_class', type=int, default=2, help='Number of classes (default: 2)')
     parser.add_argument('--train_input_dim', type=int, default=1, help='Input dimension for training (default: 1)')
     parser.add_argument('--train_hidden_dim', type=int, default=8, help='Hidden dimension for training (default: 8)')
     parser.add_argument('--train_embedding_dim', type=int, default=8, help='Embedding dimension for training (default: 8)')
