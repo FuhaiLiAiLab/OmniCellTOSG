@@ -132,12 +132,12 @@ def train(args, device):
 
     # Clean result previous epoch_i_pred files
     folder_name = 'epoch_' + str(epoch_num)
-    path = './' + args.dataset_name + '-result/' + args.model_name + '/%s' % (folder_name)
+    path = './' + args.train_result_folder  + '/' + args.dataset_name + '/' + args.model_name + '/%s' % (folder_name)
     unit = 1
     # Ensure the parent directories exist
-    os.makedirs('./' + args.dataset_name + '-result/' + args.model_name, exist_ok=True)
+    os.makedirs('./' + args.train_result_folder  + '/' + args.dataset_name + '/' + args.model_name, exist_ok=True)
     while os.path.exists(path):
-        path = './' + args.dataset_name + '-result/' + args.model_name + '/%s_%d' % (folder_name, unit)
+        path = './' + args.train_result_folder  + '/' + args.dataset_name + '/' + args.model_name + '/%s_%d' % (folder_name, unit)
         unit += 1
     os.mkdir(path)
 
@@ -292,11 +292,16 @@ def test(args, model, device, i):
 
 def arg_parse():
     parser = argparse.ArgumentParser()
+
+    # dataset loading parameters
+    parser.add_argument('--seed', type=int, default=2025, help='Random seed for model and dataset. (default: 2025)')
+    parser.add_argument('--train_text', type=bool, default=False, help='Whether to train text embeddings. (default: False)')
+    parser.add_argument('--train_bio', type=bool, default=False, help='Whether to train bio-sequence embeddings. (default: False)')
     
     # Training arguments
     parser.add_argument('--device', type=int, default=0, help='Device to use for training (default: 0)')
-    parser.add_argument('--num_train_epoch', type=int, default=20, help='Number of training epochs (default: 20)')
-    parser.add_argument('--train_batch_size', type=int, default=2, help='Training batch size (default: 2)')
+    parser.add_argument('--num_train_epoch', type=int, default=50, help='Number of training epochs (default: 50)')
+    parser.add_argument('--train_batch_size', type=int, default=4, help='Training batch size (default: 4)')
     parser.add_argument('--train_lr', type=float, default=0.001, help='Learning rate for training (default: 0.001)')
 
     parser.add_argument('--num_omic_feature', type=int, default=1, help='Number of omic features (default: 1)')
@@ -306,6 +311,8 @@ def arg_parse():
     parser.add_argument('--train_embedding_dim', type=int, default=8, help='Embedding dimension for training (default: 8)')
     parser.add_argument('--train_num_head', type=int, default=2, help='Number of heads in the model (default: 2)')
     parser.add_argument('--train_num_workers', type=int, default=0, help='Number of workers for data loading (default: 0)')
+    
+    parser.add_argument('--train_result_folder', nargs='?', default='Results', help='Path to save training results. (default: Results)')
     parser.add_argument('--dataset_name', nargs='?', default='AD', help='Datasets. (default: AD)')
     parser.add_argument('--model_name', nargs='?', default='gin', help='Model name. (default: gin)')
 
