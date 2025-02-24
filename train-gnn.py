@@ -221,8 +221,8 @@ def test(args, model, device, i):
 
     # Read these feature label files
     print('--- LOADING TRAINING FILES ... ---')
-    x_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_X_partition_1.npy'
-    y_file_path = './CellTOSG/brain_sc_output/processed_data/brain/alzheimer\'s_disease/alzheimer\'s_disease_Y_partition_1.npy'
+    x_file_path = "./CellTOSG/brain_sc_output/processed_data/brain/alzheimer's_disease/alzheimer's_disease_X_partition_1.npy"
+    y_file_path = "./CellTOSG/brain_sc_output/processed_data/brain/alzheimer's_disease/alzheimer's_disease_Y_partition_1.npy"
 
     xAll = np.load(x_file_path)
     yAll = np.load(y_file_path)

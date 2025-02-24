@@ -4,6 +4,7 @@
 **.pdf
 **.h5
 **.pyc
+**.zip
 
 # data download
 /download_links.txt
@@ -11,10 +12,14 @@
 
 # BioMedGraphica
 /BioMedGraphica/*
+
+# Datasets
 /CellTOG/*
 /CellTOSG/*
+/CellTOSG_dataset/*
 /sc_meta_cell/*
 /sc_raw_data/*
+/**dataset**/*
 
 # Model Checkpoints
 /Checkpoints/*
