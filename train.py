@@ -411,7 +411,7 @@ def arg_parse():
 
     # dataset loading parameters
     parser.add_argument('--seed', type=int, default=2025, help='Random seed for model and dataset. (default: 2025)')
-    parser.add_argument('--sample_ratio', type=float, default=0.001, help='Sample ratio for dataset. (default: 0.002)')
+    parser.add_argument('--sample_ratio', type=float, default=0.03, help='Sample ratio for dataset. (default: 0.03)')
     parser.add_argument('--split_ratio', type=float, default=0.9, help='Split ratio for dataset. (default: 0.9)')
     parser.add_argument('--train_text', type=bool, default=False, help='Whether to train text embeddings. (default: False)')
     parser.add_argument('--train_bio', type=bool, default=False, help='Whether to train bio-sequence embeddings. (default: False)')
@@ -465,7 +465,6 @@ def arg_parse():
     parser.add_argument('--num_train_epoch', type=int, default=100, help='Number of training epochs. (default: 100)')
     parser.add_argument('--train_batch_size', type=int, default=2, help='Batch size for training. (default: 2)')
     parser.add_argument('--train_num_workers', type=int, default=0, help='Number of workers to load data.')
-    parser.add_argument('--fold_n', type=int, default=1, help='Fold number for training. (default: 1)')
 
     parser.add_argument('--pre_input_dim', type=int, default=8, help='Input feature dimension for pretraining. (default: 8)')
     parser.add_argument('--train_input_dim', type=int, default=1, help='Input feature dimension for training. (default: 1)')
