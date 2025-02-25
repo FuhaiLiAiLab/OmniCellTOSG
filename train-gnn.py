@@ -105,10 +105,10 @@ def train(args, device):
     # Load data
     print('--- LOADING TRAINING FILES ... ---')
     dataset = CellTOSGDataset(
-        root="./CellTOSG_dataset",
-        categories="get_organ_disease",
-        name="brain-AD",
-        label_type="status",
+        root=args.root,
+        categories=args.categories,
+        name=args.name,
+        label_type=args.label_type,
         seed=args.seed,
         ratio=args.sample_ratio,
         shuffle=True
@@ -153,13 +153,14 @@ def train(args, device):
     max_test_acc_id = 0
 
     # Clean result previous epoch_i_pred files
+    print(args.model_name)
     folder_name = 'epoch_' + str(epoch_num)
-    path = './' + args.train_result_folder  + '/' + args.dataset_name + '/' + args.model_name + '/%s' % (folder_name)
+    path = './' + args.train_result_folder  + '/' + args.name + '/' + args.model_name + '/%s' % (folder_name)
     unit = 1
     # Ensure the parent directories exist
-    os.makedirs('./' + args.train_result_folder  + '/' + args.dataset_name + '/' + args.model_name, exist_ok=True)
+    os.makedirs('./' + args.train_result_folder  + '/' + args.name + '/' + args.model_name, exist_ok=True)
     while os.path.exists(path):
-        path = './' + args.train_result_folder  + '/' + args.dataset_name + '/' + args.model_name + '/%s_%d' % (folder_name, unit)
+        path = './' + args.train_result_folder  + '/' + args.name + '/' + args.model_name + '/%s_%d' % (folder_name, unit)
         unit += 1
     os.mkdir(path)
 
@@ -299,7 +300,13 @@ def arg_parse():
 
     # dataset loading parameters
     parser.add_argument('--seed', type=int, default=2025, help='Random seed for model and dataset. (default: 2025)')
-    parser.add_argument('--sample_ratio', type=float, default=0.1, help='Sample ratio for dataset. (default: 0.1)')
+    parser.add_argument('--root', nargs='?', default='./CellTOSG_dataset', help='Root directory for dataset. (default: ./CellTOSG_dataset)')
+    parser.add_argument('--categories', nargs='?', default='get_organ_disease', help='Categories for dataset. (default: get_organ_disease)')
+    # parser.add_argument('--name', nargs='?', default='brain-AD', help='Name for dataset. (default: brain-AD)')
+    parser.add_argument('--name', nargs='?', default='bone_marrow-acute_myeloid_leukemia', help='Name for dataset.')
+    parser.add_argument('--label_type', nargs='?', default='status', help='Label type for dataset. (default: status)')
+    parser.add_argument('--shuffle', type=bool, default=True, help='Whether to shuffle dataset. (default: True)')
+    parser.add_argument('--sample_ratio', type=float, default=0.2, help='Sample ratio for dataset. (default: 0.03)')
     parser.add_argument('--split_ratio', type=float, default=0.9, help='Split ratio for dataset. (default: 0.9)')
     parser.add_argument('--train_text', type=bool, default=False, help='Whether to train text embeddings. (default: False)')
     parser.add_argument('--train_bio', type=bool, default=False, help='Whether to train bio-sequence embeddings. (default: False)')
@@ -307,7 +314,7 @@ def arg_parse():
     # Training arguments
     parser.add_argument('--device', type=int, default=0, help='Device to use for training (default: 0)')
     parser.add_argument('--num_train_epoch', type=int, default=50, help='Number of training epochs (default: 50)')
-    parser.add_argument('--train_batch_size', type=int, default=4, help='Training batch size (default: 4)')
+    parser.add_argument('--train_batch_size', type=int, default=2, help='Training batch size (default: 2)')
     parser.add_argument('--train_lr', type=float, default=0.001, help='Learning rate for training (default: 0.001)')
 
     parser.add_argument('--num_omic_feature', type=int, default=1, help='Number of omic features (default: 1)')
@@ -319,7 +326,6 @@ def arg_parse():
     parser.add_argument('--train_num_workers', type=int, default=0, help='Number of workers for data loading (default: 0)')
     
     parser.add_argument('--train_result_folder', nargs='?', default='Results', help='Path to save training results. (default: Results)')
-    parser.add_argument('--dataset_name', nargs='?', default='AD', help='Datasets. (default: AD)')
     parser.add_argument('--model_name', nargs='?', default='gin', help='Model name. (default: gin)')
 
     return parser.parse_args()

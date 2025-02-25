@@ -162,10 +162,10 @@ def train(args, pretrain_model, device):
     # Load data
     print('--- LOADING TRAINING FILES ... ---')
     dataset = CellTOSGDataset(
-        root="./CellTOSG_dataset",
-        categories="get_organ_disease",
-        name="brain-AD",
-        label_type="status",
+        root=args.root,
+        categories=args.categories,
+        name=args.name,
+        label_type=args.label_type,
         seed=args.seed,
         ratio=args.sample_ratio,
         shuffle=True
@@ -251,12 +251,12 @@ def train(args, pretrain_model, device):
 
     # Clean result previous epoch_i_pred files
     folder_name = 'epoch_' + str(epoch_num)
-    path = './' + args.train_result_folder  + '/' + args.dataset_name + '/' + args.model_name + '/%s' % (folder_name)
+    path = './' + args.train_result_folder  + '/' + args.name + '/' + args.model_name + '/%s' % (folder_name)
     unit = 1
     # Ensure the parent directories exist
-    os.makedirs('./' + args.train_result_folder  + '/' + args.dataset_name + '/' + args.model_name, exist_ok=True)
+    os.makedirs('./' + args.train_result_folder  + '/' + args.name + '/' + args.model_name, exist_ok=True)
     while os.path.exists(path):
-        path = './' + args.train_result_folder  + '/' + args.dataset_name + '/' + args.model_name + '/%s_%d' % (folder_name, unit)
+        path = './' + args.train_result_folder  + '/' + args.name + '/' + args.model_name + '/%s_%d' % (folder_name, unit)
         unit += 1
     os.mkdir(path)
 
@@ -410,7 +410,15 @@ def arg_parse():
 
     # dataset loading parameters
     parser.add_argument('--seed', type=int, default=2025, help='Random seed for model and dataset. (default: 2025)')
-    parser.add_argument('--sample_ratio', type=float, default=0.03, help='Sample ratio for dataset. (default: 0.03)')
+    parser.add_argument('--root', nargs='?', default='./CellTOSG_dataset', help='Root directory for dataset. (default: ./CellTOSG_dataset)')
+    parser.add_argument('--categories', nargs='?', default='get_organ_disease', help='Categories for dataset. (default: get_organ_disease)')
+    # parser.add_argument('--name', nargs='?', default='brain-AD', help='Name for dataset. (default: brain-AD)')
+    # parser.add_argument('--name', nargs='?', default='bone_marrow-acute_myeloid_leukemia', help='Name for dataset.')
+    parser.add_argument('--name', nargs='?', default='lung-SCLC', help='Name for dataset.')
+    # parser.add_argument('--name', nargs='?', default='kidney-RCC', help='Name for dataset.')
+    parser.add_argument('--label_type', nargs='?', default='status', help='Label type for dataset. (default: status)')
+    parser.add_argument('--shuffle', type=bool, default=True, help='Whether to shuffle dataset. (default: True)')
+    parser.add_argument('--sample_ratio', type=float, default=0.2, help='Sample ratio for dataset. (default: 0.03)')
     parser.add_argument('--split_ratio', type=float, default=0.9, help='Split ratio for dataset. (default: 0.9)')
     parser.add_argument('--train_text', type=bool, default=False, help='Whether to train text embeddings. (default: False)')
     parser.add_argument('--train_bio', type=bool, default=False, help='Whether to train bio-sequence embeddings. (default: False)')
@@ -477,7 +485,6 @@ def arg_parse():
     parser.add_argument('--train_output_dim', type=int, default=8, help='Output feature dimension for training. (default: 8)')
 
     parser.add_argument('--train_result_folder', nargs='?', default='Results', help='Path to save training results. (default: Results)')
-    parser.add_argument('--dataset_name', nargs='?', default='AD', help='Datasets. (default: AD)')
     parser.add_argument('--model_name', nargs='?', default='CellTOSG-Class', help='Model names. (default: CellTOSG-Class)')
 
 

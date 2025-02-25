@@ -13,7 +13,12 @@ DATASET_PATH_DICT = {
         "acute_lymphoblastic_leukemia": "{root}/bone_marrow/acute_lymphoblastic_leukemia",
         "general": "{root}/bone_marrow/general"
     },
+    "lung": {
+        "SCLC": "{root}/lung/small_cell_lung_carcinoma",
+        "general": "{root}/lung/general"
+    },
     "kidney": {
+        "RCC": "{root}/kidney/clear_renal_cell_carcinoma",
         "general": "{root}/kidney/general"
     }
 }
