@@ -173,6 +173,12 @@ def train(args, pretrain_model, device):
 
     xAll = dataset.data
     yAll = dataset.labels
+    # Map yAll to 0-(number of unique values-1)
+    unique_values = np.unique(yAll)
+    print("Number of classes: ", len(unique_values))
+    args.num_class = len(unique_values)
+    value_to_index = {value: index for index, value in enumerate(unique_values)}
+    yAll = np.vectorize(value_to_index.get)(yAll)
     all_edge_index = dataset.edge_index
     internal_edge_index = dataset.internal_edge_index
     ppi_edge_index = dataset.ppi_edge_index
@@ -417,6 +423,7 @@ def arg_parse():
     # parser.add_argument('--name', nargs='?', default='lung-SCLC', help='Name for dataset.')
     parser.add_argument('--name', nargs='?', default='kidney-RCC', help='Name for dataset.')
     parser.add_argument('--label_type', nargs='?', default='status', help='Label type for dataset. (default: status)')
+    # parser.add_argument('--label_type', nargs='?', default='ct', help='Label type for dataset. (default: status)')
     parser.add_argument('--shuffle', type=bool, default=True, help='Whether to shuffle dataset. (default: True)')
     parser.add_argument('--sample_ratio', type=float, default=0.1, help='Sample ratio for dataset. (default: 0.03)')
     parser.add_argument('--split_ratio', type=float, default=0.9, help='Split ratio for dataset. (default: 0.9)')
@@ -466,11 +473,11 @@ def arg_parse():
 
     # downstream task parameters
     parser.add_argument('--task', nargs='?', default='class', help='Task for training downstream tasks. (default: class)')
-    parser.add_argument('--num_class', type=int, default=2, help='Number of classes for classification. (default: 2)')
+    parser.add_argument('--num_class', type=int, default=13, help='Number of classes for classification. (default: 8)')
 
-    parser.add_argument('--train_lr', type=float, default=0.005, help='Learning rate for training. (default: 0.005)')
+    parser.add_argument('--train_lr', type=float, default=0.0025, help='Learning rate for training. (default: 0.005)')
     parser.add_argument('--train_eps', type=float, default=1e-7, help='Epsilon for Adam optimizer. (default: 1e-7)')
-    parser.add_argument('--train_weight_decay', type=float, default=1e-5, help='Weight decay for Adam optimizer. (default: 1e-5)')
+    parser.add_argument('--train_weight_decay', type=float, default=1e-15, help='Weight decay for Adam optimizer. (default: 1e-5)')
 
     parser.add_argument('--num_train_epoch', type=int, default=10, help='Number of training epochs. (default: 10)')
     parser.add_argument('--train_batch_size', type=int, default=2, help='Batch size for training. (default: 2)')
