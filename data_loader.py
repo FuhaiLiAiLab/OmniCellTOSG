@@ -18,7 +18,7 @@ DATASET_PATH_DICT = {
         "general": "{root}/lung/general"
     },
     "kidney": {
-        "RCC": "{root}/kidney/clear_renal_cell_carcinoma",
+        "RCC": "{root}/kidney/clear_cell_renal_carcinoma",
         "general": "{root}/kidney/general"
     }
 }

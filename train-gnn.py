@@ -114,8 +114,15 @@ def train(args, device):
         shuffle=True
     )
 
-    xAll = dataset.data
+    # import pdb; pdb.set_trace()
+    xAll = dataset.data 
     yAll = dataset.labels
+    # Map yAll to 0-(number of unique values-1)
+    unique_values = np.unique(yAll)
+    print("Number of classes: ", len(unique_values))
+    args.num_class = len(unique_values)
+    value_to_index = {value: index for index, value in enumerate(unique_values)}
+    yAll = np.vectorize(value_to_index.get)(yAll)
     all_edge_index = dataset.edge_index
     internal_edge_index = dataset.internal_edge_index
     ppi_edge_index = dataset.ppi_edge_index
@@ -303,8 +310,10 @@ def arg_parse():
     parser.add_argument('--root', nargs='?', default='./CellTOSG_dataset', help='Root directory for dataset. (default: ./CellTOSG_dataset)')
     parser.add_argument('--categories', nargs='?', default='get_organ_disease', help='Categories for dataset. (default: get_organ_disease)')
     # parser.add_argument('--name', nargs='?', default='brain-AD', help='Name for dataset. (default: brain-AD)')
-    parser.add_argument('--name', nargs='?', default='bone_marrow-acute_myeloid_leukemia', help='Name for dataset.')
-    parser.add_argument('--label_type', nargs='?', default='status', help='Label type for dataset. (default: status)')
+    # parser.add_argument('--name', nargs='?', default='bone_marrow-acute_myeloid_leukemia', help='Name for dataset.')
+    # parser.add_argument('--name', nargs='?', default='lung-SCLC', help='Name for dataset.')
+    parser.add_argument('--name', nargs='?', default='kidney-RCC', help='Name for dataset.')
+    parser.add_argument('--label_type', nargs='?', default='ct', help='Label type for dataset. (default: status)')
     parser.add_argument('--shuffle', type=bool, default=True, help='Whether to shuffle dataset. (default: True)')
     parser.add_argument('--sample_ratio', type=float, default=0.2, help='Sample ratio for dataset. (default: 0.03)')
     parser.add_argument('--split_ratio', type=float, default=0.9, help='Split ratio for dataset. (default: 0.9)')
@@ -318,7 +327,7 @@ def arg_parse():
     parser.add_argument('--train_lr', type=float, default=0.001, help='Learning rate for training (default: 0.001)')
 
     parser.add_argument('--num_omic_feature', type=int, default=1, help='Number of omic features (default: 1)')
-    parser.add_argument('--num_class', type=int, default=2, help='Number of classes (default: 2)')
+    parser.add_argument('--num_class', type=int, default=13, help='Number of classes (default: 13)')
     parser.add_argument('--train_input_dim', type=int, default=1, help='Input dimension for training (default: 1)')
     parser.add_argument('--train_hidden_dim', type=int, default=8, help='Hidden dimension for training (default: 8)')
     parser.add_argument('--train_embedding_dim', type=int, default=8, help='Embedding dimension for training (default: 8)')
@@ -326,7 +335,7 @@ def arg_parse():
     parser.add_argument('--train_num_workers', type=int, default=0, help='Number of workers for data loading (default: 0)')
     
     parser.add_argument('--train_result_folder', nargs='?', default='Results', help='Path to save training results. (default: Results)')
-    parser.add_argument('--model_name', nargs='?', default='gin', help='Model name. (default: gin)')
+    parser.add_argument('--model_name', nargs='?', default='gcn', help='Model name. (default: gcn)')
 
     return parser.parse_args()
 
