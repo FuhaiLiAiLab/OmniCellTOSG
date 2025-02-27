@@ -303,17 +303,19 @@ def arg_parse():
     parser.add_argument('--root', nargs='?', default='./CellTOSG_dataset', help='Root directory for dataset. (default: ./CellTOSG_dataset)')
     parser.add_argument('--categories', nargs='?', default='get_organ_disease', help='Categories for dataset. (default: get_organ_disease)')
     # parser.add_argument('--name', nargs='?', default='brain-AD', help='Name for dataset. (default: brain-AD)')
-    parser.add_argument('--name', nargs='?', default='bone_marrow-acute_myeloid_leukemia', help='Name for dataset.')
+    # parser.add_argument('--name', nargs='?', default='bone_marrow-acute_myeloid_leukemia', help='Name for dataset.')
+    # parser.add_argument('--name', nargs='?', default='lung-SCLC', help='Name for dataset.')
+    parser.add_argument('--name', nargs='?', default='kidney-RCC', help='Name for dataset.')
     parser.add_argument('--label_type', nargs='?', default='status', help='Label type for dataset. (default: status)')
     parser.add_argument('--shuffle', type=bool, default=True, help='Whether to shuffle dataset. (default: True)')
-    parser.add_argument('--sample_ratio', type=float, default=0.2, help='Sample ratio for dataset. (default: 0.03)')
+    parser.add_argument('--sample_ratio', type=float, default=0.1, help='Sample ratio for dataset. (default: 0.03)')
     parser.add_argument('--split_ratio', type=float, default=0.9, help='Split ratio for dataset. (default: 0.9)')
     parser.add_argument('--train_text', type=bool, default=False, help='Whether to train text embeddings. (default: False)')
     parser.add_argument('--train_bio', type=bool, default=False, help='Whether to train bio-sequence embeddings. (default: False)')
     
     # Training arguments
     parser.add_argument('--device', type=int, default=0, help='Device to use for training (default: 0)')
-    parser.add_argument('--num_train_epoch', type=int, default=50, help='Number of training epochs (default: 50)')
+    parser.add_argument('--num_train_epoch', type=int, default=5, help='Number of training epochs (default: 5)')
     parser.add_argument('--train_batch_size', type=int, default=2, help='Training batch size (default: 2)')
     parser.add_argument('--train_lr', type=float, default=0.001, help='Learning rate for training (default: 0.001)')
 
