@@ -10,6 +10,19 @@ from scipy.stats import mode
 
 def create_meta_cells(ad, out_dir, file_name, target_obs, obs_columns, input_data_is_log_normalized):
 
+    file_str = os.path.splitext(os.path.basename(file_name))[0]  # Extract only the file name without path
+    print(f"Processing {file_str}...")
+
+    relative_dir = os.path.dirname(file_name)  # Extract the relative directory once
+    meta_cells_out_dir = os.path.join(out_dir, "meta_cells", relative_dir)
+    os.makedirs(meta_cells_out_dir, exist_ok=True)
+    output_file = os.path.join(meta_cells_out_dir, f"{file_str}_SEACells.h5ad")
+
+    # Check if the output file already exists
+    if os.path.exists(output_file):
+        print(f"Output file '{output_file}' already exists. Skipping processing.")
+        return
+
     # Check if target_obs exists in ad.obs.columns
     if target_obs not in ad.obs.columns:
         print(f"Skipping {file_name}: target_obs '{target_obs}' not found in ad.obs")
@@ -18,9 +31,6 @@ def create_meta_cells(ad, out_dir, file_name, target_obs, obs_columns, input_dat
     output_columns = ["disease", "organ", "substructure", "cell_type"]
     if len(obs_columns) != len(output_columns):
         raise ValueError(f"Error: The number of input columns ({len(obs_columns)}) does not match the expected number ({len(output_columns)}).")
-
-    file_str = os.path.splitext(os.path.basename(file_name))[0]  # Extract only the file name without path
-    print(f"Processing {file_str}...")
     
     if not ad.obs_names.is_unique:
         print("obs_names not unique, fixing...")
@@ -78,17 +88,9 @@ def create_meta_cells(ad, out_dir, file_name, target_obs, obs_columns, input_dat
     sc.pp.neighbors(ad, use_rep='X_pca')
     sc.tl.umap(ad)
 
-    relative_dir = os.path.dirname(file_name)  # Extract the relative directory once
-
-    # Ensure correct paths
-    meta_cells_out_dir = os.path.join(out_dir, "meta_cells", relative_dir)
+    # metrics output directory
     meta_cell_metrics_out_dir = os.path.join(out_dir, "meta_cell_metrics", relative_dir)
-
-    # Ensure directories are created only once
-    os.makedirs(meta_cells_out_dir, exist_ok=True)
     os.makedirs(meta_cell_metrics_out_dir, exist_ok=True)
-
-    # Final output path for saving images and metrics
     metrics_output_path = os.path.join(meta_cell_metrics_out_dir, file_str)
 
     # Debugging outputs
@@ -164,7 +166,6 @@ def create_meta_cells(ad, out_dir, file_name, target_obs, obs_columns, input_dat
 
 
     # Save processed h5ad
-    output_file = os.path.join(meta_cells_out_dir, f"{file_str}_SEACells.h5ad")
     SEACell_ad.write(output_file)
 
     # Compute evaluation metrics
@@ -194,10 +195,3 @@ if __name__ == '__main__':
 
     # Run metacell processing
     create_meta_cells(ad, args.out_dir, args.file, args.target_obs, args.obs_columns, args.input_data_is_log_normalized)
-
-
-    # python SEACell_process.py --file "acute myeloid leukemia_bone marrow_partition_0.h5ad" --in_dir data --out_dir results --target_obs "cell_type" --obs_columns "disease"  " " "tissue" "cell_type" --input_data_is_log_normalized "False"
-
-    # python SEACell_process.py --file "GSM4116579_labeled.h5ad" --in_dir data --out_dir results --target_obs "majority_voting" --obs_columns "disease" "organ" "tissue" "majority_voting" --input_data_is_log_normalized "True"
-
-    # python SEACell_process.py --file "human_brain_microglia_Gerrits_2021_10x_Cerebral cortex_Brain_Homo sapiens_Adult_occipital cortex_Alzheimer’s disease_Unclassified_partition_0.h5ad" --in_dir data --out_dir results --target_obs "cell_type" --obs_columns "sample_status" "organ" "region" "cell_type" --input_data_is_log_normalized "False"
