@@ -151,28 +151,40 @@ def load_data_from_dict(root, organ=None, disease=None, label_type="ct", seed=20
             raise ValueError(f"Invalid organ/disease: {organ}/{disease}")
         dataset_paths.append(dataset_path_template.format(root=root))
 
-
     # Load and combine data from all matched paths
     X_list, Y_list = [], []
     total_disease_samples = 0
 
     for dataset_path in dataset_paths:
-        print(f"Files in dataset path: {os.listdir(dataset_path)}")
+        print(f"\nChecking dataset path: {dataset_path}")
+        all_files = os.listdir(dataset_path)
+        print(f"Files in dataset path: {all_files}")
+
+        # Extract and sort based on partition number
         X_files = sorted(
-            [f for f in os.listdir(dataset_path) if "_X_partition_" in f and f.endswith(".npy")],
+            [f for f in all_files if "_X_partition_" in f and f.endswith(".npy")],
             key=lambda x: int(re.search(r"partition_(\d+)", x).group(1))
         )
         Y_files = sorted(
-            [f for f in os.listdir(dataset_path) if "_Y_partition_" in f and f.endswith(".npy")],
+            [f for f in all_files if "_Y_partition_" in f and f.endswith(".npy")],
             key=lambda x: int(re.search(r"partition_(\d+)", x).group(1))
         )
 
+        # Debugging print to check sorted lists
+        print(f"\nSorted X files: {X_files}")
+        print(f"Sorted Y files: {Y_files}")
+
+        # Ensure pairing of X and Y files
         for X_file, Y_file in zip(X_files, Y_files):
+            print(f"\nPairing: {X_file} ↔ {Y_file}")
+
             X_data = _load_npy(os.path.join(dataset_path, X_file))
             Y_data = _load_npy(os.path.join(dataset_path, Y_file))[:, label_index]
 
             sample_size = max(1, int(X_data.shape[0] * ratio))
             indices = np.random.choice(X_data.shape[0], sample_size, replace=False)
+
+            print(f"Sampling {sample_size} rows from {X_file}")
 
             X_list.append(X_data[indices])
             Y_list.append(Y_data[indices])

@@ -153,7 +153,7 @@ def count_and_cluster_cell_types(folder_path, output_counts, output_clusters):
     grouped_clusters.to_csv(output_clusters, index=False)
 
 if __name__ == "__main__":
-    folder_path = "file_count_result_for_vis/cell_type"
-    output_counts = "file_count_result_for_vis/cell_type/cell_type_counts.csv"
-    output_clusters = "file_count_result_for_vis/cell_type/grouped_cell_types.csv"
+    folder_path = "file_count_result/cell_type"
+    output_counts = "file_count_result/cell_type/cell_type_counts.csv"
+    output_clusters = "file_count_result/cell_type/grouped_cell_types.csv"
     count_and_cluster_cell_types(folder_path, output_counts, output_clusters)

@@ -19,13 +19,28 @@ The human body consists of approximately 37 trillion cells, all originating from
 ## 2. Preprocessing Data
 (convert the h5 files into h5ad files)
 (cell type annotation)
-(cell type clustering, tissue/organ, disease clustering details)
+
+### 2.3 Cell Type Clustering
+```python
+python Process/cell_type_clustering.py
+```
+### 2.4 Organ Clustering
+Finer-grained anatomical substructures were manually merged into broader organ categories based on anatomical structures. For example, the **brain** organ includes the following substructures:
+| Organ  | Substructures |
+|--------|---------------|
+| **Brain** | Cerebral cortex, Cerebellum, Forebrain, Basal ganglion, Caudal ganglionic eminence, Ganglionic eminence, Parietal lobe, Frontal lobe, Temporal lobe, Occipital lobe, Right frontal lobe, Left frontal lobe, Right parietal lobe, Left parietal lobe, Right temporal lobe, Left temporal lobe, Right occipital lobe |
+
+### 2.5 Disease Clustering
+Related disease subtypes were grouped into broader disease categories based on clinical and pathological characteristics. For example, the **multiple sclerosis** category includes the following subtypes:
+| Disease                | Subtypes |
+|------------------------|------------------------------------------------|
+| **Multiple Sclerosis** | Multiple sclerosis, Relapsing-remitting multiple sclerosis, Secondary progressive multiple sclerosis, Clinically isolated syndrome |
 
 ## 3. Meta-cell Generation
 ### 3.1 Meta-cell generation
 (give the running code, and the bash command)
 ```python
-python SEACell_process.py --file "/path_to_H5AD_file" --in_dir data --out_dir results --target_obs "cell_type" --obs_columns "sample_status" "organ" "region" "cell_type" --input_data_is_log_normalized "False"
+python Process/metacell_process.py --file "/path_to_H5AD_file" --in_dir data --out_dir results --target_obs "cell_type" --obs_columns "sample_status" "organ" "region" "cell_type" --input_data_is_log_normalized "False"
 ```
 (Observation of Meta-cell Expression Distributions and Clustering Patterns)
 ![Figure2](./Figures/Figure2.png)
@@ -63,7 +78,7 @@ python SEACell_process.py --file "/path_to_H5AD_file" --in_dir data --out_dir re
         - alzheimer's_disease
         - ...
         - general
-        - 
+        - ...
     - lung
     - kidney
     - ...
