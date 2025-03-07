@@ -24,8 +24,9 @@ The human body consists of approximately 37 trillion cells, all originating from
 ## 3. Meta-cell Generation
 ### 3.1 Meta-cell generation
 (give the running code, and the bash command)
-
-
+```python
+python SEACell_process.py --file "/path_to_H5AD_file" --in_dir data --out_dir results --target_obs "cell_type" --obs_columns "sample_status" "organ" "region" "cell_type" --input_data_is_log_normalized "False"
+```
 (Observation of Meta-cell Expression Distributions and Clustering Patterns)
 ![Figure2](./Figures/Figure2.png)
 
@@ -58,9 +59,13 @@ The human body consists of approximately 37 trillion cells, all originating from
     - ppi_edge_index.npy
 
     - (folders under organs)
-    - Brain
-    - Lung
-    - Kidney
+    - brain
+        - alzheimer's_disease
+        - ...
+        - general
+        - 
+    - lung
+    - kidney
     - ...
 ```
 

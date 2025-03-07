@@ -7,14 +7,14 @@ DATASET_PATH_DICT = {
     "adrenal_gland": {
         "general": "{root}/adrenal_gland/general",
         "lung_adenocarcinoma": "{root}/adrenal_gland/lung_adenocarcinoma",
-        "small_cell_lung_carcinoma": "{root}/adrenal_gland/small_cell_lung_carcinoma",
+        "SCLC": "{root}/adrenal_gland/small_cell_lung_carcinoma",
     },
     "blood": {
-        "clear_cell_renal_carcinoma": "{root}/blood/clear_cell_renal_carcinoma",
-        "clinically_isolated_syndrome": "{root}/blood/clinically_isolated_syndrome",
+        "ccRCC": "{root}/blood/clear_cell_renal_carcinoma",
+        "CIS": "{root}/blood/clinically_isolated_syndrome",
         "general": "{root}/blood/general",
         "nasopharyngeal_carcinoma": "{root}/blood/nasopharyngeal_carcinoma",
-        "relapsing_remitting_multiple_sclerosis": "{root}/blood/relapsing-remitting_multiple_sclerosis",
+        "MS": "{root}/blood/multiple_sclerosis",
     },
     "bone_marrow": {
         "AML": "{root}/bone_marrow/acute_myeloid_leukemia",
@@ -26,7 +26,7 @@ DATASET_PATH_DICT = {
     },
     "brain": {
         "AD": "{root}/brain/alzheimer's_disease",
-        "amyotrophic_lateral_sclerosis": "{root}/brain/amyotrophic_lateral_sclerosis",
+        "ASL": "{root}/brain/amyotrophic_lateral_sclerosis",
         "anaplastic_astrocytoma": "{root}/brain/anaplastic_astrocytoma",
         "autism_spectrum_disorder": "{root}/brain/autism_spectrum_disorder",
         "diffuse_intrinsic_pontine_glioma": "{root}/brain/diffuse_intrinsic_pontine_glioma",
@@ -38,12 +38,9 @@ DATASET_PATH_DICT = {
         "lung_adenocarcinoma": "{root}/brain/lung_adenocarcinoma",
         "major_depressive_disorder": "{root}/brain/major_depressive_disorder",
         "melanoma_brain_metastases": "{root}/brain/melanoma_brain_metastases",
-        "multiple_sclerosis": "{root}/brain/multiple_sclerosis",
+        "MS": "{root}/brain/multiple_sclerosis",
         "oligodendroglioma": "{root}/brain/oligodendroglioma",
         "pilocytic_astrocytoma": "{root}/brain/pilocytic_astrocytoma",
-        "relapsing_remitting_multiple_sclerosis": "{root}/brain/relapsing-remitting_multiple_sclerosis",
-        "secondary_progressive_multiple_sclerosis": "{root}/brain/secondary_progressive_multiple_sclerosis",
-        "temporal_lobe_epilepsy": "{root}/brain/temporal_lobe_epilepsy",
     },
     "breast": {
         "general": "{root}/breast/general",
@@ -70,7 +67,7 @@ DATASET_PATH_DICT = {
     },
     "kidney": {
         "chromophobe_renal_cell_carcinoma": "{root}/kidney/chromophobe_renal_cell_carcinoma",
-        "clear_cell_renal_carcinoma": "{root}/kidney/clear_cell_renal_carcinoma",
+        "ccRCC": "{root}/kidney/clear_cell_renal_carcinoma",
         "general": "{root}/kidney/general",
         "wilms_tumor": "{root}/kidney/wilms_tumor",
     },
@@ -79,20 +76,20 @@ DATASET_PATH_DICT = {
         "general": "{root}/liver/general",
         "intrahepatic_cholangiocarcinoma": "{root}/liver/intrahepatic_cholangiocarcinoma",
         "lung_adenocarcinoma": "{root}/liver/lung_adenocarcinoma",
-        "small_cell_lung_carcinoma": "{root}/liver/small_cell_lung_carcinoma",
+        "SCLC": "{root}/liver/small_cell_lung_carcinoma",
     },
     "lung": {
         "general": "{root}/lung/general",
         "lung_adenocarcinoma": "{root}/lung/lung_adenocarcinoma",
         "non_small_cell_lung_carcinoma": "{root}/lung/non-small_cell_lung_carcinoma",
-        "small_cell_lung_carcinoma": "{root}/lung/small_cell_lung_carcinoma",
+        "SCLC": "{root}/lung/small_cell_lung_carcinoma",
         "squamous_cell_lung_carcinoma": "{root}/lung/squamous_cell_lung_carcinoma",
     },
     "lymph_node": {
         "follicular_lymphoma": "{root}/lymph_node/follicular_lymphoma",
         "general": "{root}/lymph_node/general",
         "lung_adenocarcinoma": "{root}/lymph_node/lung_adenocarcinoma",
-        "small_cell_lung_carcinoma": "{root}/lymph_node/small_cell_lung_carcinoma",
+        "SCLC": "{root}/lymph_node/small_cell_lung_carcinoma",
         "squamous_cell_lung_carcinoma": "{root}/lymph_node/squamous_cell_lung_carcinoma",
     },
     "mouth": {
@@ -106,7 +103,7 @@ DATASET_PATH_DICT = {
     },
     "skin": {
         "acne": "{root}/skin/acne",
-        "advanced_stage_CTCL": "{root}/skin/advanced-stage_cutaneous_t-cell_lymphoma",
+        "CTCL": "{root}/skin/advanced-stage_cutaneous_t-cell_lymphoma",
         "general": "{root}/skin/general",
         "melanoma_peripheral_metastases": "{root}/skin/melanoma_peripheral_metastases",
     },
