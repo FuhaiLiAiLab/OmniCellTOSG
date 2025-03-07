@@ -60,7 +60,7 @@ python Process/metacell_process.py --file "/path_to_H5AD_file" --in_dir data --o
 
 ### 4.2 Install the package
 ```
-
+pip install git+https://github.com/FuhaiLiAiLab/OmniCellTOSG
 ```
 
 ### 4.3 Dataset content
