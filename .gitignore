@@ -14,8 +14,6 @@
 /BioMedGraphica/*
 
 # Datasets
-/CellTOG/*
-/CellTOSG/*
 /CellTOSG_dataset/*
 /sc_meta_cell/*
 /sc_raw_data/*
