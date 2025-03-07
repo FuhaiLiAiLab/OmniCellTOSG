@@ -4,23 +4,119 @@ import os
 import re
 
 DATASET_PATH_DICT = {
-    "brain": {
-        "AD": "{root}/brain/alzheimer's_disease",
-        "general": "{root}/brain/general"
+    "adrenal_gland": {
+        "general": "{root}/adrenal_gland/general",
+        "lung_adenocarcinoma": "{root}/adrenal_gland/lung_adenocarcinoma",
+        "small_cell_lung_carcinoma": "{root}/adrenal_gland/small_cell_lung_carcinoma",
+    },
+    "blood": {
+        "clear_cell_renal_carcinoma": "{root}/blood/clear_cell_renal_carcinoma",
+        "clinically_isolated_syndrome": "{root}/blood/clinically_isolated_syndrome",
+        "general": "{root}/blood/general",
+        "nasopharyngeal_carcinoma": "{root}/blood/nasopharyngeal_carcinoma",
+        "relapsing-remitting_multiple_sclerosis": "{root}/blood/relapsing-remitting_multiple_sclerosis",
     },
     "bone_marrow": {
-        "acute_myeloid_leukemia": "{root}/bone_marrow/acute_myeloid_leukemia",
-        "acute_lymphoblastic_leukemia": "{root}/bone_marrow/acute_lymphoblastic_leukemia",
-        "general": "{root}/bone_marrow/general"
+        "AML": "{root}/bone_marrow/acute_myeloid_leukemia",
+        "APL": "{root}/bone_marrow/acute_promyelocytic_leukemia",
+        "NHL": "{root}/bone_marrow/b-cell_non-hodgkin_lymphoma",
+        "general": "{root}/bone_marrow/general",
+        "prostate_cancer_bone_metastases": "{root}/bone_marrow/prostate_cancer_bone_metastases",
+        "refractory_multiple_myeloma": "{root}/bone_marrow/refractory_multiple_myeloma",
     },
-    "lung": {
-        "SCLC": "{root}/lung/small_cell_lung_carcinoma",
-        "general": "{root}/lung/general"
+    "brain": {
+        "AD": "{root}/brain/alzheimer's_disease",
+        "amyotrophic_lateral_sclerosis": "{root}/brain/amyotrophic_lateral_sclerosis",
+        "anaplastic_astrocytoma": "{root}/brain/anaplastic_astrocytoma",
+        "autism_spectrum_disorder": "{root}/brain/autism_spectrum_disorder",
+        "diffuse_intrinsic_pontine_glioma": "{root}/brain/diffuse_intrinsic_pontine_glioma",
+        "epilepsy": "{root}/brain/epilepsy",
+        "frontotemporal_dementia": "{root}/brain/frontotemporal_dementia",
+        "general": "{root}/brain/general",
+        "glioblastoma": "{root}/brain/glioblastoma",
+        "gliomas": "{root}/brain/gliomas",
+        "lung_adenocarcinoma": "{root}/brain/lung_adenocarcinoma",
+        "major_depressive_disorder": "{root}/brain/major_depressive_disorder",
+        "melanoma_brain_metastases": "{root}/brain/melanoma_brain_metastases",
+        "multiple_sclerosis": "{root}/brain/multiple_sclerosis",
+        "oligodendroglioma": "{root}/brain/oligodendroglioma",
+        "pilocytic_astrocytoma": "{root}/brain/pilocytic_astrocytoma",
+        "relapsing-remitting_multiple_sclerosis": "{root}/brain/relapsing-remitting_multiple_sclerosis",
+        "secondary_progressive_multiple_sclerosis": "{root}/brain/secondary_progressive_multiple_sclerosis",
+        "temporal_lobe_epilepsy": "{root}/brain/temporal_lobe_epilepsy",
+    },
+    "breast": {
+        "general": "{root}/breast/general",
+    },
+    "cervical_spinal_cord": {
+        "general": "{root}/cervical_spinal_cord/general",
+    },
+    "esophagus": {
+        "general": "{root}/esophagus/general",
+    },
+    "eye": {
+        "general": "{root}/eye/general",
+    },
+    "gonad": {
+        "general": "{root}/gonad/general",
+    },
+    "heart": {
+        "general": "{root}/heart/general",
+    },
+    "intestine": {
+        "adenocarcinoma": "{root}/intestine/adenocarcinoma",
+        "general": "{root}/intestine/general",
+        "neuroendocrine_carcinoma": "{root}/intestine/neuroendocrine_carcinoma",
     },
     "kidney": {
-        "RCC": "{root}/kidney/clear_cell_renal_carcinoma",
-        "general": "{root}/kidney/general"
-    }
+        "chromophobe_renal_cell_carcinoma": "{root}/kidney/chromophobe_renal_cell_carcinoma",
+        "clear_cell_renal_carcinoma": "{root}/kidney/clear_cell_renal_carcinoma",
+        "general": "{root}/kidney/general",
+        "wilms_tumor": "{root}/kidney/wilms_tumor",
+    },
+    "liver": {
+        "blastoma": "{root}/liver/blastoma",
+        "general": "{root}/liver/general",
+        "intrahepatic_cholangiocarcinoma": "{root}/liver/intrahepatic_cholangiocarcinoma",
+        "lung_adenocarcinoma": "{root}/liver/lung_adenocarcinoma",
+        "small_cell_lung_carcinoma": "{root}/liver/small_cell_lung_carcinoma",
+    },
+    "lung": {
+        "general": "{root}/lung/general",
+        "lung_adenocarcinoma": "{root}/lung/lung_adenocarcinoma",
+        "non-small_cell_lung_carcinoma": "{root}/lung/non-small_cell_lung_carcinoma",
+        "small_cell_lung_carcinoma": "{root}/lung/small_cell_lung_carcinoma",
+        "squamous_cell_lung_carcinoma": "{root}/lung/squamous_cell_lung_carcinoma",
+    },
+    "lymph_node": {
+        "follicular_lymphoma": "{root}/lymph_node/follicular_lymphoma",
+        "general": "{root}/lymph_node/general",
+        "lung_adenocarcinoma": "{root}/lymph_node/lung_adenocarcinoma",
+        "small_cell_lung_carcinoma": "{root}/lymph_node/small_cell_lung_carcinoma",
+        "squamous_cell_lung_carcinoma": "{root}/lymph_node/squamous_cell_lung_carcinoma",
+    },
+    "mouth": {
+        "general": "{root}/mouth/general",
+    },
+    "nasopharynx": {
+        "nasopharyngeal_carcinoma": "{root}/nasopharynx/nasopharyngeal_carcinoma",
+    },
+    "pancreas": {
+        "general": "{root}/pancreas/general",
+    },
+    "skin": {
+        "acne": "{root}/skin/acne",
+        "advanced-stage_cutaneous_t-cell_lymphoma": "{root}/skin/advanced-stage_cutaneous_t-cell_lymphoma",
+        "general": "{root}/skin/general",
+        "melanoma_peripheral_metastases": "{root}/skin/melanoma_peripheral_metastases",
+    },
+    "stomach": {
+        "gastric_cancer": "{root}/stomach/gastric_cancer",
+        "general": "{root}/stomach/general",
+    },
+    "uterus": {
+        "general": "{root}/uterus/general",
+    },
 }
 
 def load_data_from_dict(root, organ=None, disease=None, label_type="ct", seed=2025, ratio=0.01, shuffle=False):
