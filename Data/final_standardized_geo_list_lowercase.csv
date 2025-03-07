@@ -1,0 +1,419 @@
+Project_ID,ID,Organ_Type,Disease_Type,links,Sample_count,substructure,Tissue_detail,Disease,Disease_detail,Model
+DISCO-GSE145927,GSM4339775,kidney,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4339nnn/GSM4339775/suppl,21330,unknown,Needle Biopsy (kidney),normal,,
+DISCO-GSE145927,GSM4339776,kidney,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4339nnn/GSM4339776/suppl,19015,unknown,Needle Biopsy (kidney),normal,,
+DISCO-GSE145927,GSM4339777,kidney,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4339nnn/GSM4339777/suppl,5395,unknown,Needle Biopsy (kidney),normal,,
+DISCO-GSE145927,GSM4339778,kidney,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4339nnn/GSM4339778/suppl,22670,unknown,Needle Biopsy (kidney),normal,,
+DISCO-GSE145927,GSM4339779,kidney,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4339nnn/GSM4339779/suppl,12729,unknown,Needle Biopsy (kidney),normal,,
+DISCO-GSE145927,GSM4339780,kidney,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4339nnn/GSM4339780/suppl,31099,unknown,Needle Biopsy (kidney),normal,,
+DISCO-GSE145927,GSM4339781,kidney,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4339nnn/GSM4339781/suppl,38639,unknown,Needle Biopsy (kidney),normal,,
+DISCO-GSE147979,GSM4451262,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4451nnn/GSM4451262/suppl,1361,choroid,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM4451263,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4451nnn/GSM4451263/suppl,3908,cornea,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM4451264,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4451nnn/GSM4451264/suppl,1197,iris,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM4451265,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4451nnn/GSM4451265/suppl,921,sclera,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM4451266,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4451nnn/GSM4451266/suppl,1330,iris,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM4451267,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4451nnn/GSM4451267/suppl,1936,iris,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM4451268,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4451nnn/GSM4451268/suppl,9364,retina,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM4451269,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4451nnn/GSM4451269/suppl,1222,retina,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM4451270,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4451nnn/GSM4451270/suppl,1136,retina,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM4451271,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4451nnn/GSM4451271/suppl,1300,retina,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM4451276,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4451nnn/GSM4451276/suppl,3665,iris,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM4451277,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4451nnn/GSM4451277/suppl,4923,iris,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM4451278,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4451nnn/GSM4451278/suppl,1796,retina,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM4451279,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4451nnn/GSM4451279/suppl,6000,retina,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM5360357,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5360nnn/GSM5360357/suppl,4559,cornea,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM5360358,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5360nnn/GSM5360358/suppl,4921,cornea,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM5360359,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5360nnn/GSM5360359/suppl,2208,iris,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM5360360,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5360nnn/GSM5360360/suppl,3522,iris,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM5360361,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5360nnn/GSM5360361/suppl,9878,retina,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM5360362,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5360nnn/GSM5360362/suppl,6618,retina,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM5360363,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5360nnn/GSM5360363/suppl,10760,retina,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM5360364,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5360nnn/GSM5360364/suppl,7915,retina,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM5360365,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5360nnn/GSM5360365/suppl,8595,retina,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE147979,GSM5360366,eye,eye disorders,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5360nnn/GSM5360366/suppl,9465,retina,,normal,,Human_Developmental_Retina.pkl
+DISCO-GSE159624,GSM4835995,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4835nnn/GSM4835995/suppl,2745,unknown,,disease,acute myeloid leukemia (AML),Immune_All_High.pkl
+DISCO-GSE159624,GSM4835996,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4835nnn/GSM4835996/suppl,4208,unknown,,disease,acute myeloid leukemia (AML),Immune_All_High.pkl
+DISCO-GSE159624,GSM4835997,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4835nnn/GSM4835997/suppl,1320,unknown,,disease,acute myeloid leukemia (AML),Immune_All_High.pkl
+DISCO-GSE159624,GSM4835998,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4835nnn/GSM4835998/suppl,261,unknown,,disease,acute myeloid leukemia (AML),Immune_All_High.pkl
+DISCO-GSE159624,GSM4835999,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4835nnn/GSM4835999/suppl,2703,unknown,,disease,acute myeloid leukemia (AML),Immune_All_High.pkl
+DISCO-GSE159624,GSM4836000,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4836nnn/GSM4836000/suppl,1085,unknown,,disease,acute myeloid leukemia (AML),Immune_All_High.pkl
+DISCO-GSE159624,GSM4836001,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4836nnn/GSM4836001/suppl,1201,unknown,,disease,acute myeloid leukemia (AML),Immune_All_High.pkl
+DISCO-GSE159624,GSM4836002,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4836nnn/GSM4836002/suppl,1809,unknown,,disease,acute myeloid leukemia (AML),Immune_All_High.pkl
+DISCO-GSE159624,GSM4836003,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4836nnn/GSM4836003/suppl,1700,unknown,,normal,,Immune_All_High.pkl
+DISCO-GSE159624,GSM4836004,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4836nnn/GSM4836004/suppl,2208,unknown,,normal,,Immune_All_High.pkl
+DISCO-GSE159624,GSM4836005,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4836nnn/GSM4836005/suppl,1021,unknown,,normal,,Immune_All_High.pkl
+DISCO-GSE159624,GSM4836006,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4836nnn/GSM4836006/suppl,1427,unknown,,normal,,Immune_All_High.pkl
+DISCO-GSE159624,GSM4836007,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4836nnn/GSM4836007/suppl,2127,unknown,,normal,,Immune_All_High.pkl
+DISCO-GSE159624,GSM4836008,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4836nnn/GSM4836008/suppl,6984,unknown,,normal,,Immune_All_High.pkl
+DISCO-GSE159624,GSM4836009,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4836nnn/GSM4836009/suppl,3857,unknown,,normal,,Immune_All_High.pkl
+DISCO-GSE159624,GSM4836010,bone marrow,acute myeloid leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4836nnn/GSM4836010/suppl,4972,unknown,,normal,,Immune_All_High.pkl
+DISCO-GSE159929,GSM4850577,bladder,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4850nnn/GSM4850577/suppl,7572,unknown,,normal,,
+DISCO-GSE159929,GSM4850578,blood,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4850nnn/GSM4850578/suppl,1407,unknown,,normal,,Healthy_COVID19_PBMC.pkl
+DISCO-GSE159929,GSM4850579,liver,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4850nnn/GSM4850579/suppl,3160,common bile duct,,normal,,Healthy_Human_Liver.pkl
+DISCO-GSE159929,GSM4850580,esophagus,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4850nnn/GSM4850580/suppl,9117,unknown,,normal,,
+DISCO-GSE159929,GSM4850581,heart,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4850nnn/GSM4850581/suppl,7881,unknown,,normal,,Healthy_Adult_Heart.pkl
+DISCO-GSE159929,GSM4850582,liver,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4850nnn/GSM4850582/suppl,2839,unknown,,normal,,Healthy_Human_Liver.pkl
+DISCO-GSE159929,GSM4850583,lymph node,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4850nnn/GSM4850583/suppl,7771,unknown,,normal,,Immune_All_High.pkl
+DISCO-GSE159929,GSM4850584,bone marrow,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4850nnn/GSM4850584/suppl,3230,marrow,,normal,,Immune_All_High.pkl
+DISCO-GSE159929,GSM4850585,muscle,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4850nnn/GSM4850585/suppl,5732,unknown,,normal,,
+DISCO-GSE159929,GSM4850586,rectum,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4850nnn/GSM4850586/suppl,6280,unknown,,normal,,Cells_Intestinal_Tract.pkl
+DISCO-GSE159929,GSM4850587,skin,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4850nnn/GSM4850587/suppl,7710,unknown,,normal,,Adult_Human_Skin.pkl
+DISCO-GSE159929,GSM4850588,intestine,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4850nnn/GSM4850588/suppl,4312,small intestine,,normal,,Cells_Intestinal_Tract.pkl
+DISCO-GSE159929,GSM4850589,spleen,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4850nnn/GSM4850589/suppl,4512,unknown,,normal,,Immune_All_High.pkl
+DISCO-GSE159929,GSM4850590,stomach,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4850nnn/GSM4850590/suppl,5318,unknown,,normal,,Developing_Human_Organs.pkl
+DISCO-GSE159929,GSM4850591,trachea,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4850nnn/GSM4850591/suppl,7522,unknown,,normal,,Nuclei_Lung_Airway.pkl
+DISCO-GSE162025,GSM4929845,blood,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929845/suppl,10761,peripheral blood,PBMC,disease,nasopharyngeal carcinoma (NPC),Healthy_COVID19_PBMC.pkl
+DISCO-GSE162025,GSM4929846,nasopharynx,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929846/suppl,9627,unknown,Nasopharynx,disease,nasopharyngeal carcinoma (NPC),Nuclei_Lung_Airway.pkl
+DISCO-GSE162025,GSM4929847,blood,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929847/suppl,9872,peripheral blood,PBMC,disease,nasopharyngeal carcinoma (NPC),Healthy_COVID19_PBMC.pkl
+DISCO-GSE162025,GSM4929848,nasopharynx,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929848/suppl,7564,unknown,Nasopharynx,disease,nasopharyngeal carcinoma (NPC),Nuclei_Lung_Airway.pkl
+DISCO-GSE162025,GSM4929849,blood,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929849/suppl,8398,peripheral blood,PBMC,disease,nasopharyngeal carcinoma (NPC),Healthy_COVID19_PBMC.pkl
+DISCO-GSE162025,GSM4929850,nasopharynx,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929850/suppl,9720,unknown,Nasopharynx,disease,nasopharyngeal carcinoma (NPC),Nuclei_Lung_Airway.pkl
+DISCO-GSE162025,GSM4929851,blood,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929851/suppl,9812,peripheral blood,PBMC,disease,nasopharyngeal carcinoma (NPC),Healthy_COVID19_PBMC.pkl
+DISCO-GSE162025,GSM4929852,nasopharynx,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929852/suppl,9782,unknown,Nasopharynx,disease,nasopharyngeal carcinoma (NPC),Nuclei_Lung_Airway.pkl
+DISCO-GSE162025,GSM4929853,blood,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929853/suppl,9542,peripheral blood,PBMC,disease,nasopharyngeal carcinoma (NPC),Healthy_COVID19_PBMC.pkl
+DISCO-GSE162025,GSM4929854,nasopharynx,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929854/suppl,10299,unknown,Nasopharynx,disease,nasopharyngeal carcinoma (NPC),Nuclei_Lung_Airway.pkl
+DISCO-GSE162025,GSM4929855,blood,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929855/suppl,9288,peripheral blood,PBMC,disease,nasopharyngeal carcinoma (NPC),Healthy_COVID19_PBMC.pkl
+DISCO-GSE162025,GSM4929856,nasopharynx,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929856/suppl,8347,unknown,Nasopharynx,disease,nasopharyngeal carcinoma (NPC),Nuclei_Lung_Airway.pkl
+DISCO-GSE162025,GSM4929857,blood,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929857/suppl,9529,peripheral blood,PBMC,disease,nasopharyngeal carcinoma (NPC),Healthy_COVID19_PBMC.pkl
+DISCO-GSE162025,GSM4929858,nasopharynx,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929858/suppl,5923,unknown,Nasopharynx,disease,nasopharyngeal carcinoma (NPC),Nuclei_Lung_Airway.pkl
+DISCO-GSE162025,GSM4929859,blood,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929859/suppl,9593,peripheral blood,PBMC,disease,nasopharyngeal carcinoma (NPC),Healthy_COVID19_PBMC.pkl
+DISCO-GSE162025,GSM4929860,nasopharynx,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929860/suppl,6461,unknown,Nasopharynx,disease,nasopharyngeal carcinoma (NPC),Nuclei_Lung_Airway.pkl
+DISCO-GSE162025,GSM4929861,blood,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929861/suppl,8224,peripheral blood,PBMC,disease,nasopharyngeal carcinoma (NPC),Healthy_COVID19_PBMC.pkl
+DISCO-GSE162025,GSM4929862,nasopharynx,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929862/suppl,7546,unknown,Nasopharynx,disease,nasopharyngeal carcinoma (NPC),Nuclei_Lung_Airway.pkl
+DISCO-GSE162025,GSM4929863,blood,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929863/suppl,8806,peripheral blood,PBMC,disease,nasopharyngeal carcinoma (NPC),Healthy_COVID19_PBMC.pkl
+DISCO-GSE162025,GSM4929864,nasopharynx,nasopharyngeal carcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4929nnn/GSM4929864/suppl,7353,unknown,Nasopharynx,disease,nasopharyngeal carcinoma (NPC),Nuclei_Lung_Airway.pkl
+DISCO-GSE167976,GSM5119093,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119093/suppl,3080,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119094,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119094/suppl,3534,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119096,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119096/suppl,2955,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119097,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119097/suppl,3127,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119098,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119098/suppl,3459,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119100,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119100/suppl,3071,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119101,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119101/suppl,1623,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119102,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119102/suppl,1697,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119104,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119104/suppl,1661,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119105,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119105/suppl,1615,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119106,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119106/suppl,952,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119108,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119108/suppl,919,peripheral blood,PBMC,normal,heterozygous mothers(Het),Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119109,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119109/suppl,567,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119110,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119110/suppl,417,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119111,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119111/suppl,815,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119113,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119113/suppl,469,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119114,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119114/suppl,2053,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119116,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119116/suppl,2348,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119117,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119117/suppl,2008,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119118,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119118/suppl,1829,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119120,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119120/suppl,2312,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119121,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119121/suppl,1990,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119122,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119122/suppl,2106,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119123,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119123/suppl,1961,peripheral blood,PBMC,normal,heterozygous mothers(Het),Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119124,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119124/suppl,1690,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119126,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119126/suppl,1965,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119127,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119127/suppl,1779,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119128,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119128/suppl,1612,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE167976,GSM5119130,blood,ipex syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5119nnn/GSM5119130/suppl,2042,peripheral blood,PBMC,disease,IPEX,Healthy_COVID19_PBMC.pkl
+DISCO-GSE175817,GSM5348398,skin,acne,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5348nnn/GSM5348398/suppl,5885,unknown,,disease,Acne,Adult_Human_Skin.pkl
+DISCO-GSE175817,GSM5348399,skin,acne,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5348nnn/GSM5348399/suppl,4046,unknown,,disease,Acne,Adult_Human_Skin.pkl
+DISCO-GSE175817,GSM5348400,skin,acne,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5348nnn/GSM5348400/suppl,2898,unknown,,disease,Acne,Adult_Human_Skin.pkl
+DISCO-GSE175817,GSM5348401,skin,acne,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5348nnn/GSM5348401/suppl,18670,unknown,,disease,Acne,Adult_Human_Skin.pkl
+DISCO-GSE175817,GSM5348402,skin,acne,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5348nnn/GSM5348402/suppl,11141,unknown,,disease,Acne,Adult_Human_Skin.pkl
+DISCO-GSE175817,GSM5348403,skin,acne,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5348nnn/GSM5348403/suppl,19505,unknown,,disease,Acne,Adult_Human_Skin.pkl
+GEO-GSE133028,GSM5264634,cerebrospinal fluid,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264634/suppl,485,unknown,,normal,,
+GEO-GSE133028,GSM5264635,blood,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264635/suppl,4527,peripheral blood,,normal,,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264636,cerebrospinal fluid,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264636/suppl,1645,unknown,,normal,,
+GEO-GSE133028,GSM5264637,blood,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264637/suppl,6124,peripheral blood,,normal,,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264638,blood,neuromyelitis optica,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264638/suppl,13317,peripheral blood,,disease,Neuromyelitis optica,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264639,cerebrospinal fluid,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264639/suppl,3239,unknown,,disease,Relapsing MS,
+GEO-GSE133028,GSM5264640,blood,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264640/suppl,9177,peripheral blood,,disease,Relapsing MS,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264641,cerebrospinal fluid,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264641/suppl,2354,unknown,,disease,Relapsing MS,
+GEO-GSE133028,GSM5264642,blood,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264642/suppl,5166,peripheral blood,,disease,Relapsing MS,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264643,cerebrospinal fluid,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264643/suppl,4154,unknown,,disease,Relapsing MS,
+GEO-GSE133028,GSM5264644,blood,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264644/suppl,4627,peripheral blood,,disease,Relapsing MS,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264645,cerebrospinal fluid,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264645/suppl,2724,unknown,,disease,Relapsing MS,
+GEO-GSE133028,GSM5264646,blood,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264646/suppl,5173,peripheral blood,,disease,Relapsing MS,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264647,cerebrospinal fluid,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264647/suppl,2411,unknown,,disease,Relapsing MS,
+GEO-GSE133028,GSM5264648,blood,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264648/suppl,5185,peripheral blood,,disease,Relapsing MS,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264649,cerebrospinal fluid,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264649/suppl,6424,unknown,,disease,Relapsing MS,
+GEO-GSE133028,GSM5264650,blood,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264650/suppl,9043,peripheral blood,,disease,Relapsing MS,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264651,cerebrospinal fluid,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264651/suppl,5051,unknown,,disease,Relapsing MS,
+GEO-GSE133028,GSM5264652,blood,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264652/suppl,6231,peripheral blood,,disease,Relapsing MS,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264653,cerebrospinal fluid,uveitis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264653/suppl,4046,unknown,,disease,Uveitis,
+GEO-GSE133028,GSM5264654,blood,uveitis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264654/suppl,4557,peripheral blood,,disease,Uveitis,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264655,cerebrospinal fluid,clinically isolated syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264655/suppl,897,unknown,,disease,Clinically isolated syndrome,
+GEO-GSE133028,GSM5264656,blood,clinically isolated syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264656/suppl,4046,peripheral blood,,disease,Clinically isolated syndrome,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264657,cerebrospinal fluid,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264657/suppl,3622,unknown,,disease,Relapsing MS,
+GEO-GSE133028,GSM5264658,blood,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264658/suppl,7779,peripheral blood,,disease,Relapsing MS,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264659,cerebrospinal fluid,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264659/suppl,2548,unknown,,disease,Relapsing MS,
+GEO-GSE133028,GSM5264660,blood,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264660/suppl,5720,peripheral blood,,disease,Relapsing MS,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264661,cerebrospinal fluid,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264661/suppl,1874,unknown,,disease,Relapsing MS,
+GEO-GSE133028,GSM5264662,blood,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264662/suppl,3334,peripheral blood,,disease,Relapsing MS,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264663,cerebrospinal fluid,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264663/suppl,3081,unknown,,disease,Relapsing MS,
+GEO-GSE133028,GSM5264664,blood,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264664/suppl,4763,peripheral blood,,disease,Relapsing MS,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264665,cerebrospinal fluid,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264665/suppl,662,unknown,,disease,Relapsing MS,
+GEO-GSE133028,GSM5264666,blood,relapsing-remitting multiple sclerosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264666/suppl,5439,peripheral blood,,disease,Relapsing MS,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264667,cerebrospinal fluid,clinically isolated syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264667/suppl,4919,unknown,,disease,Clinically isolated syndrome,
+GEO-GSE133028,GSM5264668,blood,clinically isolated syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264668/suppl,6653,peripheral blood,,disease,Clinically isolated syndrome,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264669,blood,clinically isolated syndrome,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264669/suppl,7445,peripheral blood,,disease,Clinically isolated syndrome,Healthy_COVID19_PBMC.pkl
+GEO-GSE133028,GSM5264670,cerebrospinal fluid,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264670/suppl,3560,unknown,,normal,,
+GEO-GSE133028,GSM5264671,blood,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5264nnn/GSM5264671/suppl,3893,peripheral blood,,normal,,Healthy_COVID19_PBMC.pkl
+GEO-GSE138709,GSM4116579,liver,normal,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4116nnn/GSM4116579/suppl,10317,intrahepatic cholangiocarcinoma adjacent,,normal,,Healthy_Human_Liver.pkl
+GEO-GSE138709,GSM4116580,liver,intrahepatic cholangiocarcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4116nnn/GSM4116580/suppl,4963,unknown,human intrahepatic cholangiocarcinoma adjacent,disease,Intrahepatic cholangiocarcinoma (ICC),Healthy_Human_Liver.pkl
+GEO-GSE138709,GSM4116581,liver,intrahepatic cholangiocarcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4116nnn/GSM4116581/suppl,2714,unknown,human intrahepatic cholangiocarcinoma adjacent,disease,Intrahepatic cholangiocarcinoma (ICC),Healthy_Human_Liver.pkl
+GEO-GSE138709,GSM4116582,liver,intrahepatic cholangiocarcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4116nnn/GSM4116582/suppl,4425,intrahepatic cholangiocarcinoma adjacent,,normal,,Healthy_Human_Liver.pkl
+GEO-GSE138709,GSM4116583,liver,intrahepatic cholangiocarcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4116nnn/GSM4116583/suppl,3504,unknown,human intrahepatic cholangiocarcinoma adjacent,disease,Intrahepatic cholangiocarcinoma (ICC),Healthy_Human_Liver.pkl
+GEO-GSE138709,GSM4116584,liver,intrahepatic cholangiocarcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4116nnn/GSM4116584/suppl,3468,unknown,human intrahepatic cholangiocarcinoma adjacent,disease,Intrahepatic cholangiocarcinoma (ICC),Healthy_Human_Liver.pkl
+GEO-GSE138709,GSM4116585,liver,intrahepatic cholangiocarcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4116nnn/GSM4116585/suppl,2441,unknown,human intrahepatic cholangiocarcinoma adjacent,disease,Intrahepatic cholangiocarcinoma (ICC),Healthy_Human_Liver.pkl
+GEO-GSE138709,GSM4116586,liver,intrahepatic cholangiocarcinoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4116nnn/GSM4116586/suppl,2159,intrahepatic cholangiocarcinoma adjacent,,normal,,Healthy_Human_Liver.pkl
+GEO-GSE139409,GSM4140810,sensory neurons,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4140nnn/GSM4140810/suppl,22804,ipsc-derived sensory neuron,,,,
+GEO-GSE139409,GSM4140811,sensory neurons,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4140nnn/GSM4140811/suppl,15004,ipsc-derived sensory neuron,,,,
+GEO-GSE142392,GSM4226877,blood,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4226nnn/GSM4226877/suppl,12013,monocyte and macrophage,,,,Healthy_COVID19_PBMC.pkl
+GEO-GSE142392,GSM4226878,blood,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4226nnn/GSM4226878/suppl,8261,monocyte and macrophage,,,,Healthy_COVID19_PBMC.pkl
+GEO-GSE143791,GSM4274678,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274678/suppl,1587,unknown,solid metastatic tissue (Tumor fraction),,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274679,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274679/suppl,1311,unknown,liquid bone marrow at the site of the metastasis (Involved),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274680,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274680/suppl,726,unknown,liquid bone marrow from a vertebral body distant from the tumor site (Distal),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274681,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274681/suppl,3623,unknown,liquid bone marrow at the site of the metastasis (Involved),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274682,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274682/suppl,904,unknown,solid metastatic tissue (Tumor fraction),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274683,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274683/suppl,4008,unknown,solid metastatic tissue (Tumor fraction),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274684,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274684/suppl,1974,unknown,liquid bone marrow at the site of the metastasis (Involved),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274685,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274685/suppl,2483,unknown,liquid bone marrow from a vertebral body distant from the tumor site (Distal),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274686,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274686/suppl,2199,unknown,solid metastatic tissue (Tumor fraction),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274687,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274687/suppl,2232,unknown,liquid bone marrow at the site of the metastasis (Involved),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274688,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274688/suppl,2076,unknown,liquid bone marrow from a vertebral body distant from the tumor site (Distal),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274689,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274689/suppl,1507,unknown,solid metastatic tissue (Tumor fraction),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274690,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274690/suppl,6153,unknown,liquid bone marrow at the site of the metastasis (Involved),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274691,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274691/suppl,2785,unknown,liquid bone marrow from a vertebral body distant from the tumor site (Distal),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274692,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274692/suppl,2491,unknown,solid metastatic tissue (Tumor fraction),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274693,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274693/suppl,2029,unknown,liquid bone marrow from a vertebral body distant from the tumor site (Distal),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274694,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274694/suppl,2511,unknown,liquid bone marrow at the site of the metastasis (Involved),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274695,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274695/suppl,4752,unknown,liquid bone marrow from a vertebral body distant from the tumor site (Distal),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274696,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274696/suppl,1120,unknown,liquid bone marrow at the site of the metastasis (Involved),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274697,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274697/suppl,1456,unknown,solid metastatic tissue (Tumor fraction),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274698,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274698/suppl,1483,unknown,solid metastatic tissue (Tumor fraction),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274699,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274699/suppl,1694,unknown,liquid bone marrow from a vertebral body distant from the tumor site (Distal),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274700,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274700/suppl,1067,unknown,liquid bone marrow at the site of the metastasis (Involved),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274701,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274701/suppl,1342,unknown,solid metastatic tissue (Tumor fraction),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274702,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274702/suppl,1732,unknown,liquid bone marrow from a vertebral body distant from the tumor site (Distal),disease,prostate cancer,Immune_All_High.pkl
+GEO-GSE143791,GSM4274703,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274703/suppl,4358,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE143791,GSM4274704,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274704/suppl,3900,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE143791,GSM4274705,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274705/suppl,1517,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE143791,GSM4274706,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274706/suppl,3062,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE143791,GSM4274707,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274707/suppl,3963,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE143791,GSM4274708,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274708/suppl,2245,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE143791,GSM4274709,bone marrow,prostate cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4274nnn/GSM4274709/suppl,2369,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE143791,GSM5551112,bone marrow,lung cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5551nnn/GSM5551112/suppl,1064,unknown,,disease,,Immune_All_High.pkl
+GEO-GSE143791,GSM5551113,bone marrow,lung cancer bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5551nnn/GSM5551113/suppl,579,unknown,,disease,,Immune_All_High.pkl
+GEO-GSE143791,GSM5551114,bone marrow,melanoma bone metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5551nnn/GSM5551114/suppl,2377,unknown,,disease,,Immune_All_High.pkl
+GEO-GSE146276,GSM4376602,eye,normal,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4376nnn/GSM4376602/suppl,4042,central corneal epithelium,,normal,,Human_Developmental_Retina.pkl
+GEO-GSE146276,GSM4376603,eye,normal,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4376nnn/GSM4376603/suppl,3601,central corneal epithelium,,normal,,Human_Developmental_Retina.pkl
+GEO-GSE146276,GSM4376604,eye,corneal epithelial injury,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4376nnn/GSM4376604/suppl,3796,central corneal epithelium,,disease,24 hours after surgical injury,Human_Developmental_Retina.pkl
+GEO-GSE146276,GSM4376605,eye,corneal epithelial injury,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4376nnn/GSM4376605/suppl,3453,central corneal epithelium,,disease,24 hours after surgical injury,Human_Developmental_Retina.pkl
+GEO-GSE147944,GSM4450723,skin,advanced-stage cutaneous t-cell lymphoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4450nnn/GSM4450723/suppl,4730,unknown,skin tumor,disease,CTCL tumor,Adult_Human_Skin.pkl
+GEO-GSE147944,GSM4450724,skin,advanced-stage cutaneous t-cell lymphoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4450nnn/GSM4450724/suppl,8587,unknown,skin tumor,disease,CTCL tumor,Adult_Human_Skin.pkl
+GEO-GSE147944,GSM4450725,skin,advanced-stage cutaneous t-cell lymphoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4450nnn/GSM4450725/suppl,3607,unknown,skin tumor,disease,CTCL tumor,Adult_Human_Skin.pkl
+GEO-GSE147944,GSM4450726,skin,advanced-stage cutaneous t-cell lymphoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4450nnn/GSM4450726/suppl,3805,unknown,,normal,,Adult_Human_Skin.pkl
+GEO-GSE147944,GSM4450727,skin,advanced-stage cutaneous t-cell lymphoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4450nnn/GSM4450727/suppl,2200,unknown,,normal,,Adult_Human_Skin.pkl
+GEO-GSE147944,GSM4450728,skin,advanced-stage cutaneous t-cell lymphoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4450nnn/GSM4450728/suppl,4847,unknown,,normal,,Adult_Human_Skin.pkl
+GEO-GSE147944,GSM4450729,skin,advanced-stage cutaneous t-cell lymphoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4450nnn/GSM4450729/suppl,3327,unknown,,normal,,Adult_Human_Skin.pkl
+GEO-GSE150672,GSM4693357,blood,inflammatory skin diseases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4693nnn/GSM4693357/suppl,2682,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+GEO-GSE150672,GSM4693359,blood,inflammatory skin diseases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4693nnn/GSM4693359/suppl,7891,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+GEO-GSE153421,GSM4644045,blood,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4644nnn/GSM4644045/suppl,7408,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+GEO-GSE153421,GSM4644046,blood,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4644nnn/GSM4644046/suppl,4465,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+GEO-GSE153421,GSM4644047,blood,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4644nnn/GSM4644047/suppl,7153,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+GEO-GSE153421,GSM4644048,blood,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4644nnn/GSM4644048/suppl,6096,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+GEO-GSE153421,GSM4644049,blood,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4644nnn/GSM4644049/suppl,12428,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+GEO-GSE153421,GSM4644050,blood,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4644nnn/GSM4644050/suppl,8732,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+GEO-GSE153421,GSM4644051,blood,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4644nnn/GSM4644051/suppl,5848,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+GEO-GSE153421,GSM4644052,blood,general,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4644nnn/GSM4644052/suppl,6367,peripheral blood,PBMC,normal,,Healthy_COVID19_PBMC.pkl
+GEO-GSE161801,GSM4914649,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914649/suppl,37,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914650,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914650/suppl,1504,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914651,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914651/suppl,1726,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914652,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914652/suppl,3372,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914653,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914653/suppl,1051,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914654,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914654/suppl,1782,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914655,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914655/suppl,4273,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914656,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914656/suppl,6232,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914657,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914657/suppl,1840,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914658,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914658/suppl,809,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914659,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914659/suppl,349,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914660,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914660/suppl,3256,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914661,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914661/suppl,259,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914662,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914662/suppl,1747,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914663,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914663/suppl,4623,unknown,Whole bone marrow - buffy coat,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914664,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914664/suppl,4492,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914665,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914665/suppl,4298,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914666,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914666/suppl,3267,unknown,Whole bone marrow - buffy coat,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914667,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914667/suppl,1848,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914668,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914668/suppl,3882,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914669,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914669/suppl,3774,unknown,Whole bone marrow - buffy coat,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914670,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914670/suppl,409,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914671,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914671/suppl,2667,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914672,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914672/suppl,1630,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914673,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914673/suppl,3469,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914674,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914674/suppl,3021,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914675,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914675/suppl,2751,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914676,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914676/suppl,2255,unknown,Whole bone marrow - buffy coat,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914677,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914677/suppl,481,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914678,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914678/suppl,2548,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914679,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914679/suppl,1099,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914680,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914680/suppl,3717,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914681,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914681/suppl,1063,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914682,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914682/suppl,6109,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914683,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914683/suppl,3972,unknown,Whole bone marrow - buffy coat,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914684,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914684/suppl,204,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914685,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914685/suppl,2492,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914686,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914686/suppl,2303,unknown,Whole bone marrow - buffy coat,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914687,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914687/suppl,995,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914688,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914688/suppl,569,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914689,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914689/suppl,1420,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914690,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914690/suppl,3276,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914691,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914691/suppl,1275,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914692,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914692/suppl,3206,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914693,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914693/suppl,338,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914694,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914694/suppl,2688,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914695,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914695/suppl,1662,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914696,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914696/suppl,1883,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914697,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914697/suppl,2407,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914698,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914698/suppl,1033,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914699,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914699/suppl,6585,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914700,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914700/suppl,8849,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914701,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914701/suppl,3433,unknown,Whole bone marrow - buffy coat,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914702,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914702/suppl,3130,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914703,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914703/suppl,3265,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914704,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914704/suppl,4575,unknown,Whole bone marrow - buffy coat,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914705,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914705/suppl,1452,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914706,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914706/suppl,3519,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914707,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914707/suppl,684,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914708,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914708/suppl,3940,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914709,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914709/suppl,1923,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914710,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914710/suppl,2618,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914711,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914711/suppl,144,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914712,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914712/suppl,1741,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914713,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914713/suppl,2500,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914714,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914714/suppl,3804,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914715,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914715/suppl,1861,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914716,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914716/suppl,2193,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914717,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914717/suppl,118,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914718,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914718/suppl,5505,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914719,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914719/suppl,303,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914720,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914720/suppl,2247,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914721,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914721/suppl,1017,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914722,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914722/suppl,3557,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914723,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914723/suppl,5773,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914724,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914724/suppl,2262,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914725,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914725/suppl,2106,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914726,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914726/suppl,3829,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914727,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914727/suppl,4575,unknown,Whole bone marrow - buffy coat,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914728,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914728/suppl,1930,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914729,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914729/suppl,2417,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914730,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914730/suppl,667,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914731,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914731/suppl,1013,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914732,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914732/suppl,1707,unknown,Tumor - bone marrow CD138+,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914733,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914733/suppl,479,unknown,,normal,,Immune_All_High.pkl
+GEO-GSE161801,GSM4914734,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914734/suppl,800,unknown,Whole bone marrow - buffy coat,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE161801,GSM4914735,bone marrow,refractory multiple myeloma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4914nnn/GSM4914735/suppl,520,unknown,Whole bone marrow - buffy coat,disease,refractory multiple myeloma,Immune_All_High.pkl
+GEO-GSE168933,GSM5172568,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172568/suppl,1208,unknown,,normal,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172569,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172569/suppl,2033,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172570,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172570/suppl,1446,unknown,,normal,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172571,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172571/suppl,2067,unknown,,normal,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172572,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172572/suppl,1508,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172573,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172573/suppl,1010,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172574,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172574/suppl,1653,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172575,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172575/suppl,1216,unknown,,normal,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172576,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172576/suppl,1184,unknown,,normal,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172577,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172577/suppl,2104,unknown,,normal,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172578,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172578/suppl,1336,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172579,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172579/suppl,2394,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172580,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172580/suppl,1745,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172581,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172581/suppl,1079,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172582,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172582/suppl,1853,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172583,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172583/suppl,1995,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172584,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172584/suppl,1977,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172585,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172585/suppl,1532,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172586,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172586/suppl,2103,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172587,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172587/suppl,1685,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172588,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172588/suppl,1161,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172589,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172589/suppl,1812,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE168933,GSM5172590,liver,cirrhosis,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5172nnn/GSM5172590/suppl,1834,unknown,,disease,,Healthy_Human_Liver.pkl
+GEO-GSE181187,GSM5492236,bone marrow,acute promyelocytic leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5492nnn/GSM5492236/suppl,3,unknown,Acute monocytic leukemia,disease,Acute Promyelocytic Leukemia (APL),Immune_All_High.pkl
+GEO-GSE181187,GSM5492239,bone marrow,acute promyelocytic leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5492nnn/GSM5492239/suppl,2,unknown,Acute monocytic leukemia,disease,Acute Promyelocytic Leukemia (APL),Immune_All_High.pkl
+GEO-GSE181187,GSM5492241,bone marrow,acute promyelocytic leukemia,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5492nnn/GSM5492241/suppl,2,unknown,Acute monocytic leukemia,disease,Acute Promyelocytic Leukemia (APL),Immune_All_High.pkl
+GEO-GSE183904,GSM5573466,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573466/suppl,2685,primary gastric tissue,,normal,,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573467,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573467/suppl,2769,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573468,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573468/suppl,3525,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573469,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573469/suppl,2066,primary gastric tissue,,normal,,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573470,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573470/suppl,3693,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573471,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573471/suppl,2065,primary gastric tissue,,normal,,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573472,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573472/suppl,2097,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573473,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573473/suppl,7177,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573474,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573474/suppl,3319,primary gastric tissue,,normal,,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573475,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573475/suppl,2668,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573476,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573476/suppl,851,primary gastric tissue,,normal,,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573477,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573477/suppl,592,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573478,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573478/suppl,2339,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573479,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573479/suppl,7276,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573480,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573480/suppl,13626,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573481,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573481/suppl,1689,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573482,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573482/suppl,7380,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573483,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573483/suppl,6859,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573486,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573486/suppl,1879,primary gastric tissue,,normal,,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573487,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573487/suppl,399,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573488,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573488/suppl,3809,primary gastric tissue,,normal,,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573489,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573489/suppl,2597,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573490,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573490/suppl,4140,primary gastric tissue,,normal,,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573491,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573491/suppl,2681,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573492,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573492/suppl,4600,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573493,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573493/suppl,6173,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573494,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573494/suppl,3593,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573495,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573495/suppl,3798,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573496,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573496/suppl,1996,primary gastric tissue,,normal,,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573497,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573497/suppl,2252,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573498,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573498/suppl,5823,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573499,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573499/suppl,12463,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573500,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573500/suppl,8388,primary gastric tissue,,normal,,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573501,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573501/suppl,3363,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573502,peritoneum,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573502/suppl,186,unknown,,normal,,Cells_Intestinal_Tract.pkl
+GEO-GSE183904,GSM5573503,peritoneum,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573503/suppl,1677,unknown,Peritonium tissue (Tumor),disease,Gastric Cancer,Cells_Intestinal_Tract.pkl
+GEO-GSE183904,GSM5573504,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573504/suppl,5369,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE183904,GSM5573505,stomach,gastric cancer,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5573nnn/GSM5573505/suppl,5077,primary gastric tissue,Primary Gastric Tissue (Tumor),disease,Gastric Cancer,Developing_Human_Organs.pkl
+GEO-GSE186344,GSM5645890,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5645nnn/GSM5645890/suppl,3274,brain ,"Metastatic Tumor, Brain Tumor",disease,Melanoma Brain Metastasis ,Adult_Human_MTG.pkl
+GEO-GSE186344,GSM5645892,brain,breast cancer brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5645nnn/GSM5645892/suppl,7639,brain ,"Metastatic Tumor, Brain Tumor",disease,Breast Cancer Brain Metastasis,Adult_Human_MTG.pkl
+GEO-GSE186344,GSM5645897,brain,ovarian cancer brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5645nnn/GSM5645897/suppl,5154,brain ,"Metastatic Tumor, Brain Tumor",disease,Ovarian Cancer Brain Metastasis,Adult_Human_MTG.pkl
+GEO-GSE189650,GSM5705583,brain,glioblastoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5705nnn/GSM5705583/suppl,4456,brain ,,disease,primary GBM,Adult_Human_MTG.pkl
+GEO-GSE189650,GSM5705585,brain,glioblastoma,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5705nnn/GSM5705585/suppl,350,brain ,,disease,recurrent GBM,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022251,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022251/suppl,3884,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022252,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022252/suppl,6833,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022253,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022253/suppl,7033,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022254,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022254/suppl,5394,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022255,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022255/suppl,6353,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022256,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022256/suppl,2468,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022257,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022257/suppl,1998,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022258,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022258/suppl,2658,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022259,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022259/suppl,3192,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022260,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022260/suppl,1577,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022261,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022261/suppl,604,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022262,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022262/suppl,2862,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022263,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022263/suppl,2303,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022264,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022264/suppl,1027,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022265,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022265/suppl,3004,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022266,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022266/suppl,3835,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022267,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022267/suppl,1022,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022268,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022268/suppl,5331,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022269,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022269/suppl,3481,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022270,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022270/suppl,1291,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022271,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022271/suppl,1671,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022272,brain,melanoma brain metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022272/suppl,5548,unknown,,disease,Melanoma brain metastases,Adult_Human_MTG.pkl
+GEO-GSE200218,GSM6022273,skin,melanoma peripheral metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022273/suppl,9605,subcutaneous tissue,,disease,Melanoma brain metastases,Adult_Human_Skin.pkl
+GEO-GSE200218,GSM6022274,skin,melanoma peripheral metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022274/suppl,6102,subcutaneous tissue,,disease,Melanoma brain metastases,Adult_Human_Skin.pkl
+GEO-GSE200218,GSM6022275,skin,melanoma peripheral metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022275/suppl,8476,subcutaneous tissue,,disease,Melanoma brain metastases,Adult_Human_Skin.pkl
+GEO-GSE200218,GSM6022276,skin,melanoma peripheral metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022276/suppl,3301,subcutaneous tissue,,disease,Melanoma brain metastases,Adult_Human_Skin.pkl
+GEO-GSE200218,GSM6022277,skin,melanoma peripheral metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022277/suppl,6279,subcutaneous tissue,,disease,Melanoma brain metastases,Adult_Human_Skin.pkl
+GEO-GSE200218,GSM6022278,skin,melanoma peripheral metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022278/suppl,6470,subcutaneous tissue,,disease,Melanoma brain metastases,Adult_Human_Skin.pkl
+GEO-GSE200218,GSM6022279,skin,melanoma peripheral metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022279/suppl,10779,subcutaneous tissue,,disease,Melanoma brain metastases,Adult_Human_Skin.pkl
+GEO-GSE200218,GSM6022280,lymph node,melanoma peripheral metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022280/suppl,4605,axillary lymph node,,disease,Melanoma brain metastases,Immune_All_High.pkl
+GEO-GSE200218,GSM6022281,skin,melanoma peripheral metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022281/suppl,7607,subcutaneous tissue,,disease,Melanoma brain metastases,Adult_Human_Skin.pkl
+GEO-GSE200218,GSM6022282,skin,melanoma peripheral metastases,https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM6022nnn/GSM6022282/suppl,8962,subcutaneous tissue,,disease,Melanoma brain metastases,Adult_Human_Skin.pkl
+syn52146347,syn26273710,brain,alzheimer's disease,https://www.synapse.org/Synapse:syn26273710,1328844,unknown,,disease,,Adult_Human_PrefrontalCortex.pkl
+syn52146347,syn51792375,brain,alzheimer's disease,https://www.synapse.org/Synapse:syn51792375,16009359,unknown,,disease,,Adult_Human_PrefrontalCortex.pkl
+syn52146347,syn52314469,brain,alzheimer's disease,https://www.synapse.org/Synapse:syn52314469,16438659,unknown,,disease,,Adult_Human_PrefrontalCortex.pkl
+syn52146347,syn52314472,brain,alzheimer's disease,https://www.synapse.org/Synapse:syn52314472,9333984,unknown,,disease,,Adult_Human_PrefrontalCortex.pkl
+syn52146347,syn52314488,brain,alzheimer's disease,https://www.synapse.org/Synapse:syn52314488,7195681,unknown,,disease,,Adult_Human_PrefrontalCortex.pkl
+syn52146347,syn52314491,brain,alzheimer's disease,https://www.synapse.org/Synapse:syn52314491,361278,unknown,,disease,,Adult_Human_PrefrontalCortex.pkl
+syn52146347,syn61680896,brain,alzheimer's disease,https://www.synapse.org/Synapse:syn61680896,17817108,unknown,,disease,,Adult_Human_PrefrontalCortex.pkl

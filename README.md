@@ -12,14 +12,109 @@ The human body consists of approximately 37 trillion cells, all originating from
 ### 1.2 Brain Cell Atlas
 
 ### 1.3 Gene Expression Omnibus (GEO)
+#### Data Introduction
+GEO datasets are available in two primary formats:
 
+Matrix Market format: consisting of barcodes.tsv.gz, features.tsv.gz, and matrix.mtx.gz files
+
+Compressed CSV format (csv.gz)
+
+#### Download Instructions
+Create a links.txt file with entries formatted as: [GSM_ID] [Directory]/[Filename] [FTP_URL]
+
+Use our automated download script:
+
+```
+#!/bin/bash
+
+download_file() {
+    local project=$1
+    local file_name=$2
+    local file_url=$3
+    
+    # Create directory
+    local dir=$(dirname "$file_name")
+    [[ -d $dir ]] || mkdir -p "$dir"
+    
+    # Attempt download with retries
+    local curl_times=3
+    while [ $curl_times -gt 0 ]; do
+        curl --cacert /etc/ssl/certs/ca-certificates.crt \
+             -C - -L -o "$file_name" "$file_url"
+        if [[ $? -eq 0 ]]; then
+            return
+        fi
+        curl_times=$((curl_times - 1))
+        sleep 1
+    done
+}
+
+# Process links.txt file
+while read -r line || [[ -n "$line" ]]; do
+    set -- $line
+    download_file "$1" "$2" "$3"
+done < "links.txt"
+```
+
+Example links.txt entry:
+
+GSM5706853 GSM5706853_P1_barcodes.tsv.gz https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5706nnn/GSM5706853/suppl/GSM5706853_P1_barcodes.tsv.gz
+
+The full version of this script is available in our [GitHub repository](https://github.com/FuhaiLiAiLab/OmniCellTOSG/tree/main/Download)
 ### 1.4 Seattle Alzheimer's Disease Brain Cell Atlas (SEA-AD)
+#### Data Introduction
+SEA-AD data is accessible through their API using the Synapse client. Authentication is handled via personal access tokens, and data is retrieved through synIDs based on different folders.
 
+#### Download Instructions
+Install the required Python packages:
+```
+pip install synapseclient synapseutils
+```
+Download data using the following Python script:
+```
+import synapseclient
+import synapseutils
+
+# Set up authentication
+syn = synapseclient.Synapse()
+token = "YOUR_PERSONAL_ACCESS_TOKEN"  # Replace with your token
+syn.login(authToken=token)
+
+# Define folder IDs
+folder_ids = [
+    "syn26273710", "syn51792375", "syn52314491", 
+    "syn52314469", "syn61680896", "syn52314488", "syn52314472"
+]
+
+# Download all datasets
+for folder_id in folder_ids:
+    synapseutils.syncFromSynapse(syn, folder_id)
+```
 
 ## 2. Preprocessing Data
-(convert the h5 files into h5ad files)
-(cell type annotation)
 
+### 2.1 Data Format Conversion
+This section describes the standardized preprocessing pipeline to convert all datasets into a unified H5AD or H5 format.
+
+GEO Data Processing:
+```python
+python Process/GEO_process.py
+```
+
+All the other datasets are already in H5AD or H5 format.
+
+### 2.2 Cell Type Annotation
+We use CellTypist for automated cell type annotation:
+#### GEO datasets 
+For GEO datasets with diverse tissue and disease types, we developed a mapping strategy to match each dataset with the most appropriate CellTypist model. The complete mapping table is available in our [GitHub repository](https://github.com/FuhaiLiAiLab/OmniCellTOSG/tree/main/Data) 
+```python
+python Process/addCellType_GEO.py
+```
+#### SEA-AD datasets 
+For SEA-AD datasets focusing on Alzheimer's disease, we directly use the 'Adult_Human_PrefrontalCortex.pkl' model.
+```python
+python Process/addCellType_SEA-AD.py
+```
 ### 2.3 Cell Type Clustering
 ```python
 python Process/cell_type_clustering.py
