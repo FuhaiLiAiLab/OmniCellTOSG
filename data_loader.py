@@ -14,7 +14,7 @@ DATASET_PATH_DICT = {
         "clinically_isolated_syndrome": "{root}/blood/clinically_isolated_syndrome",
         "general": "{root}/blood/general",
         "nasopharyngeal_carcinoma": "{root}/blood/nasopharyngeal_carcinoma",
-        "relapsing-remitting_multiple_sclerosis": "{root}/blood/relapsing-remitting_multiple_sclerosis",
+        "relapsing_remitting_multiple_sclerosis": "{root}/blood/relapsing-remitting_multiple_sclerosis",
     },
     "bone_marrow": {
         "AML": "{root}/bone_marrow/acute_myeloid_leukemia",
@@ -41,7 +41,7 @@ DATASET_PATH_DICT = {
         "multiple_sclerosis": "{root}/brain/multiple_sclerosis",
         "oligodendroglioma": "{root}/brain/oligodendroglioma",
         "pilocytic_astrocytoma": "{root}/brain/pilocytic_astrocytoma",
-        "relapsing-remitting_multiple_sclerosis": "{root}/brain/relapsing-remitting_multiple_sclerosis",
+        "relapsing_remitting_multiple_sclerosis": "{root}/brain/relapsing-remitting_multiple_sclerosis",
         "secondary_progressive_multiple_sclerosis": "{root}/brain/secondary_progressive_multiple_sclerosis",
         "temporal_lobe_epilepsy": "{root}/brain/temporal_lobe_epilepsy",
     },
@@ -84,7 +84,7 @@ DATASET_PATH_DICT = {
     "lung": {
         "general": "{root}/lung/general",
         "lung_adenocarcinoma": "{root}/lung/lung_adenocarcinoma",
-        "non-small_cell_lung_carcinoma": "{root}/lung/non-small_cell_lung_carcinoma",
+        "non_small_cell_lung_carcinoma": "{root}/lung/non-small_cell_lung_carcinoma",
         "small_cell_lung_carcinoma": "{root}/lung/small_cell_lung_carcinoma",
         "squamous_cell_lung_carcinoma": "{root}/lung/squamous_cell_lung_carcinoma",
     },
@@ -106,7 +106,7 @@ DATASET_PATH_DICT = {
     },
     "skin": {
         "acne": "{root}/skin/acne",
-        "advanced-stage_cutaneous_t-cell_lymphoma": "{root}/skin/advanced-stage_cutaneous_t-cell_lymphoma",
+        "advanced_stage_CTCL": "{root}/skin/advanced-stage_cutaneous_t-cell_lymphoma",
         "general": "{root}/skin/general",
         "melanoma_peripheral_metastases": "{root}/skin/melanoma_peripheral_metastases",
     },

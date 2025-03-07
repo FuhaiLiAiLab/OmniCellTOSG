@@ -31,3 +31,4 @@ pretrained_glm.pt
 
 # Models
 /desert/*
+dataload_test.ipynb
