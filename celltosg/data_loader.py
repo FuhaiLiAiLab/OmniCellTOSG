@@ -116,7 +116,7 @@ DATASET_PATH_DICT = {
     },
 }
 
-def load_data_from_dict(root, organ=None, disease=None, label_type="ct", seed=2025, ratio=0.01, shuffle=False):
+def load_data_from_dict(root, organ=None, disease=None, label_type="ct", seed=2025, ratio=0.01, train_text=False, train_bio=False, shuffle=False):
     """
     Load .npy and additional data files from the root directory.
     For X and Y data:
@@ -239,10 +239,23 @@ def load_data_from_dict(root, organ=None, disease=None, label_type="ct", seed=20
     edge_index = _load_npy(os.path.join(root, "edge_index.npy"))
     internal_edge_index = _load_npy(os.path.join(root, "internal_edge_index.npy"))
     ppi_edge_index = _load_npy(os.path.join(root, "ppi_edge_index.npy"))
-    s_name = _load_csv(os.path.join(root, "s_name.csv"))
-    s_desc = _load_csv(os.path.join(root, "s_desc.csv"))
 
-    return xAll, yAll, edge_index, internal_edge_index, ppi_edge_index, s_name, s_desc
+    # Load name and description embeddings or raw text based on train_text flag
+    if train_text:
+        s_name = _load_csv(os.path.join(root, "s_name.csv"))
+        s_desc = _load_csv(os.path.join(root, "s_desc.csv"))
+    else:
+        s_name = _load_npy(os.path.join(root, "x_name_emb.npy"))
+        s_desc = _load_npy(os.path.join(root, "x_desc_emb.npy"))
+
+    # Load biological embeddings or raw bio data based on train_bio flag
+    if train_bio:
+        s_bio = _load_csv(os.path.join(root, "s_bio.csv"))
+    else:
+        s_bio = _load_npy(os.path.join(root, "x_bio_emb.npy"))
+
+    print(f"\nFinal dataset shape: X {xAll.shape}, Y {yAll.shape}")
+    return xAll, yAll, edge_index, internal_edge_index, ppi_edge_index, s_name, s_desc, s_bio
 
 def _shuffle_data(X, Y, seed=2025):
     """
