@@ -164,20 +164,29 @@ pip install git+https://github.com/FuhaiLiAiLab/OmniCellTOSG
 
 ### 4.3 Dataset content
 ```
--CellTOG
-    - S_name.csv (2 columns, BioMedGraphica_ID, Processed_name)
-    - S_desc.csv (2 columns, BioMedGraphica_ID, Description)
-    - S_bio.csv (2 columns, BioMedGraphica_ID, Sequence)
-    - edge_index.npy
-    - internal_edge_index.npy
-    - ppi_edge_index.npy
+-CellTOG_Dataset
+    - s_name.csv (Combined BioMedGraphica IDs and Entity Names, 2 columns, BioMedGraphica_ID, Processed_name)
+    - s_desc.csv (Combined BioMedGraphica IDs and Entity Descriptions, 2 columns, BioMedGraphica_ID, Description)
+    - s_bio.csv (Combined BioMedGraphica IDs and Entity Biological Sequences, 2 columns, BioMedGraphica_ID, Sequence)
+    - x_bio_emb.npy (Embedded entity names, 483817 x 1)
+    - x_desc_emb.npy (Embedded entity descriptions, 483817 x 1)
+    - x_name_emb.npy (Embedded entity biological sequences, 483817 x )
 
-    - (folders under organs)
-    - brain
-        - alzheimer's_disease
+    - edge_index.npy (Complete entity node relations, 2 x 33349084)
+    - internal_edge_index.npy (Transcript - Protein node relations, 2 x 408299)
+    - ppi_edge_index.npy (Protein - Protein node relations, 2 x 32940785)
+
+    - brain (organ folders)
+        - alzheimer's_disease (disease folders)
+            - brain_sc_alzheimer's_disease_X_partition_0.npy (Single Cell Expression Matrix, N[0] x 483817)
+            - ...
+            - brain_sc_alzheimer's_disease_Y_partition_2.npy (Single Cell Labels, N[2] x 4)
+            - ...
+            - SEA_AD_syn61680896_alzheimer's_disease_Y_partition_26.npy (Single Cell Labels, N[i] x 4)
+        - ...
+        - epilepsy
         - ...
         - general
-        - ...
     - lung
     - kidney
     - ...
