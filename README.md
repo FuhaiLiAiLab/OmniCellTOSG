@@ -1,3 +1,5 @@
+**Update**: The dataset can now be accessed on Hugging Face: [OmniCellTOSG](https://huggingface.co/datasets/tim-x/OmniCellTOSG)
+
 # OmniCellTOSG: The First Cell Text-Omic Signaling Graphs Dataset for Joint LLM and GNN Modeling
 
 ![Figure1](./Figures/Figure1.png)
