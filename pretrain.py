@@ -16,7 +16,7 @@ from GeoDataLoader.read_geograph import read_batch
 from GeoDataLoader.geograph_sampler import GeoGraphLoader
 
 from CellTOSG_Foundation.lm_model import TextEncoder, RNAGPT_LM, ProtGPT_LM
-from dataset import CellTOSGDataset
+from celltosg.dataset import CellTOSGDataset
 
 def build_pretrain_model(args, device):
     mask = MaskEdge(p=args.p)
@@ -91,8 +91,8 @@ def pretrain_foundation(args, device):
 
     if args.train_text:
         # Use language model to embed the name and description
-        s_name_df = pd.read_csv('./CellTOSG_dataset/s_name.csv')
-        s_desc_df = pd.read_csv('./CellTOSG_dataset/s_desc.csv')
+        s_name_df = pd.read_csv(os.path.join(args.root, 's_name.csv'))
+        s_desc_df = pd.read_csv(os.path.join(args.root, 's_desc.csv'))
         name_sentence_list = s_name_df['Name'].tolist()
         name_sentence_list = [str(name) for name in name_sentence_list]
         desc_sentence_list = s_desc_df['Description'].tolist()
@@ -102,12 +102,12 @@ def pretrain_foundation(args, device):
         # name_embeddings = text_encoder.generate_embeddings(name_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.lm_emb_dim)
         desc_embeddings = text_encoder.generate_embeddings(desc_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.lm_emb_dim)
     else:
-        name_embeddings = np.load('./CellTOSG_dataset/x_name_emb.npy').reshape(-1, args.lm_emb_dim)
-        desc_embeddings = np.load('./CellTOSG_dataset/x_desc_emb.npy').reshape(-1, args.lm_emb_dim)
+        name_embeddings = np.load(os.path.join(args.root, 'x_name_emb.npy')).reshape(-1, args.lm_emb_dim)
+        desc_embeddings = np.load(os.path.join(args.root, 'x_desc_emb.npy')).reshape(-1, args.lm_emb_dim)
     
     if args.train_bio:
         # Use language model to embed the RNA and protein sequences
-        s_bio = pd.read_csv('./CellTOSG_dataset/s_bio.csv')
+        s_bio = pd.read_csv(os.path.join(args.root, 's_bio.csv'))
         # sequence list where type == transcript
         rna_seq_list = s_bio[s_bio['Type'] == 'Transcript']['Sequence'].tolist()
         rna_seq_encoder = pretrain_model.rna_seq_encoder
@@ -122,7 +122,7 @@ def pretrain_foundation(args, device):
         prot_seq_embeddings = prot_seq_encoder.generate_embeddings(prot_replaced_seq_list, seq_emb_dim=args.lm_emb_dim)
         seq_embeddings = np.concatenate((rna_seq_embeddings, prot_seq_embeddings), axis=0)
     else:
-        seq_embeddings = np.load('./CellTOSG_dataset/x_bio_emb.npy').reshape(-1, args.lm_emb_dim)
+        seq_embeddings = np.load(os.path.join(args.root, 'x_bio_emb.npy')).reshape(-1, args.lm_emb_dim)
 
 
     # load textual embeddings into torch tensor
@@ -208,7 +208,7 @@ def arg_parse():
     parser = argparse.ArgumentParser()
     # dataset loading parameters
     parser.add_argument('--seed', type=int, default=2025, help='Random seed for dataset. (default: 2025)')
-    parser.add_argument('--root', nargs='?', default='./CellTOSG_dataset', help='Root directory for dataset. (default: ./CellTOSG_dataset)')
+    parser.add_argument('--root', nargs='?', default='./OmniCellTOSG_Dataset', help='Root directory for dataset. (default: ./OmniCellTOSG_Dataset)')
     parser.add_argument('--categories', nargs='?', default='get_organ_disease', help='Categories for dataset. (default: get_organ_disease)')
     # parser.add_argument('--name', nargs='?', default='brain-AD', help='Name for dataset. (default: brain-AD)')
     # parser.add_argument('--name', nargs='?', default='bone_marrow-acute_myeloid_leukemia', help='Name for dataset.')
@@ -217,7 +217,7 @@ def arg_parse():
     parser.add_argument('--label_type', nargs='?', default='status', help='Label type for dataset. (default: status)')
     parser.add_argument('--shuffle', type=bool, default=True, help='Whether to shuffle dataset. (default: True)')
     parser.add_argument('--train_text', type=bool, default=False, help='Whether to train text embeddings. (default: False)')
-    parser.add_argument('--train_bio', type=bool, default=False, help='Whether to train bio-sequence embeddings. (default: False)')
+    parser.add_argument('--train_bio', type=bool, default=True, help='Whether to train bio-sequence embeddings. (default: False)')
     parser.add_argument('--sample_ratio', type=float, default=0.2, help='Sample ratio for dataset. (default: 0.1)')
 
     # pre-training parameters
@@ -277,4 +277,3 @@ if __name__ == "__main__":
 
     # Pretrain model
     pretrain_model = pretrain_foundation(args, device)
-    
