@@ -18,6 +18,8 @@
 /sc_meta_cell/*
 /sc_raw_data/*
 /**dataset**/*
+/output/*
+/OmniCellTOSG_v1/*
 
 # Model Checkpoints
 /Checkpoints/*

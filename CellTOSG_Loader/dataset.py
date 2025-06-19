@@ -14,6 +14,8 @@ class CellTOSGDataLoader:
         label_column=None,
         sample_ratio=None,
         sample_size=None,
+        train_text=False,
+        train_bio=False,
         random_state=42,
         output_dir=None
     ):
@@ -25,6 +27,8 @@ class CellTOSGDataLoader:
         self.label_column = label_column
         self.sample_ratio = sample_ratio
         self.sample_size = sample_size
+        self.train_text = train_text
+        self.train_bio = train_bio
         self.random_state = random_state
         self.output_dir = output_dir
 
@@ -42,7 +46,7 @@ class CellTOSGDataLoader:
             sample_ratio=self.sample_ratio,
             sample_size=self.sample_size,
             random_state=self.random_state,
-            output_dir=None
+            output_dir=self.output_dir
         )
 
         self.metadata = df
@@ -100,9 +104,24 @@ class CellTOSGDataLoader:
         self.internal_edge_index = self._load_npy("internal_edge_index.npy")
         self.ppi_edge_index = self._load_npy("ppi_edge_index.npy")
     
-        self.s_name = self._load_npy("x_name_emb.npy")
-        self.s_desc = self._load_npy("x_desc_emb.npy")
-        self.s_bio = self._load_npy("x_bio_emb.npy")
+        # Load name and description embeddings or raw text based on train_text flag
+        if train_text:
+            print("[CellTOSGDataset] Loading raw text data for training...")
+            self.s_name = self._load_csv("s_name.csv")
+            self.s_desc = self._load_csv("s_desc.csv")
+        else:
+            print("[CellTOSGDataset] Loading precomputed text embeddings...")
+            self.x_name_emb = self._load_npy("x_name_emb.npy")
+            self.x_desc_emb = self._load_npy("x_desc_emb.npy")
+
+        # Load biological embeddings or raw bio data based on train_bio flag
+        if train_bio:
+            print("[CellTOSGDataset] Loading raw biological data for training...")
+            self.s_bio = self._load_csv("s_bio.csv")
+        else:
+            print("[CellTOSGDataset] Loading precomputed biological embeddings...")
+            self.x_bio_emb = self._load_npy("x_bio_emb.npy")
+
 
     def _load_npy(self, fname):
         path = os.path.join(self.root, fname)
