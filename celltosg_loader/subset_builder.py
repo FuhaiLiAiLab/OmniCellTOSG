@@ -41,7 +41,7 @@ def sample_matched_by_keys(
         needed = len(ref_grp)
         collected, used_idx = [], set()
 
-        # ――― try same‑stage first ―――
+        # try same‑stage first
         if key in tgt_groups.groups:
             cand = tgt_groups.get_group(key)
             take = min(len(cand), needed)
@@ -50,7 +50,7 @@ def sample_matched_by_keys(
             used_idx.update(sampled.index)
             needed -= take
 
-        # ――― progressively back‑off towards *younger* stages ―――
+        # back‑off towards younger stages
         stage = key[-1] if isinstance(key, tuple) else key
         if stage not in stage_order:
             continue
@@ -72,7 +72,7 @@ def sample_matched_by_keys(
                         needed -= take
             offset += 1
 
-        # ――― optional up‑sample to fill the gap ―――
+        # up‑sample to fill the gap
         if needed > 0 and upsample and collected:
             pool = pd.concat(collected)
             upsampled = pool.sample(needed, replace=True, random_state=random_state)
@@ -132,7 +132,7 @@ class CellTOSGSubsetBuilder:
 
             col = self.df_all[k]
 
-            # ---------- Textual fields (case-insensitive) ----------
+            # Textual fields (case-insensitive)
             if pd.api.types.is_string_dtype(col):
                 col_lower = col.str.lower().fillna("")
                 if isinstance(v, (list, tuple, set)):
