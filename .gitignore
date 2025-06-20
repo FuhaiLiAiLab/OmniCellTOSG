@@ -12,6 +12,7 @@
 
 # BioMedGraphica
 /BioMedGraphica/*
+/BMG/*
 
 # Datasets
 /CellTOSG_dataset/*
@@ -20,6 +21,7 @@
 /**dataset**/*
 /output/*
 /OmniCellTOSG_v1/*
+/mapping_table/*
 
 # Model Checkpoints
 /Checkpoints/*
@@ -34,3 +36,6 @@ pretrained_glm.pt
 dataload_test.ipynb
 metadata.md
 data_read.ipynb
+
+# Others
+/plot/*

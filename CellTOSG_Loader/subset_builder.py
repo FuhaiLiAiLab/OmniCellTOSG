@@ -103,7 +103,9 @@ class CellTOSGSubsetBuilder:
             "balance_field": "sex_normalized",
             "balance_value": "male",
             "match_keys": ["CMT_name", "development_stage_category"]
-        }
+        },
+        "cell_type": {},
+
     }
 
     def __init__(self, root):
@@ -132,7 +134,6 @@ class CellTOSGSubsetBuilder:
 
             col = self.df_all[k]
 
-            # Textual fields (case-insensitive)
             if pd.api.types.is_string_dtype(col):
                 col_lower = col.str.lower().fillna("")
                 if isinstance(v, (list, tuple, set)):
@@ -195,68 +196,105 @@ class CellTOSGSubsetBuilder:
         sample_size=None,
         random_state=2025
     ):
+        
+        """Extract expression matrix & labels for modelling.
+
+        Parameters
+        ----------
+        shuffle        Shuffle rows before exporting.
+        balanced       Perform class balancing only for tasks that support it.
+        downstream_task One of {"disease", "gender", "cell_type"}.
+        output_dir     If provided, persist labels + expression to this directory.
+        sample_ratio   Fraction (0‑1) of rows to keep.
+        sample_size    Exact number of rows to keep.
+        random_state   Seed for deterministic sampling.
+        """
+
         if self.last_query_result is None:
             raise ValueError("Please call .view() first to select your subset.")
 
         if downstream_task not in self.TASK_CONFIG:
             raise ValueError(f"Unsupported downstream_task: {downstream_task}")
 
-        config = self.TASK_CONFIG[downstream_task]
-        balance_field = config["balance_field"]
-        balance_value = config["balance_value"]
-        match_keys = config["match_keys"]
-
-        df = self.last_query_result.copy()
-         # ---------- un‑balanced ----------
-        if not balanced:
-            if sample_size:
-                final_df = df.sample(sample_size, random_state=random_state)
-            elif sample_ratio:
-                final_df = df.sample(frac=sample_ratio, random_state=random_state)
-            else:
-                final_df = df.copy()
-        # ---------- balanced ----------
-        else:
-            case_df = df[df[balance_field] != balance_value]
-            control_conditions = self.last_query_conditions_resolved.copy()
-            control_conditions[self.FIELD_ALIAS.get(balance_field, balance_field)] = balance_value
-            control_df = self.df_all.copy()
-            for k, v in control_conditions.items():
-                control_df = control_df[control_df[k].isin(v)] if isinstance(v, (list, set, tuple)) else control_df[control_df[k] == v]
-
-            # Apply sampling before matching
-            if sample_size:
-                case_downsample_df = case_df.sample(sample_size, random_state=random_state)
-            elif sample_ratio:
-                print(f"[Info] Sampling {sample_ratio * 100:.1f}% of case samples for task '{downstream_task}'.")
-                case_downsample_df = case_df.sample(frac=sample_ratio, random_state=random_state)
-                print(f"[Info] Sampled {len(case_downsample_df)} reference samples for task '{downstream_task}'.")
-            else:
-                case_downsample_df = case_df.copy()
-
-            # case samples are less than control samples
-            if len(case_downsample_df) <= len(control_df):
-                reference_df = case_downsample_df
-                target_df = control_df
-            # case samples are more than control samples
-            else:
-                reference_df = control_df
-                target_df = case_downsample_df
-
-            matched_target, matched_keys = sample_matched_by_keys(
-                reference_df, target_df, match_keys, random_state=random_state
-            )
-            # keep only reference rows that have a match
-            ref_keep = reference_df[
-                reference_df[match_keys].apply(tuple, axis=1).isin(matched_keys)
-            ]
-
-            final_df = pd.concat([ref_keep, matched_target], ignore_index=True)
+        if sample_size is not None and sample_ratio is not None:
             print(
-                f"[Info] Matched {len(ref_keep)} reference and {len(matched_target)} target samples for task '{downstream_task}'."
+                "[Warning] Both sample_size and sample_ratio provided; "
+                "sample_ratio will take precedence."
             )
+            sample_size = None  # ignore size in favour of ratio
+    
+        if downstream_task == "cell_type":
+            if balanced:
+                print("[Warning] downstream_task='cell_type' should not be balanced，setting balanced=False.")
+                balanced = False
+
+            df = self.last_query_result.copy()
+            # ---- plain sampling (no balancing) ----
+            if sample_ratio is not None:
+                df = df.sample(frac=sample_ratio, random_state=random_state)
+            elif sample_size is not None:
+                df = df.sample(sample_size, random_state=random_state)
+
+            final_df = df.copy()
+        else:
+
+            config = self.TASK_CONFIG[downstream_task]
+            balance_field = config["balance_field"]
+            balance_value = config["balance_value"]
+            match_keys = config["match_keys"]
+
+            df = self.last_query_result.copy()
+            # ---------- un‑balanced ----------
+            if not balanced:
+                if sample_size:
+                    final_df = df.sample(sample_size, random_state=random_state)
+                elif sample_ratio:
+                    final_df = df.sample(frac=sample_ratio, random_state=random_state)
+                else:
+                    final_df = df.copy()
+            # ---------- balanced ----------
+            else:
+                case_df = df[df[balance_field] != balance_value]
+                control_conditions = self.last_query_conditions_resolved.copy()
+                control_conditions[self.FIELD_ALIAS.get(balance_field, balance_field)] = balance_value
+                control_df = self.df_all.copy()
+                for k, v in control_conditions.items():
+                    control_df = control_df[control_df[k].isin(v)] if isinstance(v, (list, set, tuple)) else control_df[control_df[k] == v]
+
+                # Apply sampling before matching
+                if sample_size:
+                    case_downsample_df = case_df.sample(sample_size, random_state=random_state)
+                elif sample_ratio:
+                    print(f"[Info] Sampling {sample_ratio * 100:.1f}% of case samples for task '{downstream_task}'.")
+                    case_downsample_df = case_df.sample(frac=sample_ratio, random_state=random_state)
+                    print(f"[Info] Sampled {len(case_downsample_df)} reference samples for task '{downstream_task}'.")
+                else:
+                    case_downsample_df = case_df.copy()
+
+                # case samples are less than control samples
+                if len(case_downsample_df) <= len(control_df):
+                    reference_df = case_downsample_df
+                    target_df = control_df
+                # case samples are more than control samples
+                else:
+                    reference_df = control_df
+                    target_df = case_downsample_df
+
+                matched_target, matched_keys = sample_matched_by_keys(
+                    reference_df, target_df, match_keys, random_state=random_state
+                )
+                # keep only reference rows that have a match
+                ref_keep = reference_df[
+                    reference_df[match_keys].apply(tuple, axis=1).isin(matched_keys)
+                ]
+
+                final_df = pd.concat([ref_keep, matched_target], ignore_index=True)
+                print(
+                    f"[Info] Matched {len(ref_keep)} reference and {len(matched_target)} target samples for task '{downstream_task}'."
+                )
 
         if shuffle:
+            print(f"[Info] Shuffling final DataFrame with {len(final_df)} samples.")
             final_df = final_df.sample(frac=1, random_state=random_state).reset_index(drop=True)
 
         final_df["sample_index"] = np.arange(len(final_df))

@@ -4,6 +4,11 @@ import pandas as pd
 from .subset_builder import CellTOSGSubsetBuilder
 
 class CellTOSGDataLoader:
+    PRIORITY_LABELS_BY_TASK: dict[str, set[str]] = {
+        "gender": {"female"},
+        "disease": {"normal", "unclassified", "unknown"},
+        "cell_type": {"unannoted", "unannotated", "unknown"},
+    }
     def __init__(
         self,
         root,
@@ -51,53 +56,75 @@ class CellTOSGDataLoader:
 
         self.metadata = df
 
+        # Build label mapping when a label_column is provided
         if self.label_column:
-            resolved_label_col = self.query.FIELD_ALIAS.get(self.label_column, self.label_column)
+            resolved_label_col = self.query.FIELD_ALIAS.get(
+                self.label_column, self.label_column
+            )
             if resolved_label_col not in df.columns:
-                raise ValueError(f"Label column '{resolved_label_col}' not found in metadata.")
-            
-            priority_labels = {"female", "normal", "healthy"}
+                raise ValueError(
+                    f"Label column '{resolved_label_col}' not found in metadata."
+                )
 
-            # Clean and extract unique labels
+            # -------- Determine priority label set --------
+            priority_labels = self.PRIORITY_LABELS_BY_TASK.get(
+                self.downstream_task, {"female", "normal", "healthy"}
+            )
+            priority_labels_lower = {p.lower() for p in priority_labels}
+
+            # -------- Collect all unique labels --------
             all_labels = df[resolved_label_col].dropna().unique().tolist()
 
-            # Sort labels: priority ones first, others follow alphabetically
-            sorted_labels = sorted(set(all_labels), key=lambda x: (x not in priority_labels, x))
+            # -------- Sort so priority labels come first, keep original case --------
+            sorted_labels = sorted(
+                set(all_labels),
+                key=lambda x: (x.lower() not in priority_labels_lower, x.lower()),
+            )
 
-            # Build label mapping: priority label(s) → 0, rest increment from 1
-            self.label_mapping = {}
-            current_index = 0
-            priority_assigned = False
-
+            # -------- Build mapping: priority → 0, others → 1..N --------
+            self.label_mapping: dict[str, int] = {}
+            current_index = 1
             for label in sorted_labels:
-                if label in priority_labels and not priority_assigned:
+                if label.lower() in priority_labels_lower:
                     self.label_mapping[label] = 0
-                    priority_assigned = True
                 else:
-                    if priority_assigned:
-                        current_index = 1
                     self.label_mapping[label] = current_index
                     current_index += 1
 
-            self.labels = df[resolved_label_col].map(self.label_mapping).astype(int).values
+            # Map labels to indices
+            self.labels = (
+                df[resolved_label_col]
+                .map(lambda x: self.label_mapping.get(x, np.nan))
+                .astype(int)
+                .values
+            )
 
-            os.makedirs(self.output_dir, exist_ok=True)
+            # -------- Persist mapping & full label file --------
+            if self.output_dir:
+                os.makedirs(self.output_dir, exist_ok=True)
 
-            mapping_df = pd.DataFrame({
-                "label_name": list(self.label_mapping.keys()),
-                "label_index": list(self.label_mapping.values())
-            })
-            mapping_path = os.path.join(self.output_dir, f"label_mapping_{self.label_column}.csv")
-            mapping_df.to_csv(mapping_path, index=False)
+                mapping_df = pd.DataFrame(
+                    {
+                        "label_name": list(self.label_mapping.keys()),
+                        "label_index": list(self.label_mapping.values()),
+                    }
+                )
+                mapping_path = os.path.join(
+                    self.output_dir, f"label_mapping_{self.label_column}.csv"
+                )
+                mapping_df.to_csv(mapping_path, index=False)
 
-            full_labels_path = os.path.join(self.output_dir, f"labels_full_{self.label_column}.csv")
-            df_with_label = df.copy()
-            df_with_label["label_index"] = self.labels
-            df_with_label.to_csv(full_labels_path, index=False)
+                full_labels_path = os.path.join(
+                    self.output_dir, f"labels_full_{self.label_column}.csv"
+                )
+                df_with_label = df.copy()
+                df_with_label["label_index"] = self.labels
+                df_with_label.to_csv(full_labels_path, index=False)
 
-            print(f"[Label Mapping] Saved to: {mapping_path}")
-            print(f"[Label Full File] Saved to: {full_labels_path}")
+                print(f"[Label Mapping] Saved to: {mapping_path}")
+                print(f"[Label Full File] Saved to: {full_labels_path}")
         else:
+            # If no label_column, expose metadata dataframe directly
             self.labels = df
 
         self.edge_index = self._load_npy("edge_index.npy")
