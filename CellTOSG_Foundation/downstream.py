@@ -361,20 +361,20 @@ class CellTOSG_Class(nn.Module):
         self.internal_encoder.reset_parameters()
 
     def forward(self, x, pre_x, edge_index, internal_edge_index, ppi_edge_index,
-                num_entity, name_embeddings, desc_embeddings, seq_embeddings, batch_size):
+                num_entity, x_name_emb, x_desc_emb, x_bio_emb, batch_size):
         
         # import pdb; pdb.set_trace()
         num_node = num_entity * batch_size
 
         # ********************** Cross-modality Fusion *************************
-        name_emb = self.name_linear_transform(name_embeddings).clone()
+        name_emb = self.name_linear_transform(x_name_emb).clone()
         name_emb = name_emb.repeat(batch_size, 1)
-        desc_emb = self.desc_linear_transform(desc_embeddings).clone()
+        desc_emb = self.desc_linear_transform(x_desc_emb).clone()
         desc_emb = desc_emb.repeat(batch_size, 1)
-        seq_emb = self.seq_linear_transform(seq_embeddings).clone()
-        seq_emb = seq_emb.repeat(batch_size, 1)
+        bio_emb = self.seq_linear_transform(x_bio_emb).clone()
+        bio_emb = bio_emb.repeat(batch_size, 1)
         omic_emb = self.omic_linear_transform(x).clone()
-        merged_emb = torch.cat([name_emb, desc_emb, seq_emb, omic_emb], dim=-1)
+        merged_emb = torch.cat([name_emb, desc_emb, bio_emb, omic_emb], dim=-1)
         cross_x = self.cross_modal_fusion(merged_emb)
         # **********************************************************************
 

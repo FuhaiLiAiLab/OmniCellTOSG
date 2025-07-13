@@ -23,17 +23,37 @@ class ReadGeoGraph():
         graph_label_list = yBatch_list
         return graph_label_list
 
+    def form_pretrain_geo_datalist(self, num_graph, graph_feature_list, all_edge_index, internal_edge_index, ppi_edge_index):
+        pretrain_geo_datalist = []
+        for i in range(num_graph):
+            graph_feature = graph_feature_list[i]
+            pretrain_geo_data = Data(x=graph_feature, edge_index=ppi_edge_index, internal_edge_index=internal_edge_index, all_edge_index=all_edge_index)
+            pretrain_geo_datalist.append(pretrain_geo_data)
+        return pretrain_geo_datalist
+
     def form_geo_datalist(self, num_graph, graph_feature_list, graph_label_list, all_edge_index, internal_edge_index, ppi_edge_index):
         geo_datalist = []
         for i in range(num_graph):
             graph_feature = graph_feature_list[i]
             graph_label = graph_label_list[i]
-            # CONVERT [numpy] TO [torch]
-            graph_feature = torch.from_numpy(graph_feature).float()
-            graph_label = torch.from_numpy(np.array([graph_label])).float()
             geo_data = Data(x=graph_feature, edge_index=ppi_edge_index, internal_edge_index=internal_edge_index, all_edge_index=all_edge_index, label=graph_label)
             geo_datalist.append(geo_data)
         return geo_datalist
+
+
+def read_pretrain_batch(index, upper_index, x_input, num_feature, num_node, all_edge_index, internal_edge_index, ppi_edge_index):
+    # FORMING BATCH FILES
+    print('--------------' + str(index) + ' to ' + str(upper_index) + '--------------')
+    xBatch = x_input[index : upper_index, :]
+    print(xBatch.shape)
+    # PREPARE LOADING LISTS OF [features, labels, drugs, edge_index]
+    print('READING BATCH GRAPHS TO LISTS ...')
+    num_graph = upper_index - index
+    # print('READING BATCH FEATURES ...')
+    graph_feature_list =  ReadGeoGraph().read_feature(num_graph, num_feature, num_node, xBatch)
+    # print('FORMING GEOMETRIC GRAPH DATALIST ...')
+    pretrain_geo_datalist = ReadGeoGraph().form_pretrain_geo_datalist(num_graph, graph_feature_list, all_edge_index, internal_edge_index, ppi_edge_index)
+    return pretrain_geo_datalist
 
 
 def read_batch(index, upper_index, x_input, y_input, num_feature, num_node, all_edge_index, internal_edge_index, ppi_edge_index):
@@ -53,4 +73,3 @@ def read_batch(index, upper_index, x_input, y_input, num_feature, num_node, all_
     # print('FORMING GEOMETRIC GRAPH DATALIST ...')
     geo_datalist = ReadGeoGraph().form_geo_datalist(num_graph, graph_feature_list, graph_label_list, all_edge_index, internal_edge_index, ppi_edge_index)
     return geo_datalist
-

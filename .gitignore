@@ -19,7 +19,7 @@
 /sc_meta_cell/*
 /sc_raw_data/*
 /**dataset**/*
-/output/*
+/Output/*
 /OmniCellTOSG_v1/*
 /mapping_table/*
 
