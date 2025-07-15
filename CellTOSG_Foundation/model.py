@@ -451,7 +451,7 @@ class CellTOSG_Foundation(nn.Module):
         self,
         text_input_dim,
         omic_input_dim,
-        input_dim,
+        cross_fusion_output_dim,
         text_encoder,
         rna_seq_encoder,
         prot_seq_encoder,
@@ -479,7 +479,7 @@ class CellTOSG_Foundation(nn.Module):
         self.desc_linear_transform = nn.Linear(text_input_dim, text_input_dim)
         self.seq_linear_transform = nn.Linear(text_input_dim, text_input_dim)
         self.omic_linear_transform = nn.Linear(omic_input_dim, omic_input_dim)
-        self.cross_modal_fusion = nn.Linear(text_input_dim * 3 + omic_input_dim, input_dim)
+        self.cross_modal_fusion = nn.Linear(text_input_dim * 3 + omic_input_dim, cross_fusion_output_dim)
 
         if loss == "ce":
             self.loss_fn = ce_loss

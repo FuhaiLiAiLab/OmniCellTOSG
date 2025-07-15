@@ -1,0 +1,49 @@
+# Pretraining hyperparameters
+pretrain_batch_size: 4
+pre_alpha: 0.0
+pretrain_num_workers: 0
+pre_lr: 0.01
+pre_weight_decay: 5e-5
+
+# Pretraining masking parameters
+p: 1e-5
+
+# Pretraining text / rna / prot encoder parameters
+pretrain_text_batch_size: 256
+text_lm_model_path: 'microsoft/deberta-v3-small'
+rna_seq_lm_model_path: './Checkpoints/pretrained_dnagpt'
+rna_model_name: 'dna_gpt0.1b_h'
+rna_seq_max_len: 256
+prot_model_name: 'nferruz/ProtGPT2'
+
+# Pretraining internal GNN encoder parameters
+num_omic_feature: 1
+pre_internal_input_dim: 1
+pre_internal_output_dim: 1
+pre_internal_encoder_layers: 1
+pre_internal_encoder_dropout: 0.8
+pre_internal_bn: false
+pre_internal_layer_type: 'gcn'
+pre_internal_encoder_activation: 'leaky_relu'
+
+# Pretraining graph GNN encoder parameters
+pre_graph_input_dim: 8
+pre_graph_output_dim: 8
+pre_graph_encoder_layers: 2
+pre_graph_encoder_dropout: 0.8
+pre_graph_bn: false
+pre_graph_layer_type: 'gcn'
+pre_graph_encoder_activation: 'leaky_relu'
+
+# Pretraining edge and degree decoder parameters
+pre_decoder_dim: 4
+pre_decoder_layers: 2
+pre_decoder_dropout: 0.2
+
+# Pretraining cross fusion parameters
+pre_lm_emb_dim: 1
+pre_cross_fusion_output_dim: 1
+
+# Pretraining model save path
+pretrained_model_save_path: './Checkpoints/pretrained_models/pretrained_celltosg_foundation.pt'
+device: 0

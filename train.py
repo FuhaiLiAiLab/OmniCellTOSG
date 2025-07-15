@@ -1,5 +1,4 @@
 import os
-import argparse
 import pandas as pd
 import numpy as np
 
@@ -23,33 +22,33 @@ from CellTOSG_Foundation.mask import MaskEdge
 from CellTOSG_Foundation.lm_model import TextEncoder, RNAGPT_LM, ProtGPT_LM
 from CellTOSG_Loader import CellTOSGDataLoader
 
+# Config loading
+from utils import load_and_merge_configs, save_updated_config
+
 
 def build_pretrain_model(args, device):
+    # Build the mask for edge reconstruction
     mask = MaskEdge(p=args.p)
-
+    # Build the text, rna and protein sequence encoders
     text_encoder = TextEncoder(args.text_lm_model_path, device)
-
     rna_seq_encoder = RNAGPT_LM(args.rna_seq_lm_model_path, args.rna_model_name, device)
-
     prot_seq_encoder = ProtGPT_LM(args.prot_model_name, device)
-
-    graph_encoder = GNNEncoder(args.num_omic_feature, args.encoder_channels, args.hidden_channels,
-                        num_layers=args.encoder_layers, dropout=args.encoder_dropout,
-                        bn=args.bn, layer=args.layer, activation=args.encoder_activation)
-
-    internal_graph_encoder = GNNEncoder(args.num_omic_feature, args.input_dim, args.input_dim,
-                            num_layers=args.internal_encoder_layers, dropout=args.encoder_dropout,
-                            bn=args.bn, layer=args.layer, activation=args.encoder_activation)
-
-    edge_decoder = EdgeDecoder(args.hidden_channels, args.decoder_channels,
-                            num_layers=args.decoder_layers, dropout=args.decoder_dropout)
-
-    degree_decoder = DegreeDecoder(args.hidden_channels, args.decoder_channels,
-                                num_layers=args.decoder_layers, dropout=args.decoder_dropout)
-
-    pretrain_model = CellTOSG_Foundation(text_input_dim=args.lm_emb_dim,
+    # Build the internal GNN encoder, graph GNN encoder
+    internal_graph_encoder = GNNEncoder(args.num_omic_feature, args.pre_internal_input_dim, args.pre_internal_output_dim,
+                            num_layers=args.pre_internal_encoder_layers, dropout=args.pre_internal_encoder_dropout,
+                            bn=args.pre_internal_bn, layer=args.pre_internal_layer_type, activation=args.pre_internal_encoder_activation)
+    graph_encoder = GNNEncoder(args.num_omic_feature, args.pre_graph_input_dim, args.pre_graph_output_dim,
+                        num_layers=args.pre_graph_encoder_layers, dropout=args.pre_graph_encoder_dropout,
+                        bn=args.pre_graph_bn, layer=args.pre_graph_layer_type, activation=args.pre_graph_encoder_activation)
+    # Build the edge and degree decoder
+    edge_decoder = EdgeDecoder(args.pre_graph_output_dim, args.pre_decoder_dim,
+                            num_layers=args.pre_decoder_layers, dropout=args.pre_decoder_dropout)
+    degree_decoder = DegreeDecoder(args.pre_graph_output_dim, args.pre_decoder_dim,
+                                num_layers=args.pre_decoder_layers, dropout=args.pre_decoder_dropout)
+    # Build the pretraining model
+    pretrain_model = CellTOSG_Foundation(text_input_dim=args.pre_lm_emb_dim,
                     omic_input_dim=args.num_omic_feature,
-                    input_dim=args.input_dim, 
+                    cross_fusion_output_dim=args.pre_cross_fusion_output_dim, 
                     text_encoder=text_encoder,
                     rna_seq_encoder=rna_seq_encoder,
                     prot_seq_encoder=prot_seq_encoder,
@@ -58,8 +57,38 @@ def build_pretrain_model(args, device):
                     edge_decoder=edge_decoder,
                     degree_decoder=degree_decoder,
                     mask=mask).to(device)
-    
     return pretrain_model
+
+
+def build_model(args, device):
+    # Build the text, rna and protein sequence encoders
+    text_encoder = TextEncoder(args.text_lm_model_path, device)
+    rna_seq_encoder = RNAGPT_LM(args.rna_seq_lm_model_path, args.rna_model_name, device)
+    prot_seq_encoder = ProtGPT_LM(args.prot_model_name, device)
+    # Build the internal GNN encoder, graph GNN encoder
+    internal_graph_encoder = GNNEncoder(args.num_omic_feature, args.train_internal_input_dim, args.train_internal_output_dim,
+                            num_layers=args.train_internal_encoder_layers, dropout=args.train_internal_encoder_dropout,
+                            bn=args.train_internal_bn, layer=args.train_internal_layer_type, activation=args.train_internal_encoder_activation)
+    graph_encoder = GNNEncoder(args.num_omic_feature, args.train_graph_input_dim, args.train_graph_output_dim,
+                    num_layers=args.train_graph_encoder_layers, dropout=args.train_graph_encoder_dropout,
+                    bn=args.train_graph_bn, layer=args.train_graph_layer_type, activation=args.train_graph_encoder_activation)
+    # Build the downstream task model
+    model = CellTOSG_Class(text_input_dim=args.train_lm_emb_dim,
+                    omic_input_dim=args.num_omic_feature,
+                    cross_fusion_output_dim=args.train_cross_fusion_output_dim,
+                    pre_input_output_dim=args.pre_input_output_dim,
+                    final_fusion_output_dim=args.final_fusion_output_dim,
+                    num_class=args.num_class,
+                    num_entity=args.num_entity,
+                    linear_hidden_dims=args.train_linear_hidden_dims,
+                    linear_activation=args.train_linear_activation,
+                    linear_dropout_rate=args.train_linear_dropout,
+                    text_encoder=text_encoder,
+                    rna_seq_encoder=rna_seq_encoder,
+                    prot_seq_encoder=prot_seq_encoder,
+                    encoder=graph_encoder,
+                    internal_encoder=internal_graph_encoder).to(device)
+    return model
 
 
 def pre_embed_text(args, dataset, pretrain_model, device):
@@ -85,8 +114,8 @@ def pre_embed_text(args, dataset, pretrain_model, device):
         desc_sentence_list = [str(desc) for desc in desc_sentence_list]
         text_encoder = pretrain_model.text_encoder
         text_encoder.load_model()
-        x_name_emb = text_encoder.generate_embeddings(name_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.lm_emb_dim)
-        x_desc_emb = text_encoder.generate_embeddings(desc_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.lm_emb_dim)
+        x_name_emb = text_encoder.generate_embeddings(name_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.train_lm_emb_dim)
+        x_desc_emb = text_encoder.generate_embeddings(desc_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.train_lm_emb_dim)
     else:
         # Use pre-computed embeddings
         x_name_emb = dataset.x_name_emb
@@ -100,13 +129,13 @@ def pre_embed_text(args, dataset, pretrain_model, device):
         rna_seq_encoder = pretrain_model.rna_seq_encoder
         rna_seq_encoder.load_model()
         rna_replaced_seq_list = [' ' if type(i) == float else i.replace('U', 'T') for i in rna_seq_list]
-        rna_seq_embeddings = rna_seq_encoder.generate_embeddings(rna_replaced_seq_list, batch_size=args.pretrain_text_batch_size, max_len=args.rna_seq_max_len, seq_emb_dim=args.lm_emb_dim)
+        rna_seq_embeddings = rna_seq_encoder.generate_embeddings(rna_replaced_seq_list, batch_size=args.pretrain_text_batch_size, max_len=args.rna_seq_max_len, seq_emb_dim=args.train_lm_emb_dim)
         # sequence list where type == protein
         prot_seq_list = s_bio[s_bio['Type'] == 'Protein']['Sequence'].tolist()
         prot_seq_encoder = pretrain_model.prot_seq_encoder
         prot_seq_encoder.load_model()
         prot_replaced_seq_list = ['X' if type(i) == float else i for i in prot_seq_list]
-        prot_seq_embeddings = prot_seq_encoder.generate_embeddings(prot_replaced_seq_list, seq_emb_dim=args.lm_emb_dim)
+        prot_seq_embeddings = prot_seq_encoder.generate_embeddings(prot_replaced_seq_list, seq_emb_dim=args.train_lm_emb_dim)
         x_bio_emb = np.concatenate((rna_seq_embeddings, prot_seq_embeddings), axis=0)
     else:
         # Use pre-computed embeddings
@@ -115,7 +144,7 @@ def pre_embed_text(args, dataset, pretrain_model, device):
     return x_name_emb, x_desc_emb, x_bio_emb
 
 
-def split_dataset(xAll, yAll, args, output_dir):
+def split_dataset(xAll, yAll, args):
     """
     Split dataset into train and test sets ensuring relatively even distribution for each class.
     Maps both numerical and textual values to vectorized values and saves mapping dictionary.
@@ -124,7 +153,6 @@ def split_dataset(xAll, yAll, args, output_dir):
         xAll: Input features tensor
         yAll: Labels tensor
         args: Command line arguments containing split parameters
-        output_dir: Directory to save mapping dictionary
     
     Returns:
         tuple: (xTr, xTe, yTr, yTe, num_entity, num_feature)
@@ -150,7 +178,7 @@ def split_dataset(xAll, yAll, args, output_dir):
         {"original_value": k, "mapped_index": v} 
         for k, v in value_to_index.items()
     ])
-    mapping_csv_path = os.path.join(output_dir, "label_mapping_dict.csv")
+    mapping_csv_path = os.path.join(args.dataset_output_dir, "label_mapping_dict.csv")
     mapping_df.to_csv(mapping_csv_path, index=False)
     print(f"Mapping dictionary saved to: {mapping_csv_path}")
 
@@ -221,36 +249,6 @@ def split_dataset(xAll, yAll, args, output_dir):
         print(f"Class {class_idx} ('{original_value}'): {class_count} samples ({percentage:.1f}%)")
 
     return xTr, xTe, yTr, yTe, num_classes
-
-
-def build_model(args, device):
-    text_encoder = TextEncoder(args.text_lm_model_path, device)
-
-    rna_seq_encoder = RNAGPT_LM(args.rna_seq_lm_model_path, args.rna_model_name, device)
-
-    prot_seq_encoder = ProtGPT_LM(args.prot_model_name, device)
-
-    internal_graph_encoder = GNNEncoder(args.num_omic_feature, args.input_dim, args.input_dim,
-                            num_layers=args.train_internal_encoder_layers, dropout=args.encoder_dropout,
-                            bn=args.bn, layer=args.layer, activation=args.train_encoder_activation)
-
-    graph_encoder = GNNEncoder(args.num_omic_feature, args.encoder_channels, args.hidden_channels,
-                    num_layers=args.train_encoder_layers, dropout=args.encoder_dropout,
-                    bn=args.bn, layer=args.layer, activation=args.train_encoder_activation)
-
-    model = CellTOSG_Class(text_input_dim=args.lm_emb_dim,
-                    omic_input_dim=args.num_omic_feature,
-                    input_dim=args.input_dim,
-                    pre_input_dim=args.pre_input_dim,
-                    output_dim=args.train_output_dim,
-                    num_class=args.num_class,
-                    text_encoder=text_encoder,
-                    rna_seq_encoder=rna_seq_encoder,
-                    prot_seq_encoder=prot_seq_encoder,
-                    encoder=graph_encoder,
-                    internal_encoder=internal_graph_encoder).to(device)
-    return model
-
 
 def write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list, test_loss_list, test_acc_list):
     best_model_info = (
@@ -337,12 +335,12 @@ def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_inde
 
     # Clean result previous epoch_i_pred files
     folder_name = 'epoch_' + str(epoch_num)
-    path = './' + args.train_result_folder  + '/' + args.name + '/' + args.model_name + '/%s' % (folder_name)
+    path = './' + args.train_result_folder  + '/' + args.disease_name + '/' + args.model_name + '/%s' % (folder_name)
     unit = 1
     # Ensure the parent directories exist
-    os.makedirs('./' + args.train_result_folder  + '/' + args.name + '/' + args.model_name, exist_ok=True)
+    os.makedirs('./' + args.train_result_folder  + '/' + args.disease_name + '/' + args.model_name, exist_ok=True)
     while os.path.exists(path):
-        path = './' + args.train_result_folder  + '/' + args.name + '/' + args.model_name + '/%s_%d' % (folder_name, unit)
+        path = './' + args.train_result_folder  + '/' + args.disease_name + '/' + args.model_name + '/%s_%d' % (folder_name, unit)
         unit += 1
     os.mkdir(path)
 
@@ -480,92 +478,19 @@ def test(args, pretrain_model, model, xTe, yTe, all_edge_index, internal_edge_in
     return test_acc, test_loss, tmp_test_input_df
 
 
-def arg_parse():
-    parser = argparse.ArgumentParser()
-
-    #####################################################################################################################################################################
-    # dataset loading parameters
-    parser.add_argument('--seed', type=int, default=2025, help='Random seed for model and dataset. (default: 2025)')
-    parser.add_argument('--data_root', type=str, default='/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs', help='Root directory for dataset.')
-    parser.add_argument('--categories', type=str, default='get_organ_disease', help='Categories for dataset. (default: get_organ_disease)')
-    parser.add_argument('--tissue_general', type=str, default='brain', help='General tissue type for dataset. (default: brain)')
-    parser.add_argument('--tissue', type=str, default='Cerebral Cortex', help='Specific tissue type for dataset. (default: Cerebral Cortex)')
-    parser.add_argument('--suspension_type', type=str, default='nucleus', help='Suspension type for dataset. (default: nucleus)')
-    parser.add_argument('--cell_type', type=str, default='neuronal', help='Cell type for dataset. (default: neuronal)')
-    parser.add_argument('--disease_name', type=str, default="Alzheimer's Disease", help='Disease name for dataset.')
-    parser.add_argument('--gender', type=str, default='female', help='Gender for dataset. (default: female)')
-    parser.add_argument('--downstream_task', type=str, default='disease', help='Downstream task for dataset. (default: disease)')  # One of {"disease", "gender", "cell_type"}.
-    parser.add_argument('--label_column', type=str, default='disease', help='Label column for dataset. (default: disease)')  # One of {"disease", "gender", "cell_type"}.
-
-    parser.add_argument('--shuffle', type=bool, default=True, help='Whether to shuffle dataset. (default: True)')
-    parser.add_argument('--sample_ratio', type=float, default=0.01, help='Sample ratio for dataset. (default: 0.01)')
-    parser.add_argument('--sample_size', type=int, default=None, help='Sample size for dataset. (default: None)')
-    parser.add_argument('--balanced', type=bool, default=True, help='Whether to balance dataset. (default: True)')
-    parser.add_argument('--random_state', type=int, default=2025, help='Random state for dataset. (default: 2025)')
-    parser.add_argument('--train_text', type=bool, default=False, help='Whether to train text embeddings. (default: False)')
-    parser.add_argument('--train_bio', type=bool, default=False, help='Whether to train bio-sequence embeddings. (default: False)')
-    parser.add_argument('--dataset_output_dir', type=str, default='./Output/data_ad_disease', help='Directory to save dataset outputs. (default: ./Output/data_ad_disease)')
-    
-    #####################################################################################################################################################################
-    # pre-training parameters
-    parser.add_argument('--pretrain_text_batch_size', type=int, default=64, help='Batch size for pretraining text. (default: 64)')
-    parser.add_argument('--text_lm_model_path', type=str, default='microsoft/deberta-v3-small', help='Path to the pretrained language model. (default: microsoft/deberta-v3-small)')
-    parser.add_argument('--rna_seq_lm_model_path', type=str, default='./Checkpoints/pretrained_dnagpt', help='Path to the pretrained RNA language model. (default: ./Checkpoints/pretrained_dnagpt)')
-    parser.add_argument('--rna_model_name', type=str, default='dna_gpt0.1b_h', help='Name of the pretrained RNA language model. (default: dna_gpt0.1b_h)')
-    parser.add_argument('--prot_model_name', type=str, default='nferruz/ProtGPT2', help='Name of the pretrained protein language model. (default: nferruz/ProtGPT2)')
-
-    parser.add_argument('--layer', type=str, default='gcn', help='GNN layer type. (default: gcn)')
-    parser.add_argument('--encoder_activation', type=str, default='leaky_relu', help='Activation function for GNN encoder. (default: leaky_relu)')
-
-    parser.add_argument('--num_omic_feature', type=int, default=1, help='Omic feature size. (default: 1)')
-    parser.add_argument('--lm_emb_dim', type=int, default=1, help='Text embedding dimension. (default: 1)')
-
-    parser.add_argument('--input_dim', type=int, default=1, help='Input feature dimension. (default: 1)')
-    parser.add_argument('--encoder_channels', type=int, default=8, help='Channels of GNN encoder layers. (default: 8)')
-    parser.add_argument('--hidden_channels', type=int, default=8, help='Channels of hidden representation. (default: 8)')
-    parser.add_argument('--decoder_channels', type=int, default=4, help='Channels of decoder layers. (default: 4)')
-
-    parser.add_argument('--encoder_layers', type=int, default=2, help='Number of layers for encoder. (default: 2)')
-    parser.add_argument('--internal_encoder_layers', type=int, default=1, help='Number of layers for internal encoder. (default: 1)')
-    parser.add_argument('--decoder_layers', type=int, default=2, help='Number of layers for decoders. (default: 2)')
-    parser.add_argument('--encoder_dropout', type=float, default=0.8, help='Dropout probability of encoder. (default: 0.8)')
-    parser.add_argument('--decoder_dropout', type=float, default=0.2, help='Dropout probability of decoder. (default: 0.2)')
-
-    parser.add_argument('--pretrained_model_path', type=str, default='./Checkpoints/pretrained_models/pretrained_celltosg_foundation.pt', help='Pretrained model path. (default: ./Checkpoints/pretrained_models/pretrained_celltosg_foundation.pt)')
-    parser.add_argument('--device', type=int, default=0, help='Device ID for GPU. (default: 0)')
-
-    ###############################################################################################################################################################################
-    # downstream task parameters
-    parser.add_argument('--train_test_split_ratio', type=float, default=0.8, help='Train-test split ratio for downstream task. (default: 0.8)')
-    parser.add_argument('--train_test_random_seed', type=int, default=2025, help='Random seed for train-test split. (default: 2025)')
-
-    parser.add_argument('--train_lr', type=float, default=0.0025, help='Learning rate for training. (default: 0.0025)')
-    parser.add_argument('--train_eps', type=float, default=1e-7, help='Epsilon for Adam optimizer. (default: 1e-7)')
-    parser.add_argument('--train_weight_decay', type=float, default=1e-15, help='Weight decay for Adam optimizer. (default: 1e-15)')
-
-    parser.add_argument('--num_train_epoch', type=int, default=10, help='Number of training epochs. (default: 10)')
-    parser.add_argument('--train_batch_size', type=int, default=4, help='Batch size for training. (default: 4)')
-    parser.add_argument('--train_num_workers', type=int, default=0, help='Number of workers to load data. (default: 0)')
-
-    parser.add_argument('--train_internal_encoder_layers', type=int, default=1, help='Number of layers for internal encoder. (default: 1)')
-    parser.add_argument('--train_encoder_layers', type=int, default=3, help='Number of layers for encoder. (default: 3)')
-    parser.add_argument('--train_encoder_activation', type=str, default='leaky_relu', help='Activation function for encoder. (default: leaky_relu)')
-
-    parser.add_argument('--pre_input_dim', type=int, default=8, help='Input feature dimension for pretraining. (default: 8)')
-    parser.add_argument('--train_input_dim', type=int, default=1, help='Input feature dimension for training. (default: 1)')
-    parser.add_argument('--train_hidden_dim', type=int, default=8, help='Hidden feature dimension for training. (default: 8)')
-    parser.add_argument('--train_output_dim', type=int, default=8, help='Output feature dimension for training. (default: 8)')
-
-    parser.add_argument('--train_result_folder', type=str, default='Results', help='Path to save training results. (default: Results)')
-    parser.add_argument('--model_name', type=str, default='CellTOSG-Class', help='Model name. (default: CellTOSG-Class)')
-
-    return parser.parse_args()
-
-
 if __name__ == "__main__":
-    # Set arguments and print
-    args = arg_parse()
+    # Load and merge configurations with command line override support
+    args = load_and_merge_configs(
+        'Configs/dataloader.yaml',
+        'Configs/pretraining.yaml',
+        'Configs/training.yaml'
+    )
+    
+    # Save final configuration for reference
+    save_updated_config(args, 'Configs/final_train_config.yaml')
+    
     print(tab_printer(args))
+    
     # Check device
     if args.device < 0:
         device = 'cpu'
@@ -624,8 +549,9 @@ if __name__ == "__main__":
     ppi_edge_index = torch.from_numpy(ppi_edge_index).long()
     
     # Split dataset into train and test for xAll and yAll
-    xTr, xTe, yTr, yTe, num_classes = split_dataset(xAll, yAll, args, output_dir)
+    xTr, xTe, yTr, yTe, num_classes = split_dataset(xAll, yAll, args)
     args.num_class = num_classes
+    args.num_entity = xAll.shape[1]
     # Build model
     model = build_model(args, device)
     # Train the model

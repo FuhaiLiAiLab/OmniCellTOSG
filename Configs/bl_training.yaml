@@ -1,0 +1,21 @@
+# Train-test dataset split parameters
+train_test_split_ratio: 0.8
+train_test_random_seed: 2025
+
+# Baseline training hyperparameters
+device: 0
+num_train_epoch: 5
+train_batch_size: 2
+train_lr: 0.001
+train_num_workers: 0
+
+# Baseline training parameters
+num_omic_feature: 1
+bl_train_train_input_dim: 1
+bl_train_train_hidden_dim: 8
+bl_train_train_embedding_dim: 8
+bl_train_num_head: 2
+
+# Baseline model saving arguments
+bl_train_result_folder: 'Baseline_results'
+bl_train_model_name: 'gcn'

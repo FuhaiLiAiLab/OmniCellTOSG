@@ -1,0 +1,21 @@
+# Dataset loading parameters
+data_root: '/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs'
+categories: 'get_organ_disease'
+tissue_general: 'brain'
+tissue: 'Cerebral Cortex'
+suspension_type: 'nucleus'
+cell_type: 'neuronal'
+disease_name: "Alzheimer's Disease"
+gender: 'female'
+downstream_task: 'disease'
+label_column: 'disease'
+
+# Dataset loading parameters for shuffling and sampling
+shuffle: true
+sample_ratio: 0.01
+sample_size: null
+balanced: true
+random_state: 2025
+train_text: false
+train_bio: false
+dataset_output_dir: './Output/data_ad_disease'

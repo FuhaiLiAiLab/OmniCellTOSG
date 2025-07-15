@@ -16,24 +16,142 @@ from torch.utils.data import DataLoader
 from GeoDataLoader.read_geograph import read_batch
 from GeoDataLoader.geograph_sampler import GeoGraphLoader
 
-from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, precision_score, recall_score
 
 from GraphModel.model import GraphDecoder
 from GraphModel.utils import tab_printer
 
-from dataset import CellTOSGDataset
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, precision_score, recall_score
+
+# custom dataloader
+from GeoDataLoader.read_geograph import read_batch
+from GeoDataLoader.geograph_sampler import GeoGraphLoader
+
+# custom modules
+from CellTOSG_Foundation.utils import tab_printer
+from CellTOSG_Loader import CellTOSGDataLoader
+
+# Config loading
+from utils import load_and_merge_configs, save_updated_config
 
 
-def build_model(args, num_entity, device):
-    model = GraphDecoder(model_name=args.model_name,
-                        input_dim=args.train_input_dim, 
-                        hidden_dim=args.train_hidden_dim, 
-                        embedding_dim=args.train_embedding_dim, 
-                        num_node=num_entity, 
-                        num_head=args.train_num_head, 
+def build_model(args, device):
+    model = GraphDecoder(model_name=args.bl_train_model_name,
+                        input_dim=args.bl_train_train_input_dim, 
+                        hidden_dim=args.bl_train_train_hidden_dim, 
+                        embedding_dim=args.bl_train_train_embedding_dim, 
+                        num_node=args.num_entity, 
+                        num_head=args.bl_train_num_head, 
                         device=device, 
                         num_class=args.num_class).to(device)
     return model
+
+
+def split_dataset(xAll, yAll, args):
+    """
+    Split dataset into train and test sets ensuring relatively even distribution for each class.
+    Maps both numerical and textual values to vectorized values and saves mapping dictionary.
+    
+    Args:
+        xAll: Input features tensor
+        yAll: Labels tensor
+        args: Command line arguments containing split parameters
+    
+    Returns:
+        tuple: (xTr, xTe, yTr, yTe, num_entity, num_feature)
+    """    
+    # Get unique values from yAll (works for both numerical and textual)
+    unique_values = torch.unique(yAll)
+    num_classes = len(unique_values)
+    print("\n")
+    print(f"Original unique values: {unique_values}")
+    print(f"Total number of classes: {num_classes}")
+    
+    # Create mapping dictionary from original values to indices
+    if yAll.dtype == torch.long or yAll.dtype == torch.int:
+        # For numerical values
+        value_to_index = {value.item(): index for index, value in enumerate(unique_values)}
+    else:
+        # For textual values (if stored as strings in tensor)
+        value_to_index = {str(value): index for index, value in enumerate(unique_values)}
+    print("Value to index mapping:", value_to_index)
+    
+    # Save mapping dictionary to CSV
+    mapping_df = pd.DataFrame([
+        {"original_value": k, "mapped_index": v} 
+        for k, v in value_to_index.items()
+    ])
+    mapping_csv_path = os.path.join(args.dataset_output_dir, "label_mapping_dict.csv")
+    mapping_df.to_csv(mapping_csv_path, index=False)
+    print(f"Mapping dictionary saved to: {mapping_csv_path}")
+
+    # Apply mapping to yAll
+    yAll_mapped = torch.zeros_like(yAll, dtype=torch.long)
+    for original_value, new_index in value_to_index.items():
+        if yAll.dtype == torch.long or yAll.dtype == torch.int:
+            mask = (yAll == original_value)
+        else:
+            mask = (yAll == str(original_value))
+        yAll_mapped[mask] = new_index
+    yAll = yAll_mapped
+    yAll = yAll.reshape(-1, 1)
+    
+    # Print class distribution
+    print("\nOriginal dataset class distribution:")
+    for class_idx in range(num_classes):
+        class_count = torch.sum(yAll == class_idx)
+        percentage = (class_count / len(yAll)) * 100
+        original_value = list(value_to_index.keys())[class_idx]
+        print(f"Class {class_idx} ('{original_value}'): {class_count} samples ({percentage:.1f}%)")
+
+    # Get dataset size and create indices
+    dataset_size = xAll.shape[0]
+    indices = torch.arange(dataset_size)
+
+    # Split indices with stratification to ensure balanced distribution
+    train_indices, test_indices = train_test_split(
+        indices.numpy(), 
+        test_size=1-args.train_test_split_ratio, 
+        random_state=args.train_test_random_seed,
+        stratify=yAll.cpu().numpy()  # Ensure balanced split across all classes
+    )
+
+    # Convert indices back to torch tensors
+    train_indices = torch.from_numpy(train_indices).long()
+    test_indices = torch.from_numpy(test_indices).long()
+
+    # Use indices to split the tensors
+    xTr = xAll[train_indices]
+    xTe = xAll[test_indices]
+    yTr = yAll[train_indices]
+    yTe = yAll[test_indices]
+
+    # Get dimensions
+    train_num_cell = xTr.shape[0]
+    test_num_cell = xTe.shape[0]
+    num_entity = xTr.shape[1]
+    num_feature = args.num_omic_feature
+    print(f"\nDataset split summary:")
+    print(f"Training samples: {train_num_cell}")
+    print(f"Testing samples: {test_num_cell}")
+    print(f"Number of entities: {num_entity}")
+    print(f"Number of classes: {num_classes}")
+    
+    # Print class distribution in train and test sets
+    print("\nTraining set class distribution:")
+    for class_idx in range(num_classes):
+        class_count = torch.sum(yTr == class_idx)
+        percentage = (class_count / train_num_cell) * 100
+        original_value = list(value_to_index.keys())[class_idx]
+        print(f"Class {class_idx} ('{original_value}'): {class_count} samples ({percentage:.1f}%)")
+    print("\nTesting set class distribution:")
+    for class_idx in range(num_classes):
+        class_count = torch.sum(yTe == class_idx)
+        percentage = (class_count / test_num_cell) * 100
+        original_value = list(value_to_index.keys())[class_idx]
+        print(f"Class {class_idx} ('{original_value}'): {class_count} samples ({percentage:.1f}%)")
+
+    return xTr, xTe, yTr, yTe, num_classes
 
 
 def write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list, test_loss_list, test_acc_list):
@@ -101,53 +219,9 @@ def test_model(test_dataset_loader, current_cell_num, model, device, args):
     return model, batch_loss, batch_acc, all_ypred
 
 
-def train(args, device):
-    # Load data
-    print('--- LOADING TRAINING FILES ... ---')
-    dataset = CellTOSGDataset(
-        root=args.root,
-        categories=args.categories,
-        name=args.name,
-        label_type=args.label_type,
-        seed=args.seed,
-        ratio=args.sample_ratio,
-        shuffle=True
-    )
-
-    # import pdb; pdb.set_trace()
-    xAll = dataset.data 
-    yAll = dataset.labels
-    # Map yAll to 0-(number of unique values-1)
-    unique_values = np.unique(yAll)
-    print("Number of classes: ", len(unique_values))
-    args.num_class = len(unique_values)
-    value_to_index = {value: index for index, value in enumerate(unique_values)}
-    yAll = np.vectorize(value_to_index.get)(yAll)
-    all_edge_index = dataset.edge_index
-    internal_edge_index = dataset.internal_edge_index
-    ppi_edge_index = dataset.ppi_edge_index
-    print(xAll.shape, yAll.shape)
-
-    all_num_cell = xAll.shape[0]
-    num_entity = xAll.shape[1]
-    yAll = yAll.reshape(all_num_cell, -1)
-    # split the data into training and testing with ratio of 0.9
-    train_num_cell = int(all_num_cell*args.split_ratio)
-    xTr = xAll[:train_num_cell]
-    yTr = yAll[:train_num_cell]
-    xTe = xAll[train_num_cell:]
-    yTe = yAll[train_num_cell:]
-    print(xTr.shape, yTr.shape, xTe.shape, yTe.shape)
-    
-    all_edge_index = torch.from_numpy(all_edge_index).long()
-    internal_edge_index = torch.from_numpy(internal_edge_index).long()
-    ppi_edge_index = torch.from_numpy(ppi_edge_index).long()
-
-    # Build Pretrain Model
-    num_feature = args.num_omic_feature
-
-    # Train the model depends on the task
-    model = build_model(args, num_entity, device)
+def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index):
+    train_num_cell = xTr.shape[0]
+    num_entity = xTr.shape[1]
     epoch_num = args.num_train_epoch
     learning_rate = args.train_lr
     train_batch_size = args.train_batch_size
@@ -160,14 +234,14 @@ def train(args, device):
     max_test_acc_id = 0
 
     # Clean result previous epoch_i_pred files
-    print(args.model_name)
+    print(args.bl_train_model_name)
     folder_name = 'epoch_' + str(epoch_num)
-    path = './' + args.train_result_folder  + '/' + args.name + '/' + args.model_name + '/%s' % (folder_name)
+    path = './' + args.bl_train_result_folder  + '/' + args.disease_name + '/' + args.bl_train_model_name + '/%s' % (folder_name)
     unit = 1
     # Ensure the parent directories exist
-    os.makedirs('./' + args.train_result_folder  + '/' + args.name + '/' + args.model_name, exist_ok=True)
+    os.makedirs('./' + args.bl_train_result_folder  + '/' + args.disease_name + '/' + args.bl_train_model_name, exist_ok=True)
     while os.path.exists(path):
-        path = './' + args.train_result_folder  + '/' + args.name + '/' + args.model_name + '/%s_%d' % (folder_name, unit)
+        path = './' + args.bl_train_result_folder  + '/' + args.disease_name + '/' + args.bl_train_model_name + '/%s_%d' % (folder_name, unit)
         unit += 1
     os.mkdir(path)
 
@@ -302,55 +376,74 @@ def test(args, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_in
     return test_acc, test_loss, tmp_test_input_df
 
 
-def arg_parse():
-    parser = argparse.ArgumentParser()
-
-    # dataset loading parameters
-    parser.add_argument('--seed', type=int, default=2025, help='Random seed for model and dataset. (default: 2025)')
-    parser.add_argument('--root', nargs='?', default='./CellTOSG_dataset', help='Root directory for dataset. (default: ./CellTOSG_dataset)')
-    parser.add_argument('--categories', nargs='?', default='get_organ_disease', help='Categories for dataset. (default: get_organ_disease)')
-    # parser.add_argument('--name', nargs='?', default='brain-AD', help='Name for dataset. (default: brain-AD)')
-    # parser.add_argument('--name', nargs='?', default='bone_marrow-acute_myeloid_leukemia', help='Name for dataset.')
-    # parser.add_argument('--name', nargs='?', default='lung-SCLC', help='Name for dataset.')
-    parser.add_argument('--name', nargs='?', default='kidney-RCC', help='Name for dataset.')
-    # parser.add_argument('--label_type', nargs='?', default='status', help='Label type for dataset. (default: status)')
-    parser.add_argument('--label_type', nargs='?', default='ct', help='Label type for dataset. (default: status)')
-    parser.add_argument('--shuffle', type=bool, default=True, help='Whether to shuffle dataset. (default: True)')
-    parser.add_argument('--sample_ratio', type=float, default=0.1, help='Sample ratio for dataset. (default: 0.03)')
-    parser.add_argument('--split_ratio', type=float, default=0.9, help='Split ratio for dataset. (default: 0.9)')
-    parser.add_argument('--train_text', type=bool, default=False, help='Whether to train text embeddings. (default: False)')
-    parser.add_argument('--train_bio', type=bool, default=False, help='Whether to train bio-sequence embeddings. (default: False)')
-    
-    # Training arguments
-    parser.add_argument('--device', type=int, default=0, help='Device to use for training (default: 0)')
-    parser.add_argument('--num_train_epoch', type=int, default=5, help='Number of training epochs (default: 5)')
-    parser.add_argument('--train_batch_size', type=int, default=2, help='Training batch size (default: 2)')
-    parser.add_argument('--train_lr', type=float, default=0.001, help='Learning rate for training (default: 0.001)')
-
-    parser.add_argument('--num_omic_feature', type=int, default=1, help='Number of omic features (default: 1)')
-    parser.add_argument('--num_class', type=int, default=13, help='Number of classes (default: 13)')
-    parser.add_argument('--train_input_dim', type=int, default=1, help='Input dimension for training (default: 1)')
-    parser.add_argument('--train_hidden_dim', type=int, default=8, help='Hidden dimension for training (default: 8)')
-    parser.add_argument('--train_embedding_dim', type=int, default=8, help='Embedding dimension for training (default: 8)')
-    parser.add_argument('--train_num_head', type=int, default=2, help='Number of heads in the model (default: 2)')
-    parser.add_argument('--train_num_workers', type=int, default=0, help='Number of workers for data loading (default: 0)')
-    
-    parser.add_argument('--train_result_folder', nargs='?', default='Results', help='Path to save training results. (default: Results)')
-    parser.add_argument('--model_name', nargs='?', default='gcn', help='Model name. (default: gcn)')
-
-    return parser.parse_args()
-
-
 if __name__ == "__main__":
-    # Set arguments and print
-    args = arg_parse()
+    # Load and merge configurations with command line override support
+    args = load_and_merge_configs(
+        'Configs/dataloader.yaml',
+        'Configs/bl_training.yaml'
+    )
+    
+    # Save final configuration for reference
+    save_updated_config(args, 'Configs/final_bl_training.yaml')
+    
     print(tab_printer(args))
     # Check device
     if args.device < 0:
         device = 'cpu'
     else:
         device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
-
     torch.cuda.empty_cache()
+
+    args.tissue = None
+    args.suspension_type = None
+    args.cell_type = None
+    args.gender = None
+
+    # Load dataset with conditions
+    dataset = CellTOSGDataLoader(
+        root=args.data_root,
+        conditions={
+            "tissue_general": args.tissue_general,
+            # "tissue": args.tissue,
+            # "suspension_type": args.suspension_type,
+            # "cell_type": args.cell_type,
+            "disease": args.disease_name,
+            # "gender": args.gender,
+        },
+        downstream_task=args.downstream_task,  
+        label_column=args.label_column,
+        sample_ratio=args.sample_ratio,
+        sample_size=args.sample_size,
+        balanced=args.balanced,
+        shuffle=args.shuffle,
+        random_state=args.random_state,
+        train_text=args.train_text,
+        train_bio=args.train_bio,
+        output_dir=args.dataset_output_dir
+    )
+
+    # Graph feature
+    xAll = dataset.data
+    yAll = dataset.labels
+    all_edge_index = dataset.edge_index
+    internal_edge_index = dataset.internal_edge_index
+    ppi_edge_index = dataset.ppi_edge_index
+    # load embeddings into torch tensor
+    xAll = torch.from_numpy(xAll).float().to(device)
+    yAll = torch.from_numpy(yAll).long().to(device)
+    all_edge_index = torch.from_numpy(all_edge_index).long()
+    internal_edge_index = torch.from_numpy(internal_edge_index).long()
+    ppi_edge_index = torch.from_numpy(ppi_edge_index).long()
+    # Split dataset into train and test for xAll and yAll
+    xTr, xTe, yTr, yTe, num_classes = split_dataset(xAll, yAll, args)
+    args.num_class = num_classes
+    args.num_entity = xAll.shape[1]
+
+    # Build Pretrain Model
+    num_feature = args.num_omic_feature
+    args.num_class = num_classes
+    args.num_entity = xAll.shape[1]
+    # Train the model depends on the task
+    model = build_model(args, device)
     # Train the model
-    train(args, device)
+    train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index)

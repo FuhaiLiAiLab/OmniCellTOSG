@@ -1,0 +1,46 @@
+# Train-test dataset split parameters
+train_test_split_ratio: 0.8
+train_test_random_seed: 2025
+
+# Downstream task model hyper-parameters
+train_lr: 0.0025
+train_eps: 1e-7
+train_weight_decay: 1e-15
+num_train_epoch: 10
+train_batch_size: 4
+train_num_workers: 0
+
+# Training internal GNN encoder parameters
+train_internal_input_dim: 1
+train_internal_output_dim: 1
+train_internal_encoder_layers: 1
+train_internal_encoder_dropout: 0.3
+train_internal_bn: false
+train_internal_layer_type: 'gat'
+train_internal_encoder_activation: 'leaky_relu'
+
+# Training graph GNN encoder parameters
+train_graph_input_dim: 8
+train_graph_output_dim: 8
+train_graph_encoder_layers: 3
+train_graph_encoder_dropout: 0.3
+train_graph_bn: false
+train_graph_layer_type: 'gat'
+train_graph_encoder_activation: 'leaky_relu'
+
+# Training modual fusion parameters
+train_lm_emb_dim: 1
+train_cross_fusion_output_dim: 1
+pre_input_output_dim: 8
+final_fusion_output_dim: 8
+train_linear_hidden_dims: [512, 256, 64]
+train_linear_activation: 'leaky_relu'
+train_linear_dropout: 0.3
+
+# Training result saving names
+train_result_folder: 'Results'
+model_name: 'CellTOSG-Class'
+
+# Pretrained model path for loading
+pretrained_model_path: './Checkpoints/pretrained_models/pretrained_celltosg_foundation.pt'
+device: 0

@@ -79,6 +79,21 @@ def creat_activation_layer(activation):
         raise ValueError("Unknown activation")
 
 
+def create_linear_activation_layer(linear_activation):
+    if linear_activation is None:
+        return nn.Identity()
+    elif linear_activation == "relu":
+        return nn.ReLU(inplace=False)
+    elif linear_activation == "elu":
+        return nn.ELU(inplace=False)
+    elif linear_activation == "leaky_relu":
+        return nn.LeakyReLU(inplace=False)
+    elif linear_activation == "gelu":
+        return nn.GELU(inplace=False)
+    else:
+        raise ValueError("Unknown linear activation")
+
+
 class TransformerConv(MessagePassing):
     _alpha: OptTensor
     def __init__(
@@ -316,10 +331,14 @@ class CellTOSG_Class(nn.Module):
         self,
         text_input_dim,
         omic_input_dim,
-        input_dim,
-        pre_input_dim,
-        output_dim,
+        cross_fusion_output_dim,
+        pre_input_output_dim,
+        final_fusion_output_dim,
         num_class,
+        num_entity,
+        linear_hidden_dims,
+        linear_activation,
+        linear_dropout_rate,
         text_encoder,
         rna_seq_encoder,
         prot_seq_encoder,
@@ -340,61 +359,105 @@ class CellTOSG_Class(nn.Module):
         self.desc_linear_transform = nn.Linear(text_input_dim, text_input_dim)
         self.seq_linear_transform = nn.Linear(text_input_dim, text_input_dim)
         self.omic_linear_transform = nn.Linear(omic_input_dim, omic_input_dim)
+        self.cross_modal_fusion = nn.Linear(text_input_dim * 3 + omic_input_dim, cross_fusion_output_dim)
+        self.pre_transform = nn.Linear(pre_input_output_dim, pre_input_output_dim)
+        self.fusion = nn.Linear(cross_fusion_output_dim + pre_input_output_dim, final_fusion_output_dim)
 
-        self.cross_modal_fusion = nn.Linear(text_input_dim * 3 + omic_input_dim, input_dim)
+        # ========================= Graph Readout Layer Configuration =========================
+        # Linear transformation for single-value output
+        self.readout = nn.Linear(final_fusion_output_dim, 1)
+        # Build multi-layer perceptron with configurable architecture
+        layers = []
+        current_dim = num_entity
+        # Add hidden layers
+        for hidden_dim in linear_hidden_dims:
+            layers.append(nn.Linear(current_dim, hidden_dim))
+            # Add activation function using the helper function
+            layers.append(create_linear_activation_layer(linear_activation))
+            # Add dropout
+            layers.append(nn.Dropout(linear_dropout_rate))
+            current_dim = hidden_dim
+        # Create the sequential model
+        self.linear_repr = nn.Sequential(*layers)
+        # =================================================================================
 
-        self.pre_transform = nn.Linear(pre_input_dim, input_dim)
-        self.fusion = nn.Linear(input_dim * 2, input_dim)
+        # Final classification layer
+        self.classifier = nn.Linear(linear_hidden_dims[-1], num_class)
 
-        # Simple aggregations
-        self.mean_aggr = aggr.MeanAggregation()
-        self.max_aggr = aggr.MaxAggregation()
-        # Learnable aggregations
-        self.softmax_aggr = aggr.SoftmaxAggregation(learn=True)
-        self.powermean_aggr = aggr.PowerMeanAggregation(learn=True)
+        def reset_parameters(self):
+            """Reset all learnable parameters in the model to their initial values."""
+            # Reset graph encoder parameters
+            self.encoder.reset_parameters()
+            self.internal_encoder.reset_parameters()
 
-        self.classifier = nn.Linear(output_dim, num_class)
+            # Reset linear transformation layers
+            self.name_linear_transform.reset_parameters()
+            self.desc_linear_transform.reset_parameters()
+            self.seq_linear_transform.reset_parameters()
+            self.omic_linear_transform.reset_parameters()
+            self.cross_modal_fusion.reset_parameters()
+            self.pre_transform.reset_parameters()
+            self.fusion.reset_parameters()
 
-
-    def reset_parameters(self):
-        self.encoder.reset_parameters()
-        self.internal_encoder.reset_parameters()
+            # Reset readout layer
+            if hasattr(self, 'readout'):
+                self.readout.reset_parameters()
+            
+            # Reset linear representation layers
+            if hasattr(self, 'linear_repr'):
+                for layer in self.linear_repr:
+                    if hasattr(layer, 'reset_parameters'):
+                        layer.reset_parameters()
+            
+            # Reset final classifier
+            self.classifier.reset_parameters()
 
     def forward(self, x, pre_x, edge_index, internal_edge_index, ppi_edge_index,
                 num_entity, x_name_emb, x_desc_emb, x_bio_emb, batch_size):
         
-        # import pdb; pdb.set_trace()
         num_node = num_entity * batch_size
 
-        # ********************** Cross-modality Fusion *************************
-        name_emb = self.name_linear_transform(x_name_emb).clone()
-        name_emb = name_emb.repeat(batch_size, 1)
-        desc_emb = self.desc_linear_transform(x_desc_emb).clone()
-        desc_emb = desc_emb.repeat(batch_size, 1)
-        bio_emb = self.seq_linear_transform(x_bio_emb).clone()
-        bio_emb = bio_emb.repeat(batch_size, 1)
-        omic_emb = self.omic_linear_transform(x).clone()
-        merged_emb = torch.cat([name_emb, desc_emb, bio_emb, omic_emb], dim=-1)
-        cross_x = self.cross_modal_fusion(merged_emb)
-        # **********************************************************************
+        # =================== Multi-Modal Feature Integration ===================
+        # Transform and expand embeddings for all batch samples
+        name_features = self.name_linear_transform(x_name_emb)
+        name_features = name_features.repeat(batch_size, 1)
+        desc_features = self.desc_linear_transform(x_desc_emb)
+        desc_features = desc_features.repeat(batch_size, 1)
+        bio_features = self.seq_linear_transform(x_bio_emb)
+        bio_features = bio_features.repeat(batch_size, 1)
+        omic_features = self.omic_linear_transform(x)
+        # Concatenate all modalities and fuse them
+        multi_modal_features = torch.cat([name_features, desc_features, bio_features, omic_features], dim=-1)
+        cross_modal_output = self.cross_modal_fusion(multi_modal_features)
+        # ========================================================================
 
-        # ********************** Pre + Down Fusion *****************************
-        pre_x_transformed = self.pre_transform(pre_x)
-        pre_cross_x = torch.cat([pre_x_transformed, cross_x], dim=-1)
-        fused_x = self.fusion(pre_cross_x)
-        # ****************************************************************
+        # ================= Hierarchical Feature Fusion =======================
+        # Combine pre-trained features with cross-modal features
+        pre_features_transformed = self.pre_transform(pre_x)
+        combined_features = torch.cat([pre_features_transformed, cross_modal_output], dim=-1)
+        fused_features = self.fusion(combined_features)
+        # ========================================================================
 
-        # ********************** Graph Encoder *********************************
-        z = self.internal_encoder(fused_x, internal_edge_index) + x
+        # =================== Graph Neural Network Encoding ====================
+        # Apply internal graph convolution with residual connection
+        internal_output = self.internal_encoder(fused_features, internal_edge_index)
+        z = internal_output + x  # Residual connection
+        
+        # Apply main graph convolution
         z = self.encoder(z, ppi_edge_index)
-        # **********************************************************************
+        # ========================================================================
 
-        # ********************** Classification ********************************
-        z = z.view(batch_size, num_entity, -1)
-        z = self.powermean_aggr(z).view(batch_size, -1)
+        # =================== Graph-Level Linear Representation ==================
+        # For linear readout - use MLP approach
+        z = self.readout(z)  # Apply linear transformation: (B*N, D) -> (B*N, 1)
+        z = z.view(batch_size, num_entity)  # Reshape to (B, N)
+        z = self.linear_repr(z)  # Apply MLP: (B, N) -> (B, D')
+        # ========================================================================
+
+        # ===================== Final Classification ===========================
         output = self.classifier(z)
         _, pred = torch.max(output, dim=1)
-        # **********************************************************************
+        # ========================================================================
 
         return output, pred
     
@@ -414,4 +477,4 @@ class CellTOSG_Class(nn.Module):
         output = torch.log_softmax(output, dim=-1)
         loss = F.nll_loss(output, label, weight_vector)
         return loss
-    
+
