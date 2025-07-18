@@ -39,3 +39,6 @@ data_read.ipynb
 
 # Others
 /plot/*
+/heatmap_plot/*
+/archive/*
+/test.py

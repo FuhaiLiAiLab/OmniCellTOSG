@@ -119,6 +119,8 @@ class CellTOSGSubsetBuilder:
     def _resolve_query_fields(self, query_dict):
         resolved = {}
         for k, v in query_dict.items():
+            if v is None:
+                continue # Skip None values
             resolved_key = self.FIELD_ALIAS.get(k, k)
             resolved[resolved_key] = v
         return resolved
