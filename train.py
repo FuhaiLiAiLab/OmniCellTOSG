@@ -487,7 +487,7 @@ if __name__ == "__main__":
     )
     
     # Save final configuration for reference
-    save_updated_config(args, 'Configs/final_train_config.yaml')
+    save_updated_config(args, 'Configs/final_train_config.yaml') # args.train_result_folder
     
     print(tab_printer(args))
     

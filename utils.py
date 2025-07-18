@@ -37,9 +37,110 @@ def get_available_devices():
         return device, gpu_ids
 
 def load_config(config_path: str) -> Dict[str, Any]:
-    """Load configuration from YAML file."""
+    """Load configuration from YAML file with automatic type conversion."""
     with open(config_path, 'r') as file:
-        return yaml.safe_load(file)
+        config = yaml.safe_load(file)
+    
+    # Get type information from the argument parser
+    parser = argparse.ArgumentParser()
+    
+    # Recreate the same arguments as in parse_command_line_overrides() to get type info
+    type_map = {}
+    
+    # Dataset parameters
+    type_map.update({
+        'data_root': str, 'categories': str, 'tissue_general': str, 'tissue': str,
+        'suspension_type': str, 'cell_type': str, 'disease_name': str, 'gender': str,
+        'downstream_task': str, 'label_column': str, 'dataset_output_dir': str,
+        'shuffle': bool, 'balanced': bool, 'train_text': bool, 'train_bio': bool,
+        'sample_ratio': float, 'sample_size': int, 'random_state': int
+    })
+    
+    # Pretraining parameters
+    type_map.update({
+        'pretrain_batch_size': int, 'pre_alpha': float, 'pretrain_num_workers': int,
+        'pre_lr': float, 'pre_weight_decay': float, 'p': float,
+        'pretrain_text_batch_size': int, 'text_lm_model_path': str,
+        'rna_seq_lm_model_path': str, 'rna_model_name': str, 'rna_seq_max_len': int,
+        'prot_model_name': str
+    })
+    
+    # Pretraining internal GNN parameters
+    type_map.update({
+        'num_omic_feature': int, 'pre_internal_input_dim': int,
+        'pre_internal_output_dim': int, 'pre_internal_encoder_layers': int,
+        'pre_internal_encoder_dropout': float, 'pre_internal_bn': bool,
+        'pre_internal_layer_type': str, 'pre_internal_encoder_activation': str
+    })
+    
+    # Pretraining graph GNN parameters
+    type_map.update({
+        'pre_graph_input_dim': int, 'pre_graph_output_dim': int,
+        'pre_graph_encoder_layers': int, 'pre_graph_encoder_dropout': float,
+        'pre_graph_bn': bool, 'pre_graph_layer_type': str,
+        'pre_graph_encoder_activation': str
+    })
+    
+    # Pretraining decoder parameters
+    type_map.update({
+        'pre_decoder_dim': int, 'pre_decoder_layers': int,
+        'pre_decoder_dropout': float, 'pre_lm_emb_dim': int,
+        'pre_cross_fusion_output_dim': int, 'pretrained_model_save_path': str
+    })
+    
+    # Training parameters
+    type_map.update({
+        'train_test_split_ratio': float, 'train_test_random_seed': int,
+        'train_lr': float, 'train_eps': float, 'train_weight_decay': float,
+        'num_train_epoch': int, 'train_batch_size': int, 'train_num_workers': int
+    })
+    
+    # Training internal GNN parameters
+    type_map.update({
+        'train_internal_input_dim': int, 'train_internal_output_dim': int,
+        'train_internal_encoder_layers': int, 'train_internal_encoder_dropout': float,
+        'train_internal_bn': bool, 'train_internal_layer_type': str,
+        'train_internal_encoder_activation': str
+    })
+    
+    # Training graph GNN parameters
+    type_map.update({
+        'train_graph_input_dim': int, 'train_graph_output_dim': int,
+        'train_graph_encoder_layers': int, 'train_graph_encoder_dropout': float,
+        'train_graph_bn': bool, 'train_graph_layer_type': str,
+        'train_graph_encoder_activation': str
+    })
+    
+    # Training fusion parameters
+    type_map.update({
+        'train_lm_emb_dim': int, 'train_cross_fusion_output_dim': int,
+        'pre_input_output_dim': int, 'final_fusion_output_dim': int,
+        'train_linear_activation': str, 'train_linear_dropout': float,
+        'train_result_folder': str, 'model_name': str,
+        'pretrained_model_path': str, 'device': int
+    })
+    
+    # Convert config values to correct types
+    for key, value in config.items():
+        if key in type_map and value is not None:
+            target_type = type_map[key]
+            try:
+                if target_type == bool:
+                    # Handle boolean conversion
+                    if isinstance(value, str):
+                        config[key] = value.lower() in ('true', 'yes', '1', 'on')
+                    else:
+                        config[key] = bool(value)
+                elif target_type in (int, float):
+                    # Handle numeric conversion
+                    config[key] = target_type(value)
+                elif target_type == str:
+                    # Ensure string type
+                    config[key] = str(value)
+            except (ValueError, TypeError) as e:
+                print(f"Warning: Could not convert {key}='{value}' to {target_type.__name__}: {e}")
+    
+    return config
 
 def parse_command_line_overrides() -> Dict[str, Any]:
     """Parse command line arguments and return as dictionary for config override."""

@@ -23,7 +23,7 @@ from utils import load_and_merge_configs
 
 def build_pretrain_model(args, device):
     # Build the mask for edge reconstruction
-    mask = MaskEdge(p=args.p)
+    mask = MaskEdge(p=float(args.p))
     # Build the text, rna and protein sequence encoders
     text_encoder = TextEncoder(args.text_lm_model_path, device)
     rna_seq_encoder = RNAGPT_LM(args.rna_seq_lm_model_path, args.rna_model_name, device)
@@ -138,6 +138,9 @@ def pretrain_foundation(args, device, xAll, x_name_emb, x_desc_emb, x_bio_emb, a
     batch_auc_list = []
     batch_acc_list = []
     best_loss = 1000
+
+    optimizer = torch.optim.Adam(pretrain_model.parameters(), lr=args.pre_lr, weight_decay=args.pre_weight_decay)
+
     for index in range(0, num_cell, batch_size):
         if (index + batch_size) < num_cell:
             upper_index = index + batch_size
@@ -150,16 +153,12 @@ def pretrain_foundation(args, device, xAll, x_name_emb, x_desc_emb, x_bio_emb, a
         for batch_idx, data in enumerate(dataset_loader):
             print(f'Starting {index} - {upper_index}')
             print('Start Training (Link Prediction Pretext Training)...')
-            optimizer = torch.optim.Adam(pretrain_model.parameters(),
-                                        lr=args.pre_lr,
-                                        weight_decay=args.pre_weight_decay)
 
             train_data, val_data, test_data = T.RandomLinkSplit(num_test=0.1, num_val=0.0,
                                                             is_undirected=False,
                                                             split_labels=True,
                                                             add_negative_train_samples=False)(data)
             
-            pretrain_model.reset_parameters()
             train_data = train_data.to(device)
             avg_loss, step_avg_loss_list = pretrain_model.train_step(train_data,
                                         num_entity,
@@ -251,6 +250,7 @@ if __name__ == "__main__":
     # Build Pretrain Model
     os.makedirs(os.path.dirname(args.pretrained_model_save_path), exist_ok=True)
     pretrain_model = build_pretrain_model(args, device)
+    pretrain_model.reset_parameters()
 
     # Prepare embeddings
     x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model, device)
