@@ -42,3 +42,4 @@ data_read.ipynb
 /heatmap_plot/*
 /archive/*
 /test.py
+/wandb/*

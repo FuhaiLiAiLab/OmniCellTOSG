@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import argparse
 import sys
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
 from pynvml import *
 import yaml
@@ -276,41 +276,41 @@ def parse_command_line_overrides() -> Dict[str, Any]:
     
     return overrides
 
-def merge_configs(*configs: Dict[str, Any]) -> argparse.Namespace:
-    """Merge multiple configuration dictionaries into a single Namespace object."""
-    merged_config = {}
+def merge_configs(*configs, overrides=None):
+    merged = {}
     for config in configs:
-        merged_config.update(config)
-    return argparse.Namespace(**merged_config)
+        merged.update(config)
+    if overrides:
+        merged.update(overrides)
+    return argparse.Namespace(**merged)
 
-def load_and_merge_configs(*config_paths: str) -> argparse.Namespace:
-    """Load and merge multiple YAML configuration files with command line override support."""
-    # Load YAML configs
-    configs = [load_config(path) for path in config_paths]
-    
-    # Get command line overrides
+def load_and_merge_configs(*config_paths: str) -> Tuple[argparse.Namespace, dict]:
+    """
+    Load multiple YAML configs, merge them (with CLI override), and
+    return both a Namespace and a structured config grouped by file name.
+    """
+    config_groups = {}
+    raw_configs = []
+
+    for path in config_paths:
+        config = load_config(path)
+        filename_key = os.path.splitext(os.path.basename(path))[0]
+        config_groups[filename_key] = config
+        raw_configs.append(config)
+
     overrides = parse_command_line_overrides()
     
-    # Print override information
     if overrides:
         print("Command line overrides detected:")
         for key, value in overrides.items():
             print(f"  {key}: {value}")
         print()
-    
-    # Merge configs with overrides taking precedence
-    merged_config = merge_configs(*configs, overrides)
-    
-    return merged_config
 
-def save_updated_config(config: argparse.Namespace, output_path: str):
-    """Save the final merged configuration to a YAML file."""
-    config_dict = vars(config)
-    
-    # Create directory if it doesn't exist
+    merged_config = merge_configs(*raw_configs, overrides)
+    return merged_config, config_groups
+
+def save_updated_config(config_groups: dict, output_path: str):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    
-    with open(output_path, 'w') as file:
-        yaml.dump(config_dict, file, default_flow_style=False, sort_keys=True)
-    
-    print(f"Final configuration saved to: {output_path}")
+    with open(output_path, 'w') as f:
+        yaml.dump(config_groups, f, default_flow_style=False, sort_keys=False)
+    print(f"Structured config saved to: {output_path}")
