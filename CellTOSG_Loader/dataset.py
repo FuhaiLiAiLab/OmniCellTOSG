@@ -123,6 +123,9 @@ class CellTOSGDataLoader:
 
                 print(f"[Label Mapping] Saved to: {mapping_path}")
                 print(f"[Label Full File] Saved to: {full_labels_path}")
+
+                np.save(os.path.join(self.output_dir, "labels.npy"), self.labels)
+                print(f"[Label NPY] Saved encoded labels to: {os.path.join(self.output_dir, 'labels.npy')}")
         else:
             # If no label_column, expose metadata dataframe directly
             self.labels = df

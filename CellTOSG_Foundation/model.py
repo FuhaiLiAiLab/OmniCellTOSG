@@ -42,16 +42,14 @@ def to_sparse_tensor(edge_index, num_nodes):
 
 
 def creat_gnn_layer(name, first_channels, second_channels, heads):
-    if name == "sage":
-        layer = SAGEConv(first_channels, second_channels)
-    elif name == "gcn":
+    if name == "gcn":
         layer = GCNConv(first_channels, second_channels)
     elif name == "gin":
         layer = GINConv(Linear(first_channels, second_channels), train_eps=True)
     elif name == "gat":
         layer = GATConv(-1, second_channels, heads=heads)
-    elif name == "gat2":
-        layer = GATv2Conv(-1, second_channels, heads=heads)
+    elif name == "transformer":
+        layer = TransformerConv(first_channels, second_channels, heads=heads)
     else:
         raise ValueError(name)
     return layer

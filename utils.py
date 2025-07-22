@@ -64,6 +64,11 @@ def load_config(config_path: str) -> Dict[str, Any]:
         'rna_seq_lm_model_path': str, 'rna_model_name': str, 'rna_seq_max_len': int,
         'prot_model_name': str
     })
+
+    # Pretraining base layer
+    type_map.update({
+        'pretrain_base_layer': str
+    })
     
     # Pretraining internal GNN parameters
     type_map.update({
@@ -87,6 +92,13 @@ def load_config(config_path: str) -> Dict[str, Any]:
         'pre_decoder_dropout': float, 'pre_lm_emb_dim': int,
         'pre_cross_fusion_output_dim': int, 'pretrained_model_save_path': str
     })
+
+    # Baseline parameters
+    type_map.update({
+        'bl_train_train_input_dim': int, 'bl_train_train_hidden_dim': int,
+        'bl_train_train_embedding_dim': int, 'bl_train_num_head': int,
+        'bl_train_result_folder': str, 'bl_train_model_name': str
+    })
     
     # Training parameters
     type_map.update({
@@ -94,10 +106,15 @@ def load_config(config_path: str) -> Dict[str, Any]:
         'train_lr': float, 'train_eps': float, 'train_weight_decay': float,
         'num_train_epoch': int, 'train_batch_size': int, 'train_num_workers': int
     })
-    
+
+    # Training base layer parameters
+    type_map.update({
+        'train_base_layer': str
+    })
+
     # Training internal GNN parameters
     type_map.update({
-        'train_internal_input_dim': int, 'train_internal_output_dim': int,
+        'train_internal_input_dim': int, 'train_internal_hidden_dim': int, 'train_internal_output_dim': int,
         'train_internal_encoder_layers': int, 'train_internal_encoder_dropout': float,
         'train_internal_bn': bool, 'train_internal_layer_type': str,
         'train_internal_encoder_activation': str
@@ -105,7 +122,7 @@ def load_config(config_path: str) -> Dict[str, Any]:
     
     # Training graph GNN parameters
     type_map.update({
-        'train_graph_input_dim': int, 'train_graph_output_dim': int,
+        'train_graph_input_dim': int, 'train_graph_hidden_dim': int, 'train_graph_output_dim': int,
         'train_graph_encoder_layers': int, 'train_graph_encoder_dropout': float,
         'train_graph_bn': bool, 'train_graph_layer_type': str,
         'train_graph_encoder_activation': str
@@ -116,8 +133,7 @@ def load_config(config_path: str) -> Dict[str, Any]:
         'train_lm_emb_dim': int, 'train_cross_fusion_output_dim': int,
         'pre_input_output_dim': int, 'final_fusion_output_dim': int,
         'train_linear_activation': str, 'train_linear_dropout': float,
-        'train_result_folder': str, 'model_name': str,
-        'pretrained_model_path': str, 'device': int
+        'train_result_folder': str, 'model_name': str
     })
     
     # Convert config values to correct types
@@ -175,6 +191,9 @@ def parse_command_line_overrides() -> Dict[str, Any]:
     parser.add_argument('--pre_lr', type=float, help='Pretraining learning rate')
     parser.add_argument('--pre_weight_decay', type=float, help='Pretraining weight decay')
     
+    # Pretraining base layer
+    parser.add_argument('--pretrain_base_layer', type=str, help='Base layer type for pretraining (e.g., gcn, gat, gin, transformer)')
+
     # Pretraining masking parameters
     parser.add_argument('--p', type=float, help='Masking probability')
     
@@ -216,7 +235,19 @@ def parse_command_line_overrides() -> Dict[str, Any]:
     
     # Pretraining model save path
     parser.add_argument('--pretrained_model_save_path', type=str, help='Pretrained model save path')
-    
+
+    # ================================ BASELINE PARAMETERS ================================
+    # Baseline-specific architecture settings
+    parser.add_argument('--bl_train_train_input_dim', type=int, help='Baseline model input dimension')
+    parser.add_argument('--bl_train_train_hidden_dim', type=int, help='Baseline model hidden dimension')
+    parser.add_argument('--bl_train_train_embedding_dim', type=int, help='Baseline model embedding dimension')
+    parser.add_argument('--bl_train_num_head', type=int, help='Number of attention heads (for transformer-like baseline models)')
+
+    # Baseline result saving
+    parser.add_argument('--bl_train_result_folder', type=str, help='Folder to save baseline training results')
+    parser.add_argument('--bl_train_model_name', type=str, help='Baseline model name (e.g., gcn, gat, gin, transformer)')
+
+
     # ================================ TRAINING PARAMETERS ================================
     # Train-test dataset split parameters
     parser.add_argument('--train_test_split_ratio', type=float, help='Train-test split ratio')
@@ -229,9 +260,13 @@ def parse_command_line_overrides() -> Dict[str, Any]:
     parser.add_argument('--num_train_epoch', type=int, help='Number of training epochs')
     parser.add_argument('--train_batch_size', type=int, help='Training batch size')
     parser.add_argument('--train_num_workers', type=int, help='Number of workers for training')
-    
+
+    # Training base layer
+    parser.add_argument('--train_base_layer', type=str, help='Base layer type for training (e.g., gcn, gat, gin, transformer)')
+
     # Training internal GNN encoder parameters
     parser.add_argument('--train_internal_input_dim', type=int, help='Training internal input dimension')
+    parser.add_argument('--train_internal_hidden_dim', type=int, help='Training internal hidden dimension')
     parser.add_argument('--train_internal_output_dim', type=int, help='Training internal output dimension')
     parser.add_argument('--train_internal_encoder_layers', type=int, help='Training internal encoder layers')
     parser.add_argument('--train_internal_encoder_dropout', type=float, help='Training internal encoder dropout')
@@ -241,6 +276,7 @@ def parse_command_line_overrides() -> Dict[str, Any]:
     
     # Training graph GNN encoder parameters
     parser.add_argument('--train_graph_input_dim', type=int, help='Training graph input dimension')
+    parser.add_argument('--train_graph_hidden_dim', type=int, help='Training graph hidden dimension')
     parser.add_argument('--train_graph_output_dim', type=int, help='Training graph output dimension')
     parser.add_argument('--train_graph_encoder_layers', type=int, help='Training graph encoder layers')
     parser.add_argument('--train_graph_encoder_dropout', type=float, help='Training graph encoder dropout')
@@ -260,10 +296,7 @@ def parse_command_line_overrides() -> Dict[str, Any]:
     # Training result saving names
     parser.add_argument('--train_result_folder', type=str, help='Training result folder')
     parser.add_argument('--model_name', type=str, help='Model name')
-    
-    # Pretrained model path for loading
-    parser.add_argument('--pretrained_model_path', type=str, help='Pretrained model path for loading')
-    
+   
     # ================================ GENERAL PARAMETERS ================================
     # Device parameter
     parser.add_argument('--device', type=int, help='Device ID for GPU')
@@ -305,6 +338,7 @@ def load_and_merge_configs(*config_paths: str) -> Tuple[argparse.Namespace, dict
         for key, value in overrides.items():
             print(f"  {key}: {value}")
         print()
+        apply_overrides_to_config_groups(config_groups, overrides)
 
     merged_config = merge_configs(*raw_configs, overrides)
     return merged_config, config_groups
@@ -314,3 +348,33 @@ def save_updated_config(config_groups: dict, output_path: str):
     with open(output_path, 'w') as f:
         yaml.dump(config_groups, f, default_flow_style=False, sort_keys=False)
     print(f"Structured config saved to: {output_path}")
+
+def apply_overrides_to_config_groups(config_groups: Dict[str, dict], overrides: Dict[str, Any]):
+    """
+    Apply flat key-value overrides to nested config_groups.
+    Attempts to intelligently match keys to the correct config group.
+    """
+    for key, value in overrides.items():
+        matched = False
+        for group_name, group in config_groups.items():
+            if key in group:
+                group[key] = value
+                matched = True
+                break
+        if not matched:
+            # If not found in any group, default to the first one
+            first_group = list(config_groups.keys())[0]
+            config_groups[first_group][key] = value
+
+    training_cfg = config_groups.get("training", {})
+    base_layer = training_cfg.get("train_base_layer")
+    if base_layer:
+        training_cfg["train_internal_layer_type"] = base_layer
+        training_cfg["train_graph_layer_type"] = base_layer
+    
+    pretrain_cfg = config_groups.get("pretraining", {})
+    pretrain_path = pretrain_cfg.get("pretrained_model_save_path")
+    pretrain_layer = pretrain_cfg.get("pretrain_base_layer")  # From training config
+    if pretrain_path and "{pretrain_base_layer}" in pretrain_path and pretrain_layer:
+        # Format the pretrain path with the base layer type
+        pretrain_cfg["pretrained_model_save_path"] = pretrain_path.format(pretrain_base_layer=pretrain_layer)

@@ -10,22 +10,27 @@ num_train_epoch: 10
 train_batch_size: 4
 train_num_workers: 0
 
+# Training base layer
+train_base_layer: &tr_layer gcn
+
 # Training internal GNN encoder parameters
-train_internal_input_dim: 1
-train_internal_output_dim: 1
+train_internal_input_dim: 8 # This should match the value of final_fusion_output_dim
+train_internal_hidden_dim: 8
+train_internal_output_dim: 8
 train_internal_encoder_layers: 1
 train_internal_encoder_dropout: 0.3
 train_internal_bn: false
-train_internal_layer_type: 'gat'
+train_internal_layer_type: *tr_layer
 train_internal_encoder_activation: 'leaky_relu'
 
 # Training graph GNN encoder parameters
-train_graph_input_dim: 8
+train_graph_input_dim: 8 # This should match the value of train_internal_output_dim
+train_graph_hidden_dim: 8
 train_graph_output_dim: 8
 train_graph_encoder_layers: 3
 train_graph_encoder_dropout: 0.3
 train_graph_bn: false
-train_graph_layer_type: 'gat'
+train_graph_layer_type: *tr_layer
 train_graph_encoder_activation: 'leaky_relu'
 
 # Training modual fusion parameters
@@ -38,9 +43,5 @@ train_linear_activation: 'leaky_relu'
 train_linear_dropout: 0.3
 
 # Training result saving names
-train_result_folder: 'Results'
+train_result_folder: 'CellTOSG_model_results'
 model_name: 'CellTOSG-Class'
-
-# Pretrained model path for loading
-pretrained_model_path: './Checkpoints/pretrained_models/pretrained_celltosg_foundation.pt'
-device: 0

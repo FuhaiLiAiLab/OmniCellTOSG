@@ -60,49 +60,20 @@ def split_dataset(xAll, yAll, args):
     Returns:
         tuple: (xTr, xTe, yTr, yTe, num_entity, num_feature)
     """    
-    # Get unique values from yAll (works for both numerical and textual)
+    # Get unique values from yAll
+    yAll = yAll.view(-1, 1)
     unique_values = torch.unique(yAll)
     num_classes = len(unique_values)
     print("\n")
     print(f"Original unique values: {unique_values}")
     print(f"Total number of classes: {num_classes}")
     
-    # Create mapping dictionary from original values to indices
-    if yAll.dtype == torch.long or yAll.dtype == torch.int:
-        # For numerical values
-        value_to_index = {value.item(): index for index, value in enumerate(unique_values)}
-    else:
-        # For textual values (if stored as strings in tensor)
-        value_to_index = {str(value): index for index, value in enumerate(unique_values)}
-    print("Value to index mapping:", value_to_index)
-    
-    # Save mapping dictionary to CSV
-    mapping_df = pd.DataFrame([
-        {"original_value": k, "mapped_index": v} 
-        for k, v in value_to_index.items()
-    ])
-    mapping_csv_path = os.path.join(args.dataset_output_dir, "label_mapping_dict.csv")
-    mapping_df.to_csv(mapping_csv_path, index=False)
-    print(f"Mapping dictionary saved to: {mapping_csv_path}")
-
-    # Apply mapping to yAll
-    yAll_mapped = torch.zeros_like(yAll, dtype=torch.long)
-    for original_value, new_index in value_to_index.items():
-        if yAll.dtype == torch.long or yAll.dtype == torch.int:
-            mask = (yAll == original_value)
-        else:
-            mask = (yAll == str(original_value))
-        yAll_mapped[mask] = new_index
-    yAll = yAll_mapped
-    yAll = yAll.reshape(-1, 1)
-    
     # Print class distribution
     print("\nOriginal dataset class distribution:")
     for class_idx in range(num_classes):
         class_count = torch.sum(yAll == class_idx)
         percentage = (class_count / len(yAll)) * 100
-        original_value = list(value_to_index.keys())[class_idx]
-        print(f"Class {class_idx} ('{original_value}'): {class_count} samples ({percentage:.1f}%)")
+        print(f"Class {class_idx} : {class_count} samples ({percentage:.1f}%)")
 
     # Get dataset size and create indices
     dataset_size = xAll.shape[0]
@@ -142,14 +113,12 @@ def split_dataset(xAll, yAll, args):
     for class_idx in range(num_classes):
         class_count = torch.sum(yTr == class_idx)
         percentage = (class_count / train_num_cell) * 100
-        original_value = list(value_to_index.keys())[class_idx]
-        print(f"Class {class_idx} ('{original_value}'): {class_count} samples ({percentage:.1f}%)")
+        print(f"Class {class_idx}: {class_count} samples ({percentage:.1f}%)")
     print("\nTesting set class distribution:")
     for class_idx in range(num_classes):
         class_count = torch.sum(yTe == class_idx)
         percentage = (class_count / test_num_cell) * 100
-        original_value = list(value_to_index.keys())[class_idx]
-        print(f"Class {class_idx} ('{original_value}'): {class_count} samples ({percentage:.1f}%)")
+        print(f"Class {class_idx}: {class_count} samples ({percentage:.1f}%)")
 
     return xTr, xTe, yTr, yTe, num_classes
 
@@ -219,7 +188,7 @@ def test_model(test_dataset_loader, current_cell_num, model, device, args):
     return model, batch_loss, batch_acc, all_ypred
 
 
-def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index):
+def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index, config_groups):
     train_num_cell = xTr.shape[0]
     num_entity = xTr.shape[1]
     epoch_num = args.num_train_epoch
@@ -236,14 +205,19 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
     # Clean result previous epoch_i_pred files
     print(args.bl_train_model_name)
     folder_name = 'epoch_' + str(epoch_num)
-    path = './' + args.bl_train_result_folder  + '/' + args.disease_name + '/' + args.bl_train_model_name + '/%s' % (folder_name)
+    path = './' + args.bl_train_result_folder + '/' + args.downstream_task + '/' + args.disease_name + '/' + args.bl_train_model_name + '/%s' % (folder_name)
     unit = 1
     # Ensure the parent directories exist
-    os.makedirs('./' + args.bl_train_result_folder  + '/' + args.disease_name + '/' + args.bl_train_model_name, exist_ok=True)
+    os.makedirs('./' + args.bl_train_result_folder  + '/' + args.downstream_task + '/' + args.disease_name + '/' + args.bl_train_model_name, exist_ok=True)
     while os.path.exists(path):
-        path = './' + args.bl_train_result_folder  + '/' + args.disease_name + '/' + args.bl_train_model_name + '/%s_%d' % (folder_name, unit)
+        path = './' + args.bl_train_result_folder  + '/' + args.downstream_task + '/' + args.disease_name + '/' + args.bl_train_model_name + '/%s_%d' % (folder_name, unit)
         unit += 1
     os.mkdir(path)
+
+    # Save final configuration for reference
+    config_save_path = os.path.join(path, 'config.yaml')
+    save_updated_config(config_groups, config_save_path)
+    print(f"[Config] Saved to {config_save_path}")
 
     for i in range(1, epoch_num + 1):
         for _ in range(5):
@@ -273,10 +247,8 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
         epoch_ypred = np.delete(epoch_ypred, 0, axis = 0)
         # print('ITERATION NUMBER UNTIL NOW: ' + str(iteration_num))
         # Preserve acc corr for every epoch
-        score_lists = list(yTr)
-        score_list = [item for elem in score_lists for item in elem]
-        epoch_ypred_lists = list(epoch_ypred)
-        epoch_ypred_list = [item for elem in epoch_ypred_lists for item in elem]
+        score_list = yTr.detach().cpu().numpy().reshape(-1).tolist()
+        epoch_ypred_list = epoch_ypred.reshape(-1).tolist()
         train_dict = {'label': score_list, 'prediction': epoch_ypred_list}
         tmp_training_input_df = pd.DataFrame(train_dict)
         # Calculating metrics
@@ -302,6 +274,16 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
         print(test_acc_list)
         print('\n-------------EPOCH TEST MSE LOSS LIST: -------------')
         print(test_loss_list)
+
+        if args.use_wandb:
+            wandb.log({
+                "epoch": i,
+                "train_loss": epoch_loss_list[-1],
+                "train_acc": epoch_acc_list[-1],
+                "test_loss": test_loss_list[-1],
+                "test_acc": test_acc_list[-1]
+            })
+
         # SAVE BEST TEST MODEL
         if test_acc >= max_test_acc:
             max_test_acc = test_acc
@@ -362,8 +344,7 @@ def test(args, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_in
     all_ypred = np.delete(all_ypred, 0, axis=0)
     all_ypred_lists = list(all_ypred)
     all_ypred_list = [item for elem in all_ypred_lists for item in elem]
-    score_lists = list(yTe)
-    score_list = [item for elem in score_lists for item in elem]
+    score_list = yTe.detach().cpu().numpy().reshape(-1).tolist()
     test_dict = {'label': score_list, 'prediction': all_ypred_list}
     # import pdb; pdb.set_trace()
     tmp_test_input_df = pd.DataFrame(test_dict)
@@ -378,15 +359,13 @@ def test(args, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_in
 
 if __name__ == "__main__":
     # Load and merge configurations with command line override support
-    args = load_and_merge_configs(
+    args, config_groups = load_and_merge_configs(
         'Configs/dataloader.yaml',
         'Configs/bl_training.yaml'
     )
-    
-    # Save final configuration for reference
-    save_updated_config(args, 'Configs/final_bl_training.yaml')
-    
+
     print(tab_printer(args))
+
     # Check device
     if args.device < 0:
         device = 'cpu'
@@ -399,28 +378,81 @@ if __name__ == "__main__":
     args.cell_type = None
     args.gender = None
 
-    # Load dataset with conditions
-    dataset = CellTOSGDataLoader(
-        root=args.data_root,
-        conditions={
-            "tissue_general": args.tissue_general,
-            # "tissue": args.tissue,
-            # "suspension_type": args.suspension_type,
-            # "cell_type": args.cell_type,
-            "disease": args.disease_name,
-            # "gender": args.gender,
-        },
-        downstream_task=args.downstream_task,  
-        label_column=args.label_column,
-        sample_ratio=args.sample_ratio,
-        sample_size=args.sample_size,
-        balanced=args.balanced,
-        shuffle=args.shuffle,
-        random_state=args.random_state,
-        train_text=args.train_text,
-        train_bio=args.train_bio,
-        output_dir=args.dataset_output_dir
-    )
+    # Use extracted data if available
+    from pathlib import Path    
+    args.use_extracted_data = True
+
+    data_dir = Path(args.dataset_output_dir)
+    required_files = ["expression_matrix.npy", "labels.npy"]
+
+    def all_required_files_exist(path, filenames):
+        return all((path / f).exists() for f in filenames)
+
+    if args.use_extracted_data and all_required_files_exist(data_dir, required_files):
+        print("[Info] Using extracted data from:", data_dir)
+
+
+        class FixedDataset:
+            def __init__(self, dataset_root, dataset_output_dir):
+                dataset_output_dir = Path(dataset_output_dir)
+                dataset_root = Path(dataset_root)
+
+                self.data = np.load(dataset_output_dir / "expression_matrix.npy")
+                self.labels = np.load(dataset_output_dir / "labels.npy")
+                self.edge_index = np.load(dataset_root / "edge_index.npy")
+                self.internal_edge_index = np.load(dataset_root / "internal_edge_index.npy")
+                self.ppi_edge_index = np.load(dataset_root / "ppi_edge_index.npy")
+                self.x_name_emb = np.load(dataset_root / "x_name_emb.npy")
+                self.x_desc_emb = np.load(dataset_root / "x_desc_emb.npy")
+                self.x_bio_emb = np.load(dataset_root / "x_bio_emb.npy")
+
+        dataset = FixedDataset(args.dataset_root, args.dataset_output_dir)
+
+    else:
+        if not data_dir.exists():
+            print(f"[Info] Output directory '{data_dir}' not found. It will be created.")
+        else:
+            missing = [f for f in required_files if not (data_dir / f).exists()]
+            print(f"[Info] Missing files in extracted data: {missing}. Running data extraction.")
+
+        print("[Info] Running CellTOSGDataLoader to extract data...")
+
+        # Load dataset with conditions
+        dataset = CellTOSGDataLoader(
+            root=args.dataset_root,
+            conditions={
+                "tissue_general": args.tissue_general,
+                # "tissue": args.tissue,
+                # "suspension_type": args.suspension_type,
+                # "cell_type": args.cell_type,
+                "disease": args.disease_name,
+                # "gender": args.gender,
+            },
+            downstream_task=args.downstream_task,  
+            label_column=args.label_column,
+            sample_ratio=args.sample_ratio,
+            sample_size=args.sample_size,
+            balanced=args.balanced,
+            shuffle=args.shuffle,
+            random_state=args.random_state,
+            train_text=args.train_text,
+            train_bio=args.train_bio,
+            output_dir=args.dataset_output_dir
+        )
+
+    # Replace spaces and quotes in disease name after loading the dataset
+    args.disease_name = args.disease_name.replace("'", "").replace(" ", "_")
+
+
+    args.use_wandb = True
+
+    if args.use_wandb:
+        import wandb
+        wandb.init(
+            project="bl-train-celltosg",
+            name=f"{args.downstream_task}_{args.disease_name}_{args.bl_train_model_name}_lr{args.train_lr}",
+            config=vars(args)
+        )
 
     # Graph feature
     xAll = dataset.data
@@ -446,4 +478,4 @@ if __name__ == "__main__":
     # Train the model depends on the task
     model = build_model(args, device)
     # Train the model
-    train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index)
+    train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index, config_groups)

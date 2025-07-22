@@ -30,6 +30,8 @@ pretrained_glm.pt
 
 # Model results
 /**Results**/*
+/Baseline_model_results/*
+/CellTOSG_model_results/*
 
 # Models
 /desert/*
@@ -43,3 +45,4 @@ data_read.ipynb
 /archive/*
 /test.py
 /wandb/*
+/log/*

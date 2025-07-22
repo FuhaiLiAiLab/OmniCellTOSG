@@ -2,11 +2,11 @@
 pretrain_batch_size: 4
 pre_alpha: 0.0
 pretrain_num_workers: 0
-pre_lr: 0.01
+pre_lr: 0.0005
 pre_weight_decay: 5e-5
 
 # Pretraining base layer
-base_layer: &layer gcn
+pretrain_base_layer: &pretrain_layer gat
 
 # Pretraining masking parameters
 p: 1e-5
@@ -26,7 +26,7 @@ pre_internal_output_dim: 1
 pre_internal_encoder_layers: 1
 pre_internal_encoder_dropout: 0.8
 pre_internal_bn: false
-pre_internal_layer_type: *layer
+pre_internal_layer_type: *pretrain_layer
 pre_internal_encoder_activation: 'leaky_relu'
 
 # Pretraining graph GNN encoder parameters
@@ -35,7 +35,7 @@ pre_graph_output_dim: 8
 pre_graph_encoder_layers: 2
 pre_graph_encoder_dropout: 0.8
 pre_graph_bn: false
-pre_graph_layer_type: *layer
+pre_graph_layer_type: *pretrain_layer
 pre_graph_encoder_activation: 'leaky_relu'
 
 # Pretraining edge and degree decoder parameters
@@ -48,5 +48,5 @@ pre_lm_emb_dim: 1
 pre_cross_fusion_output_dim: 1
 
 # Pretraining model save path
-pretrained_model_save_path: './Checkpoints/pretrained_model_{base_layer}/pretrained_celltosg_foundation.pt'
+pretrained_model_save_path: './Checkpoints/pretrained_model_{pretrain_base_layer}/pretrained_celltosg_foundation.pt'
 device: 0

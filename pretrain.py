@@ -238,7 +238,7 @@ if __name__ == "__main__":
     # Save final configuration for reference
     from utils import save_updated_config
     args.pretrained_model_save_path = args.pretrained_model_save_path.format(
-    base_layer=args.base_layer
+    pretrain_base_layer=args.pretrain_base_layer
     )
     config_groups['pretraining']['pretrained_model_save_path'] = args.pretrained_model_save_path
     os.makedirs(os.path.dirname(args.pretrained_model_save_path), exist_ok=True)
@@ -247,13 +247,13 @@ if __name__ == "__main__":
     
     print(tab_printer(args))
 
-    args.use_wandb = True
+    args.use_wandb = False
 
     if args.use_wandb:
         import wandb
         wandb.init(
             project="pretrain-celltosg",
-            name=f"{args.base_layer}_bs{args.pretrain_batch_size}_lr{args.pre_lr}",
+            name=f"{args.pretrain_base_layer}_lr{args.pre_lr}",
             config=vars(args)
         )
 
@@ -291,17 +291,17 @@ if __name__ == "__main__":
     #     output_dir=args.dataset_output_dir
     # )
 
-    class FixedPretrainDataset:
-        def __init__(self, data_dir):
-            self.data = np.load("./Output/data_pretrain_001/expression_matrix.npy")
-            self.edge_index = np.load(f"{data_dir}/edge_index.npy")
-            self.internal_edge_index = np.load(f"{data_dir}/internal_edge_index.npy")
-            self.ppi_edge_index = np.load(f"{data_dir}/ppi_edge_index.npy")
-            self.x_name_emb = np.load(f"{data_dir}/x_name_emb.npy")
-            self.x_desc_emb = np.load(f"{data_dir}/x_desc_emb.npy")
-            self.x_bio_emb = np.load(f"{data_dir}/x_bio_emb.npy")
+    class FixedDataset:
+        def __init__(self, dataset_root, dataset_output_dir):
+            self.data = np.load(f"{dataset_output_dir}/expression_matrix.npy")
+            self.edge_index = np.load(f"{dataset_root}/edge_index.npy")
+            self.internal_edge_index = np.load(f"{dataset_root}/internal_edge_index.npy")
+            self.ppi_edge_index = np.load(f"{dataset_root}/ppi_edge_index.npy")
+            self.x_name_emb = np.load(f"{dataset_root}/x_name_emb.npy")
+            self.x_desc_emb = np.load(f"{dataset_root}/x_desc_emb.npy")
+            self.x_bio_emb = np.load(f"{dataset_root}/x_bio_emb.npy")
 
-    dataset = FixedPretrainDataset(args.data_root)
+    dataset = FixedDataset(args.dataset_root, args.dataset_output_dir)
 
     # Build Pretrain Model
     # os.makedirs(os.path.dirname(args.pretrained_model_save_path), exist_ok=True)

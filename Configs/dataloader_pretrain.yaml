@@ -1,5 +1,5 @@
 # Dataset loading parameters
-data_root: '/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs'
+dataset_root: '/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs'
 categories: 'pretrain'
 tissue_general: ''
 tissue: ''
