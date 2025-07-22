@@ -3,6 +3,8 @@ import argparse
 import pandas as pd
 import numpy as np
 
+from datetime import datetime
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -205,14 +207,20 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
     # Clean result previous epoch_i_pred files
     print(args.bl_train_model_name)
     folder_name = 'epoch_' + str(epoch_num)
-    path = './' + args.bl_train_result_folder + '/' + args.downstream_task + '/' + args.disease_name + '/' + args.bl_train_model_name + '/%s' % (folder_name)
-    unit = 1
-    # Ensure the parent directories exist
-    os.makedirs('./' + args.bl_train_result_folder  + '/' + args.downstream_task + '/' + args.disease_name + '/' + args.bl_train_model_name, exist_ok=True)
-    while os.path.exists(path):
-        path = './' + args.bl_train_result_folder  + '/' + args.downstream_task + '/' + args.disease_name + '/' + args.bl_train_model_name + '/%s_%d' % (folder_name, unit)
-        unit += 1
-    os.mkdir(path)
+
+    # Add timestamp to folder name
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    base_path = os.path.join(
+        './' + args.bl_train_result_folder,
+        args.downstream_task,
+        args.disease_name,
+        args.bl_train_model_name
+    )
+
+    path = os.path.join(base_path, f"{folder_name}_{timestamp}")
+
+    os.makedirs(path, exist_ok=False)
 
     # Save final configuration for reference
     config_save_path = os.path.join(path, 'config.yaml')
@@ -450,7 +458,7 @@ if __name__ == "__main__":
         import wandb
         wandb.init(
             project="bl-train-celltosg",
-            name=f"{args.downstream_task}_{args.disease_name}_{args.bl_train_model_name}_lr{args.train_lr}",
+            name=f"{args.downstream_task}_{args.disease_name}_{args.bl_train_model_name}_bs{args.train_batch_size}_lr{args.train_lr}",
             config=vars(args)
         )
 

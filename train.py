@@ -2,6 +2,8 @@ import os
 import pandas as pd
 import numpy as np
 
+from datetime import datetime
+
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -304,13 +306,20 @@ def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_inde
 
     # Clean result previous epoch_i_pred files
     folder_name = 'epoch_' + str(epoch_num)
-    path = './' + args.train_result_folder  + '/' + args.downstream_task + '/' + args.disease_name + '/' + args.train_base_layer + '/%s' % (folder_name)
-    unit = 1
-    # Ensure the parent directories exist
-    os.makedirs('./' + args.train_result_folder  + '/' + args.downstream_task + '/' + args.disease_name + '/' + args.train_base_layer, exist_ok=True)
-    while os.path.exists(path):
-        path = './' + args.train_result_folder  + '/' + args.downstream_task + '/' + args.disease_name + '/' + args.train_base_layer + '/%s_%d' % (folder_name, unit)
-        unit += 1
+
+    #Add timestamp to folder name
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    base_path = os.path.join(
+        '.', args.train_result_folder,
+        args.downstream_task,
+        args.disease_name,
+        args.train_base_layer
+    )
+
+    os.makedirs(base_path, exist_ok=True)
+
+    path = os.path.join(base_path, f"{folder_name}_{timestamp}")
     os.mkdir(path)
 
     # Save final configuration for reference
