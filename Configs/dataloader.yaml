@@ -1,21 +1,21 @@
 # Dataset loading parameters
 dataset_root: '../OmniCellTOSG/dataset_outputs'
-categories: ''
-tissue_general: 'brain'
-tissue: ''
-suspension_type: ''
-cell_type: ''
+categories: null
+tissue_general: null
+tissue: null
+suspension_type: null
+cell_type: null
 disease_name: "Alzheimer's Disease"
-gender: ''
+gender: null
 downstream_task: 'disease'
 label_column: 'disease'
 
 # Dataset loading parameters for shuffling and sampling
 shuffle: true
-sample_ratio: 0.1
+sample_ratio: null
 sample_size: null
 balanced: true
 random_state: 2025
 train_text: false
 train_bio: false
-dataset_output_dir: './Output/data_ad_disease_0.1'
+dataset_output_dir: './Output/'

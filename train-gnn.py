@@ -206,7 +206,7 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
 
     # Clean result previous epoch_i_pred files
     print(args.bl_train_model_name)
-    folder_name = 'epoch_' + str(epoch_num)
+    folder_name = 'epoch_' + str(epoch_num) + '_' + str(train_batch_size)
 
     # Add timestamp to folder name
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')

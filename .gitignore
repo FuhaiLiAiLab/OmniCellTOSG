@@ -45,4 +45,5 @@ data_read.ipynb
 /archive/*
 /test.py
 /wandb/*
-/log/*
+/logs/*
+/task_launcher/*

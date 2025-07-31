@@ -7,7 +7,7 @@ class CellTOSGDataLoader:
     PRIORITY_LABELS_BY_TASK: dict[str, set[str]] = {
         "gender": {"female"},
         "disease": {"normal", "unclassified", "unknown"},
-        "cell_type": {"unannoted", "unannotated", "unknown"},
+        # "cell_type": {"unannoted", "unannotated", "unknown"},
     }
     def __init__(
         self,
@@ -66,32 +66,30 @@ class CellTOSGDataLoader:
                     f"Label column '{resolved_label_col}' not found in metadata."
                 )
 
-            # -------- Determine priority label set --------
-            priority_labels = self.PRIORITY_LABELS_BY_TASK.get(
-                self.downstream_task, {"female", "normal", "healthy"}
-            )
-            priority_labels_lower = {p.lower() for p in priority_labels}
-
             # -------- Collect all unique labels --------
             all_labels = df[resolved_label_col].dropna().unique().tolist()
 
-            # -------- Sort so priority labels come first, keep original case --------
-            sorted_labels = sorted(
-                set(all_labels),
-                key=lambda x: (x.lower() not in priority_labels_lower, x.lower()),
+            # -------- Determine priority label set (optional sorting only) --------
+            priority_labels = self.PRIORITY_LABELS_BY_TASK.get(
+                self.downstream_task, set()
             )
+            priority_labels_lower = {p.lower() for p in priority_labels}
 
-            # -------- Build mapping: priority → 0, others → 1..N --------
-            self.label_mapping: dict[str, int] = {}
-            current_index = 1
-            for label in sorted_labels:
-                if label.lower() in priority_labels_lower:
-                    self.label_mapping[label] = 0
-                else:
-                    self.label_mapping[label] = current_index
-                    current_index += 1
+            # -------- Sort: priority labels first (if any), rest by name --------
+            if any(l.lower() in priority_labels_lower for l in all_labels):
+                sorted_labels = sorted(
+                    set(all_labels),
+                    key=lambda x: (x.lower() not in priority_labels_lower, x.lower())
+                )
+            else:
+                sorted_labels = sorted(set(all_labels), key=lambda x: x.lower())
 
-            # Map labels to indices
+            # -------- Build label → index mapping: always from 0 --------
+            self.label_mapping: dict[str, int] = {
+                label: idx for idx, label in enumerate(sorted_labels)
+            }
+
+            # -------- Map labels to indices --------
             self.labels = (
                 df[resolved_label_col]
                 .map(lambda x: self.label_mapping.get(x, np.nan))

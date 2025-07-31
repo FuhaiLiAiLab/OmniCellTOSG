@@ -477,4 +477,3 @@ class CellTOSG_Class(nn.Module):
         output = torch.log_softmax(output, dim=-1)
         loss = F.nll_loss(output, label, weight_vector)
         return loss
-

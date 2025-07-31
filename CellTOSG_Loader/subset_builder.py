@@ -1,85 +1,171 @@
 import os
 import pandas as pd
 import numpy as np
+from typing import List, Tuple
 from .data_loader import load_expression_by_metadata
 
 def sample_matched_by_keys(
     reference_df: pd.DataFrame,
     target_df: pd.DataFrame,
-    match_keys,
+    match_keys: List[str],
     stage_col: str = "development_stage_category",
     max_stage_offset: int = 2,
     upsample: bool = True,
     random_state: int = 2025,
 ):
-    """Return two values:
+    """
+    Return two values:
+      1) matched_target_df – rows from target_df picked to mirror reference_df.
+      2) matched_keys_set  – the keys (tuple over match_keys) that were successfully matched.
 
-    1. **matched_target_df** – rows from *target_df* picked to mirror *reference_df*.
-    2. **matched_keys_set** – the (cell‑type, sex, age‑stage) keys that were *successfully* matched.
-
-    If a key in *reference* has absolutely no corresponding samples in *target* (even
-    after stage back‑off) it is considered *unmatched* and is therefore expected to
-    be dropped by the caller.
+    - Use CMT_id for matching (fallback to CMT_name if not available).
+    - If sex or stage is unknown/empty, loosen matching: match only by cell (CMT_id or CMT_name).
+    - Stage back-off is no longer dependent on the position assumption, instead uses stage_col index.
     """
 
+    # ---- Stage definitions and unknown checker ----
     STAGES = [
         "80 and over", "aged", "middle aged", "adult", "young adult", "adolescent",
         "child", "preschool child", "infant", "newborn", "fetal", "embryonic", "unknown",
     ]
     stage_order = {s: i for i, s in enumerate(STAGES)}
 
-    reference_df = reference_df[reference_df[stage_col].notna()].copy()
-    target_df    = target_df[target_df[stage_col].notna()].copy()
+    def is_unknown(val) -> bool:
+        """Check if a value is unknown or empty."""
+        if pd.isna(val):
+            return True
+        s = str(val).strip().lower()
+        return s in {"unknown", "unk", "n/a", "na", "none", ""}
 
-    ref_groups = reference_df.groupby(match_keys)
-    tgt_groups = target_df.groupby(match_keys)
+    # ---- Validate required columns ----
+    if stage_col not in reference_df.columns or stage_col not in target_df.columns:
+        raise KeyError(f"stage_col '{stage_col}' must be present in both DataFrames.")
+
+    # Keep only rows where stage_col is not NA (unknown string is still valid)
+    reference_df = reference_df[reference_df[stage_col].notna()].copy()
+    target_df = target_df[target_df[stage_col].notna()].copy()
+
+    # ---- Locate column indices for keys ----
+    try:
+        stage_idx = match_keys.index(stage_col)
+    except ValueError:
+        raise ValueError(f"stage_col '{stage_col}' must appear in match_keys. Got {match_keys}.")
+
+    # Determine cell key: prefer CMT_id, fallback to CMT_name
+    if (
+        "CMT_id" in reference_df.columns and "CMT_id" in target_df.columns
+        and "CMT_id" in match_keys
+    ):
+        cell_key = "CMT_id"
+        cell_idx = match_keys.index("CMT_id")
+    elif (
+        "CMT_name" in reference_df.columns and "CMT_name" in target_df.columns
+        and "CMT_name" in match_keys
+    ):
+        cell_key = "CMT_name"
+        cell_idx = match_keys.index("CMT_name")
+    else:
+        raise ValueError(
+            "Cannot find cell key in both DataFrames and match_keys. "
+            "Make sure 'CMT_id' (preferred) or 'CMT_name' is present and included in match_keys."
+        )
+
+    # Find sex key if available
+    sex_key = None
+    sex_idx = None
+    for cand in ("sex_normalized", "sex", "gender"):
+        if (
+            cand in match_keys
+            and cand in reference_df.columns
+            and cand in target_df.columns
+        ):
+            sex_key = cand
+            sex_idx = match_keys.index(cand)
+            break
+
+    # ---- Group by match_keys ----
+    ref_groups = reference_df.groupby(match_keys, dropna=False)
+    tgt_groups = target_df.groupby(match_keys, dropna=False)
 
     matched_parts: list[pd.DataFrame] = []
-    matched_keys  = set()
+    matched_keys: set = set()
 
     for key, ref_grp in ref_groups:
         needed = len(ref_grp)
         collected, used_idx = [], set()
 
-        # try same‑stage first
-        if key in tgt_groups.groups:
-            cand = tgt_groups.get_group(key)
-            take = min(len(cand), needed)
-            sampled = cand.sample(take, random_state=random_state)
-            collected.append(sampled)
-            used_idx.update(sampled.index)
-            needed -= take
+        # Determine if loose matching is needed (unknown sex or stage)
+        sex_val = key[sex_idx] if sex_idx is not None else None
+        stage_val = key[stage_idx]
+        need_loose = (sex_idx is not None and is_unknown(sex_val)) or is_unknown(stage_val)
 
-        # back‑off towards younger stages
-        stage = key[-1] if isinstance(key, tuple) else key
-        if stage not in stage_order:
-            continue
-        s_idx  = stage_order[stage]
-        offset = 1
-        while needed > 0 and offset <= max_stage_offset:
-            alt_idx = s_idx + offset
-            if alt_idx < len(STAGES):
-                alt_stage = STAGES[alt_idx]
-                alt_key   = (*key[:-1], alt_stage) if isinstance(key, tuple) else alt_stage
-                if alt_key in tgt_groups.groups:
-                    cand = tgt_groups.get_group(alt_key)
-                    cand = cand[~cand.index.isin(used_idx)]
-                    take = min(len(cand), needed)
-                    if take:
-                        sampled = cand.sample(take, random_state=random_state)
-                        collected.append(sampled)
-                        used_idx.update(sampled.index)
-                        needed -= take
-            offset += 1
+        if need_loose:
+            # Loosen matching: match only by cell
+            cell_val = key[cell_idx]
+            candidates = target_df[target_df[cell_key] == cell_val]
 
-        # up‑sample to fill the gap
-        if needed > 0 and upsample and collected:
-            pool = pd.concat(collected)
-            upsampled = pool.sample(needed, replace=True, random_state=random_state)
-            collected.append(upsampled)
+            if len(candidates) > 0:
+                take = min(len(candidates), needed)
+                if take > 0:
+                    sampled = candidates.sample(n=take, replace=False, random_state=random_state)
+                    collected.append(sampled)
+                    used_idx.update(sampled.index)
+                    needed -= take
+
+            # Upsample if still needed
+            if needed > 0 and upsample and collected:
+                pool = pd.concat(collected, ignore_index=False)
+                upsampled = pool.sample(n=needed, replace=True, random_state=random_state)
+                collected.append(upsampled)
+                needed = 0
+
+        else:
+            # ---- Strict matching ----
+            # 1) Same stage
+            if key in tgt_groups.groups:
+                cand = tgt_groups.get_group(key)
+                take = min(len(cand), needed)
+                if take > 0:
+                    sampled = cand.sample(n=take, replace=False, random_state=random_state)
+                    collected.append(sampled)
+                    used_idx.update(sampled.index)
+                    needed -= take
+
+            # 2) Back-off stage: try younger stages
+            if not is_unknown(stage_val):
+                if stage_val in stage_order:
+                    s_idx = stage_order[stage_val]
+                    offset = 1
+                    while needed > 0 and offset <= max_stage_offset:
+                        alt_idx = s_idx + offset
+                        if alt_idx >= len(STAGES):
+                            break
+                        alt_stage = STAGES[alt_idx]
+                        alt_key_list = list(key)
+                        alt_key_list[stage_idx] = alt_stage
+                        alt_key = tuple(alt_key_list)
+
+                        if alt_key in tgt_groups.groups:
+                            cand = tgt_groups.get_group(alt_key)
+                            cand = cand[~cand.index.isin(used_idx)]
+                            take = min(len(cand), needed)
+                            if take > 0:
+                                sampled = cand.sample(n=take, replace=False, random_state=random_state)
+                                collected.append(sampled)
+                                used_idx.update(sampled.index)
+                                needed -= take
+
+                        offset += 1
+
+            # 3) Upsample if still needed
+            if needed > 0 and upsample and collected:
+                pool = pd.concat(collected, ignore_index=False)
+                upsampled = pool.sample(n=needed, replace=True, random_state=random_state)
+                collected.append(upsampled)
+                needed = 0
 
         if collected:
-            matched_parts.append(pd.concat(collected))
+            matched_parts.append(pd.concat(collected, ignore_index=False))
             matched_keys.add(key)
 
     out_df = pd.concat(matched_parts, ignore_index=True) if matched_parts else pd.DataFrame()
@@ -97,12 +183,12 @@ class CellTOSGSubsetBuilder:
         "disease": {
             "balance_field": "disease_BMG_name",
             "balance_value": "normal",
-            "match_keys": ["CMT_name", "sex_normalized", "development_stage_category"]
+            "match_keys": ["CMT_id", "sex_normalized", "development_stage_category"]
         },
         "gender": {
             "balance_field": "sex_normalized",
             "balance_value": "male",
-            "match_keys": ["CMT_name", "development_stage_category"]
+            "match_keys": ["CMT_id", "development_stage_category"]
         },
         "cell_type": {},
 
@@ -231,11 +317,29 @@ class CellTOSGSubsetBuilder:
                 balanced = False
 
             df = self.last_query_result.copy()
+
+            # Filter out unannotated or unknown cell types
+            df = df[~df["CMT_name"].str.lower().isin(["unannoted", "unannotated", "unknown"])].copy()
             # ---- plain sampling (no balancing) ----
             if sample_ratio is not None:
-                df = df.sample(frac=sample_ratio, random_state=random_state)
+                # df = df.sample(frac=sample_ratio, random_state=random_state)
+                grouped = df.groupby("CMT_name")
+                sampled_parts = []
+                for name, group in grouped:
+                    n_total = len(group)
+                    n_sample = max(int(n_total * sample_ratio), 10)
+                    if n_total < n_sample:
+                        print(f"[Warning] cell type '{name}' has only {n_total} samples; upsampling to {n_sample}.")
+                        sampled = group.sample(n_sample, replace=True, random_state=random_state)
+                    else:
+                        sampled = group.sample(n=n_sample, replace=False, random_state=random_state)
+                        print(f"[Info] Sampled {len(sampled)} from cell type '{name}' with {n_total} total samples.")
+                    sampled_parts.append(sampled)
+                df = pd.concat(sampled_parts, ignore_index=True)
+
             elif sample_size is not None:
-                df = df.sample(sample_size, random_state=random_state)
+                print(f"[Error] sample_size is not supported for downstream_task='cell_type'.")
+                raise NotImplementedError("Use sample_ratio for stratified sampling under cell_type.")
 
             final_df = df.copy()
         else:

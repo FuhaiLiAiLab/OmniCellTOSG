@@ -17,7 +17,7 @@ from GeoDataLoader.geograph_sampler import GeoGraphLoader
 
 # custom modules
 from CellTOSG_Foundation.lm_model import TextEncoder, RNAGPT_LM, ProtGPT_LM
-from CellTOSG_Foundation.downstream import CellTOSG_Class
+from CellTOSG_Downstream.classifier import CellTOSG_Class
 from CellTOSG_Foundation.utils import tab_printer
 from CellTOSG_Foundation.model import CellTOSG_Foundation, DegreeDecoder, EdgeDecoder, GNNEncoder
 from CellTOSG_Foundation.mask import MaskEdge
@@ -305,7 +305,7 @@ def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_inde
     max_test_acc_id = 0
 
     # Clean result previous epoch_i_pred files
-    folder_name = 'epoch_' + str(epoch_num)
+    folder_name = 'epoch_' + str(epoch_num) + '_' + str(train_batch_size)
 
     #Add timestamp to folder name
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -563,7 +563,7 @@ if __name__ == "__main__":
     # Replace spaces and quotes in disease name after loading the dataset
     args.disease_name = args.disease_name.replace("'", "").replace(" ", "_")
 
-    args.use_wandb = True
+    args.use_wandb = False
 
     if args.use_wandb:
         import wandb
