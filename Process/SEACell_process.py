@@ -5,7 +5,8 @@ import scanpy as sc
 import SEACells
 import matplotlib.pyplot as plt
 import argparse
-from SEACells.cpu import SEACellsCPU
+# from SEACells.cpu import SEACellsCPU
+from SEACells.gpu import SEACellsGPU
 from scipy.stats import mode
 
 def create_meta_cells(ad, out_dir, file_name, target_obs, obs_columns, input_data_is_log_normalized):
@@ -18,23 +19,33 @@ def create_meta_cells(ad, out_dir, file_name, target_obs, obs_columns, input_dat
     os.makedirs(meta_cells_out_dir, exist_ok=True)
     output_file = os.path.join(meta_cells_out_dir, f"{file_str}_SEACells.h5ad")
 
-    # Check if the output file already exists
-    if os.path.exists(output_file):
-        print(f"Output file '{output_file}' already exists. Skipping processing.")
-        return
+    # if os.path.exists(output_file):
+    #     print(f"Output file '{output_file}' already exists. Skipping processing.")
+    #     print("N_METACELLS=SKIPPED_ALREADY_EXISTS")
+    #     return
 
-    # Check if target_obs exists in ad.obs.columns
     if target_obs not in ad.obs.columns:
         print(f"Skipping {file_name}: target_obs '{target_obs}' not found in ad.obs")
+        print("N_METACELLS=SKIPPED_MISSING_OBS")
         return
-    
-    output_columns = ["disease", "organ", "substructure", "cell_type"]
-    if len(obs_columns) != len(output_columns):
-        raise ValueError(f"Error: The number of input columns ({len(obs_columns)}) does not match the expected number ({len(output_columns)}).")
-    
+
     if not ad.obs_names.is_unique:
         print("obs_names not unique, fixing...")
         ad.obs_names_make_unique()
+
+    # Minimum cell count check
+    CELLS_PER_METACELL = 200
+    MIN_METACELLS = 5
+    if ad.n_obs < CELLS_PER_METACELL * MIN_METACELLS:
+        print(f"Skipping {file_name}: too few cells ({ad.n_obs}) to construct at least {MIN_METACELLS} metacells.")
+        print("N_METACELLS=SKIPPED_TOO_FEW_CELLS")
+        return
+
+    MAX_CELLS = 150000
+    if ad.n_obs > MAX_CELLS:
+        print(f"Skipping {file_name}: too many cells ({ad.n_obs}), please split before processing.")
+        print("N_METACELLS=SKIPPED_TOO_MANY_CELLS")
+        return
 
     input_data_is_log_normalized = args.input_data_is_log_normalized.lower() == "true"
 
@@ -106,12 +117,19 @@ def create_meta_cells(ad, out_dir, file_name, target_obs, obs_columns, input_dat
         plt.savefig(metrics_output_path + "_UMAP.png", dpi=300)
 
     # Metacell analysis using SEACells
-    n_SEACells = int(ad.n_obs / 200)
-    print(f'Creating {n_SEACells} metacells from {ad.n_obs} cells')
-    model = SEACellsCPU(ad, build_kernel_on='X_pca', n_SEACells=n_SEACells, n_waypoint_eigs=10, convergence_epsilon=1e-3)
-    model.construct_kernel_matrix()
-    model.initialize_archetypes()
-    model.fit(min_iter=10, max_iter=100)
+    n_SEACells = ad.n_obs // CELLS_PER_METACELL
+    print(f"Creating {n_SEACells} metacells from {ad.n_obs} cells")
+
+    try:
+        model = SEACellsGPU(ad, build_kernel_on='X_pca', n_SEACells=n_SEACells,
+                            n_waypoint_eigs=10, convergence_epsilon=1e-3)
+        model.construct_kernel_matrix()
+        model.initialize_archetypes()
+        model.fit(min_iter=10, max_iter=100)
+    except Exception as e:
+        print(f"SEACells failed: {str(e)}")
+        print("N_METACELLS=SKIPPED_SEACELL_FAILED")
+        return
 
     # Assign metacells
     hard_assignments = model.get_hard_assignments()
@@ -146,27 +164,15 @@ def create_meta_cells(ad, out_dir, file_name, target_obs, obs_columns, input_dat
                 .agg(lambda x: x.mode().iloc[0] if not x.mode().empty else np.nan)
             )
 
-    # Step 1: Rename all non-empty columns
-    for original_col, output_col in zip(obs_columns, output_columns):
-        if original_col.strip() != "":  # Handle space input
-            if original_col in SEACell_ad.obs.columns:
-                SEACell_ad.obs.rename(columns={original_col: output_col}, inplace=True)
-                print(f"Renamed column '{original_col}' to '{output_col}'.")
-            else:
-                print(f"Warning: Column '{original_col}' not found in SEACell_ad.obs.")
 
-    # Step 2: Handle empty column
-    if "organ" not in SEACell_ad.obs.columns:
-        SEACell_ad.obs["organ"] = "unknown"
-        print("'organ' column missing. Filled with 'unknown'.")
-
-    if "substructure" not in SEACell_ad.obs.columns:
-        SEACell_ad.obs["substructure"] = "unknown"
-        print("'substructure' column missing. Filled with 'unknown'.")
-
+    cols_to_keep = [col for col in obs_columns if col in SEACell_ad.obs.columns]
+    SEACell_ad.obs = SEACell_ad.obs[cols_to_keep]
+    print(f"Retained obs columns: {cols_to_keep}")
 
     # Save processed h5ad
     SEACell_ad.write(output_file)
+
+    print(f"N_METACELLS={SEACell_ad.n_obs}")
 
     # Compute evaluation metrics
     if target_obs in ad.obs.columns:
@@ -195,3 +201,13 @@ if __name__ == '__main__':
 
     # Run metacell processing
     create_meta_cells(ad, args.out_dir, args.file, args.target_obs, args.obs_columns, args.input_data_is_log_normalized)
+
+
+# # Test the script
+# python SEACell_process.py \
+# --file breast/breast/normal/902745646379_breast_normal_scRNA.h5ad \
+# --in_dir ./cellxgene_raw_data \
+# --out_dir ./cellxgene_metacell_processed_data \
+# --target_obs "cell_type" \
+# --obs_columns "dataset_id" "cell_type" "development_stage" "disease" "sex" "suspension_type" "tissue" "tissue_general" \
+# --input_data_is_log_normalized False
