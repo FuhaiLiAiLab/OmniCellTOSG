@@ -35,7 +35,7 @@ def sample_matched_by_keys(
         if pd.isna(val):
             return True
         s = str(val).strip().lower()
-        return s in {"unknown", "unk", "n/a", "na", "none", ""}
+        return s in {"unknown", "n/a", "na", "none", ""}
 
     # ---- Validate required columns ----
     if stage_col not in reference_df.columns or stage_col not in target_df.columns:
@@ -319,7 +319,7 @@ class CellTOSGSubsetBuilder:
             df = self.last_query_result.copy()
 
             # Filter out unannotated or unknown cell types
-            df = df[~df["CMT_name"].str.lower().isin(["unannoted", "unannotated", "unknown"])].copy()
+            df = df[~df["CMT_name"].str.lower().isin(["unannoted", "unannotated", "unknown", "miscellaneous", "splatter", "cell"])].copy()
             # ---- plain sampling (no balancing) ----
             if sample_ratio is not None:
                 # df = df.sample(frac=sample_ratio, random_state=random_state)
@@ -340,6 +340,21 @@ class CellTOSGSubsetBuilder:
             elif sample_size is not None:
                 print(f"[Error] sample_size is not supported for downstream_task='cell_type'.")
                 raise NotImplementedError("Use sample_ratio for stratified sampling under cell_type.")
+            
+            else:
+                # ensure at least 10 samples per cell type
+                grouped = df.groupby("CMT_name")
+                sampled_parts = []
+                for name, group in grouped:
+                    n_total = len(group)
+                    if n_total >= 10:
+                        sampled = group.copy()
+                        print(f"[Info] Kept all {n_total} samples from cell type '{name}'.")
+                    else:
+                        print(f"[Upsample] cell type '{name}' has only {n_total} samples; upsampling to 10.")
+                        sampled = group.sample(n=10, replace=True, random_state=random_state)
+                    sampled_parts.append(sampled)
+                df = pd.concat(sampled_parts, ignore_index=True)     
 
             final_df = df.copy()
         else:
@@ -361,6 +376,10 @@ class CellTOSGSubsetBuilder:
             # ---------- balanced ----------
             else:
                 case_df = df[df[balance_field] != balance_value]
+                case_df = case_df[
+                    case_df[balance_field].notna() &
+                    (~case_df[balance_field].str.lower().isin({"unknown", "unannotated", "unannoted", "none", ""}))
+                ]
                 control_conditions = self.last_query_conditions_resolved.copy()
                 control_conditions[self.FIELD_ALIAS.get(balance_field, balance_field)] = balance_value
                 control_df = self.df_all.copy()

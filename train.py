@@ -293,9 +293,11 @@ def test_model(test_dataset_loader, current_cell_num, num_entity, name_embedding
 def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index, x_name_emb, x_desc_emb, x_bio_emb, config_groups):
     train_num_cell = xTr.shape[0]
     num_entity = xTr.shape[1]
+    num_feature = args.num_omic_feature
     epoch_num = args.num_train_epoch
     train_batch_size = args.train_batch_size
-    num_feature = args.num_omic_feature
+    learning_rate = args.train_lr
+    random_state = args.random_state
 
     epoch_loss_list = []
     epoch_acc_list = []
@@ -305,7 +307,7 @@ def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_inde
     max_test_acc_id = 0
 
     # Clean result previous epoch_i_pred files
-    folder_name = 'epoch_' + str(epoch_num) + '_' + str(train_batch_size)
+    folder_name = 'epoch_' + str(epoch_num) + '_' + str(train_batch_size) + '_' + str(learning_rate) + '_' + str(random_state)
 
     #Add timestamp to folder name
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -563,13 +565,13 @@ if __name__ == "__main__":
     # Replace spaces and quotes in disease name after loading the dataset
     args.disease_name = args.disease_name.replace("'", "").replace(" ", "_")
 
-    args.use_wandb = False
+    args.use_wandb = True
 
     if args.use_wandb:
         import wandb
         wandb.init(
             project=f"{args.downstream_task}-celltosg",
-            name=f"{args.downstream_task}_{args.disease_name}_{args.train_base_layer}_bs{args.train_batch_size}_lr{args.train_lr}",
+            name=f"{args.downstream_task}_{args.disease_name}_{args.train_base_layer}_bs{args.train_batch_size}_lr{args.train_lr}_rs{args.random_state}",
             config=vars(args)
         )
 

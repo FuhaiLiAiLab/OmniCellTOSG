@@ -47,3 +47,5 @@ data_read.ipynb
 /wandb/*
 /logs/*
 /task_launcher/*
+/model_results_sum/*
+data_extract.py

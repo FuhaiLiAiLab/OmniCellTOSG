@@ -4,7 +4,7 @@ train_test_random_seed: 2025
 
 # Baseline training hyperparameters
 device: 0
-num_train_epoch: 20
+num_train_epoch: 50
 train_batch_size: 16
 train_lr: 0.0001
 train_num_workers: 0
