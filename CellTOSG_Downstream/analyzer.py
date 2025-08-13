@@ -1,3 +1,5 @@
+import os
+import pandas as pd
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
@@ -92,6 +94,147 @@ def create_linear_activation_layer(linear_activation):
         return nn.GELU(inplace=False)
     else:
         raise ValueError("Unknown linear activation")
+
+
+def split_attention_by_batch_and_layer(attention_weights, batch_size, num_entity, index_list, remove_self_loops=True):
+    """
+    Split batched attention weights by batch samples first, then by layers.
+    
+    Args:
+        attention_weights: List of (edge_pairs, attention_vals) for each layer
+        batch_size: number of samples in the batch
+        num_entity: number of entities per sample
+        index_list: list of batch indices [index, index+1, ..., index+batch_size-1]
+        remove_self_loops: whether to remove self-loop edges
+    
+    Returns:
+        Dictionary with structure: {batch_index: {layer_name: (edge_pairs, attention_vals)}}
+    """
+    # Define layer names based on number of layers
+    num_layers = len(attention_weights)
+    layer_names = []
+    
+    if num_layers == 1:
+        layer_names = ['single_layer']
+    elif num_layers == 2:
+        layer_names = ['initial_layer', 'last_layer']
+    else:
+        layer_names = ['initial_layer']
+        for i in range(1, num_layers - 1):
+            layer_names.append(f'block_layer_{i}')
+        layer_names.append('last_layer')
+    
+    # Initialize the batch-first structure
+    batch_attention_analysis = {}
+    for batch_idx, actual_index in enumerate(index_list):
+        batch_attention_analysis[actual_index] = {}
+    
+    # Process each layer
+    for layer_idx, (edge_pairs, attention_vals) in enumerate(attention_weights):
+        layer_name = layer_names[layer_idx]
+        
+        # Process each batch sample
+        for batch_idx, actual_index in enumerate(index_list):
+            # Calculate node offset for this batch
+            node_offset = batch_idx * num_entity
+            node_start = node_offset
+            node_end = node_offset + num_entity
+            
+            # Find edges that belong to this batch
+            source_mask = (edge_pairs[0] >= node_start) & (edge_pairs[0] < node_end)
+            target_mask = (edge_pairs[1] >= node_start) & (edge_pairs[1] < node_end)
+            edge_mask = source_mask & target_mask
+            
+            # Extract edges for this batch
+            batch_edge_pairs = edge_pairs[:, edge_mask]
+            batch_attention_vals = attention_vals[edge_mask]
+            
+            # Convert back to local node indices (subtract offset)
+            batch_edge_pairs = batch_edge_pairs - node_offset
+            
+            # Remove self-loops if requested
+            if remove_self_loops and batch_edge_pairs.size(1) > 0:
+                # Find non-self-loop edges (source != target)
+                non_self_loop_mask = batch_edge_pairs[0] != batch_edge_pairs[1]
+                batch_edge_pairs = batch_edge_pairs[:, non_self_loop_mask]
+                batch_attention_vals = batch_attention_vals[non_self_loop_mask]
+            
+            # Store in batch-first structure
+            batch_attention_analysis[actual_index][layer_name] = (batch_edge_pairs, batch_attention_vals)
+    
+    return batch_attention_analysis
+
+
+def extract_attention_from_sparse_tensor(attention_info, average_heads=True):
+    """Extract from, to pairs and attention values from SparseTensor."""
+    if isinstance(attention_info, SparseTensor):
+        # Get the COO format (coordinate format)
+        row, col, val = attention_info.coo()
+        
+        # Create from-to pairs
+        edge_pairs = torch.stack([row, col], dim=0)  # Shape: [2, num_edges]
+        
+        # Get attention values
+        attention_values = val  # Shape: [num_edges, num_heads]
+        
+        # Average across heads if requested
+        if average_heads and attention_values.dim() > 1:
+            attention_values = attention_values.mean(dim=1)  # Shape: [num_edges]
+        
+        return edge_pairs, attention_values
+    else:
+        # Handle tuple format (edge_index, attention_weights)
+        return attention_info
+
+
+def save_attention_analysis_to_folders(batch_attention_analysis, output_dir="attention_analysis"):
+    """
+    Save batch attention analysis as folders with CSV files.
+    
+    Args:
+        batch_attention_analysis: Dictionary with {batch_index: {layer_name: (edge_pairs, attention_vals)}}
+        output_dir: Base directory to save the analysis
+    """
+    # Create the base output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    
+    for batch_index, layer_data in batch_attention_analysis.items():
+        # Create folder for this sample
+        sample_folder = os.path.join(output_dir, f"sample_{batch_index}")
+        os.makedirs(sample_folder, exist_ok=True)
+        
+        for layer_name, (edge_pairs, attention_vals) in layer_data.items():
+            # Convert tensors to numpy for easier handling
+            if edge_pairs.size(1) > 0:  # Check if there are any edges
+                from_nodes = edge_pairs[0].detach().cpu().numpy()
+                to_nodes = edge_pairs[1].detach().cpu().numpy()
+                
+                # Handle attention values - squeeze if needed and detach
+                if attention_vals.dim() > 1:
+                    values = attention_vals.squeeze().detach().cpu().numpy()
+                else:
+                    values = attention_vals.detach().cpu().numpy()
+                
+                # Create DataFrame
+                df = pd.DataFrame({
+                    'from': from_nodes,
+                    'to': to_nodes, 
+                    'value': values
+                })
+            else:
+                # Create empty DataFrame if no edges
+                df = pd.DataFrame({
+                    'from': [],
+                    'to': [],
+                    'value': []
+                })
+            
+            # Save as CSV
+            csv_filename = f"{layer_name}.csv"
+            csv_path = os.path.join(sample_folder, csv_filename)
+            df.to_csv(csv_path, index=False)
+            
+            print(f"Saved {csv_filename} for sample_{batch_index} with {len(df)} edges")
 
 
 class TransformerConv(MessagePassing):
@@ -325,6 +468,44 @@ class DownGNNEncoder(nn.Module):
         x = self.activation(x)
         return x
 
+    # Modify your forward_with_attention method to handle this:
+    def forward_with_attention(self, x, edge_index):
+        """Forward pass that returns both output and attention weights for GAT layers."""
+        x = self.create_input_feat(x)
+        edge_index = to_sparse_tensor(edge_index, x.size(0))
+        
+        attention_weights = []
+        
+        # Process all layers except the last one
+        for i, conv in enumerate(self.convs[:-1]):
+            x = self.dropout(x)
+            if 'gat' in str(type(conv)).lower():
+                # For GAT layers, extract attention weights
+                result = conv(x, edge_index, return_attention_weights=True)
+                x, attention_info = result
+                # Convert SparseTensor to edge pairs and values
+                edge_pairs, attention_vals = extract_attention_from_sparse_tensor(attention_info)
+                attention_weights.append((edge_pairs, attention_vals))
+            else:
+                x = conv(x, edge_index)
+            x = self.bns[i](x)
+            x = self.activation(x)
+        
+        # Process the last layer
+        x = self.dropout(x)
+        if 'gat' in str(type(self.convs[-1])).lower():
+            result = self.convs[-1](x, edge_index, return_attention_weights=True)
+            x, attention_info = result
+            # Convert SparseTensor to edge pairs and values
+            edge_pairs, attention_vals = extract_attention_from_sparse_tensor(attention_info)
+            attention_weights.append((edge_pairs, attention_vals))
+        else:
+            x = self.convs[-1](x, edge_index)
+        x = self.bns[-1](x)
+        x = self.activation(x)
+        
+        return x, attention_weights
+    
 
 class CellTOSG_Class(nn.Module):
     def __init__(
@@ -384,7 +565,7 @@ class CellTOSG_Class(nn.Module):
         # Final classification layer
         self.classifier = nn.Linear(linear_hidden_dims[-1], num_class)
 
-        # Reset parameters
+        # Reset parameters for all learnable components
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -416,8 +597,11 @@ class CellTOSG_Class(nn.Module):
         self.classifier.reset_parameters()
 
     def forward(self, x, pre_x, edge_index, internal_edge_index, ppi_edge_index,
-                num_entity, x_name_emb, x_desc_emb, x_bio_emb, batch_size):
-        
+                num_entity, x_name_emb, x_desc_emb, x_bio_emb, batch_size, index, analysis_output_dir):
+
+        # Formalize the index_list by starting from index and range length of batch_size
+        index_list = [index + i for i in range(batch_size)]
+        # Formalize the num_node based on num_entity and batch_size
         num_node = num_entity * batch_size
 
         # =================== Multi-Modal Feature Integration ===================
@@ -446,10 +630,12 @@ class CellTOSG_Class(nn.Module):
         # import pdb; pdb.set_trace()
         internal_output = self.internal_encoder(fused_features, internal_edge_index)
         z = internal_output + x  # Residual connection
-        
         # Apply main graph convolution
-        # import pdb; pdb.set_trace()
-        z = self.encoder(z, ppi_edge_index)
+        z, attention_weights = self.encoder.forward_with_attention(z, ppi_edge_index)
+        # Split attention weights by batch first, then by layers
+        batch_attention_analysis = split_attention_by_batch_and_layer(attention_weights, batch_size, num_entity, index_list, remove_self_loops=True)
+        # Save attention analysis if requested
+        save_attention_analysis_to_folders(batch_attention_analysis, analysis_output_dir)
         # ========================================================================
 
         # =================== Graph-Level Linear Representation ==================

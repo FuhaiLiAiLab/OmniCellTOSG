@@ -1,5 +1,6 @@
 # Dataset loading parameters
-dataset_root: '../OmniCellTOSG/dataset_outputs'
+# dataset_root: '../OmniCellTOSG/dataset_outputs'
+dataset_root: '/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs'
 categories: null
 tissue_general: null
 tissue: null

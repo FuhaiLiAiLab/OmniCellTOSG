@@ -33,6 +33,9 @@ pretrained_glm.pt
 /Baseline_model_results/*
 /CellTOSG_model_results/*
 
+# Analysis_results
+/CellTOSG_analysis_results/*
+
 # Models
 /desert/*
 dataload_test.ipynb
