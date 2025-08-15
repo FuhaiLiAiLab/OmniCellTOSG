@@ -78,8 +78,8 @@ def pre_embed_text(args, dataset, pretrain_model, device):
         desc_sentence_list = [str(desc) for desc in desc_sentence_list]
         text_encoder = pretrain_model.text_encoder
         text_encoder.load_model()
-        x_name_emb = text_encoder.generate_embeddings(name_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.lm_emb_dim)
-        x_desc_emb = text_encoder.generate_embeddings(desc_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.lm_emb_dim)
+        x_name_emb = text_encoder.generate_embeddings(name_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.pre_lm_emb_dim)
+        x_desc_emb = text_encoder.generate_embeddings(desc_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.pre_lm_emb_dim)
     else:
         # Use pre-computed embeddings
         x_name_emb = dataset.x_name_emb

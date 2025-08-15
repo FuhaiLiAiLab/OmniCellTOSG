@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 from datetime import datetime
 
@@ -146,20 +147,6 @@ def pre_embed_text(args, dataset, pretrain_model, device):
     return x_name_emb, x_desc_emb, x_bio_emb
 
 
-def write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list, test_loss_list, test_acc_list):
-    best_model_info = (
-        f'\n-------------BEST TEST ACCURACY MODEL ID INFO: {max_test_acc_id} -------------\n'
-        '--- TRAIN ---\n'
-        f'BEST MODEL TRAIN LOSS: {epoch_loss_list[max_test_acc_id - 1]}\n'
-        f'BEST MODEL TRAIN ACCURACY: {epoch_acc_list[max_test_acc_id - 1]}\n'
-        '--- TEST ---\n'
-        f'BEST MODEL TEST LOSS: {test_loss_list[max_test_acc_id - 1]}\n'
-        f'BEST MODEL TEST ACCURACY: {test_acc_list[max_test_acc_id - 1]}\n'
-    )
-    with open(os.path.join(path, 'best_model_info.txt'), 'w') as file:
-        file.write(best_model_info)
-
-
 def analyze_model(dataset_loader, current_cell_num, num_entity, name_embeddings, desc_embeddings, seq_embeddings, pretrain_model, model, device, args, index):
     batch_loss = 0
     all_ypred = np.zeros((1, 1))
@@ -196,7 +183,7 @@ def analyze(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_ed
     analysis_num_cell = xAll.shape[0]
     num_entity = xAll.shape[1]
     num_feature = args.num_omic_feature
-    analysis_batch_size = args.train_batch_size
+    analysis_batch_size = 1
     
     # Run analysis model
     model.eval()
@@ -209,7 +196,7 @@ def analyze(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_ed
         else:
             upper_index = analysis_num_cell
         geo_datalist = read_batch(index, upper_index, xAll, yAll, num_feature, num_entity, all_edge_index, internal_edge_index, ppi_edge_index)
-        dataset_loader = GeoGraphLoader.load_graph(geo_datalist, args.train_batch_size, args.train_num_workers)
+        dataset_loader = GeoGraphLoader.load_graph(geo_datalist, analysis_batch_size, args.train_num_workers)
         print('ANALYZE MODEL...')
         current_cell_num = upper_index - index # current batch size
         model, batch_loss, batch_acc, batch_ypred = analyze_model(dataset_loader, current_cell_num, num_entity, x_name_emb, x_desc_emb, x_bio_emb, pretrain_model, model, device, args, index)
@@ -220,15 +207,33 @@ def analyze(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_ed
 
 if __name__ == "__main__":
     # Load and merge configurations with command line override support
-    args, config_groups = load_and_merge_configs(
-        'Configs/dataloader.yaml',
-        'Configs/pretraining.yaml',
-        'Configs/training.yaml'
+    saved_model_path = Path(
+        "./CellTOSG_model_results/disease/gat/epoch_50_3_0.0005_2025_20250812_122041"
     )
 
-    args.pretrained_save_model_path = args.pretrained_model_save_path.format(
-        pretrain_base_layer=args.pretrain_base_layer
-    )
+    config_file = saved_model_path / "config.yaml"
+    args, config_groups = load_and_merge_configs(str(config_file))
+
+    def _absorb_group(ns, group_name):
+        grp = getattr(ns, group_name, None)
+        if isinstance(grp, dict):
+            for k, v in grp.items():
+                setattr(ns, k, v)
+
+    for group in ("dataloader", "pretraining", "training"):
+        _absorb_group(args, group)
+
+    for group in ("dataloader", "pretraining", "training"):
+        if hasattr(args, group):
+            delattr(args, group)
+
+    best_model_file = saved_model_path / "best_train_model.pt"
+
+    analysis_output_dir = Path(str(saved_model_path).replace("CellTOSG_model_results",
+                                                            "CellTOSG_analysis_results"))
+
+    analysis_output_dir.mkdir(parents=True, exist_ok=True)
+    args.analysis_output_dir = str(analysis_output_dir)
 
     # Set internal and graph layer types to the same base layer type
     args.train_internal_layer_type = args.train_base_layer
@@ -315,7 +320,7 @@ if __name__ == "__main__":
 
     # Build Pretrain Model
     pretrain_model = build_pretrain_model(args, device)
-    pretrain_model.load_state_dict(torch.load(args.pretrained_save_model_path, map_location=device))
+    pretrain_model.load_state_dict(torch.load(args.pretrained_model_save_path, map_location=device))
     pretrain_model.eval()
     # Prepare text and seq embeddings
     x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model, device)
@@ -328,9 +333,26 @@ if __name__ == "__main__":
     # load embeddings into torch tensor
     xAll = torch.from_numpy(xAll).float().to(device)
     yAll = torch.from_numpy(yAll).long().to(device)
-    x_name_emb = torch.from_numpy(x_name_emb).float().to(device)
-    x_desc_emb = torch.from_numpy(x_desc_emb).float().to(device)
-    x_bio_emb = torch.from_numpy(x_bio_emb).float().to(device)
+    # x_name_emb = torch.from_numpy(x_name_emb).float().to(device)
+    # x_desc_emb = torch.from_numpy(x_desc_emb).float().to(device)
+    # x_bio_emb = torch.from_numpy(x_bio_emb).float().to(device)
+
+    def clean_tensor(t, tag):
+        if torch.isnan(t).any():
+            print(f"[WARN] {tag} contains NaN -> replacing with 0.0")
+            t = torch.nan_to_num(t, nan=0.0)
+        if torch.isinf(t).any():
+            pos_inf = torch.isposinf(t).sum().item()
+            neg_inf = torch.isneginf(t).sum().item()
+            print(f"[WARN] {tag} contains Inf (+Inf: {pos_inf}, -Inf: {neg_inf}) -> clipping")
+            t = torch.nan_to_num(t, posinf=1e6, neginf=-1e6)
+        return t
+
+
+    x_name_emb = clean_tensor(torch.from_numpy(x_name_emb).float(), "x_name_emb").to(device)
+    x_desc_emb = clean_tensor(torch.from_numpy(x_desc_emb).float(), "x_desc_emb").to(device)
+    x_bio_emb  = clean_tensor(torch.from_numpy(x_bio_emb).float(),  "x_bio_emb").to(device)
+
     all_edge_index = torch.from_numpy(all_edge_index).long()
     internal_edge_index = torch.from_numpy(internal_edge_index).long()
     ppi_edge_index = torch.from_numpy(ppi_edge_index).long()
@@ -343,9 +365,6 @@ if __name__ == "__main__":
     args.num_entity = xAll.shape[1]
     # Build model
     model = build_model(args, device)
-    args.train_save_model_path = "/storage1/fs1/fuhai.li/Active/hemingzhang/OmniCellTOSG/CellTOSG_model_results/disease/Alzheimers_Disease/gat/epoch_50_3_0.0005_3407_20250810_203636/best_train_model.pt"
-    # should make directory if not exists
-    args.analysis_output_dir = "/storage1/fs1/fuhai.li/Active/hemingzhang/OmniCellTOSG/CellTOSG_analysis_results/disease/Alzheimers_Disease/gat"
-    model.load_state_dict(torch.load(args.train_save_model_path, map_location=device))
+    model.load_state_dict(torch.load(best_model_file, map_location=device))
     # Analyze the model
     analyze(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_edge_index, ppi_edge_index, x_name_emb, x_desc_emb, x_bio_emb, device)

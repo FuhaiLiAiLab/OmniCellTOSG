@@ -5,6 +5,7 @@
 **.h5
 **.pyc
 **.zip
+**.csv
 
 # data download
 /download_links.txt
@@ -52,3 +53,5 @@ data_read.ipynb
 /task_launcher/*
 /model_results_sum/*
 data_extract.py
+generate_embedding.py
+generate_embedding.ipynb

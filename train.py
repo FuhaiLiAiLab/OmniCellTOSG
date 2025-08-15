@@ -478,7 +478,7 @@ if __name__ == "__main__":
         'Configs/training.yaml'
     )
 
-    args.pretrained_save_model_path = args.pretrained_model_save_path.format(
+    args.pretrained_model_save_path = args.pretrained_model_save_path.format(
         pretrain_base_layer=args.pretrain_base_layer
     )
 
@@ -577,7 +577,7 @@ if __name__ == "__main__":
 
     # Build Pretrain Model
     pretrain_model = build_pretrain_model(args, device)
-    pretrain_model.load_state_dict(torch.load(args.pretrained_save_model_path, map_location=device))
+    pretrain_model.load_state_dict(torch.load(args.pretrained_model_save_path, map_location=device))
     pretrain_model.eval()
     # Prepare text and seq embeddings
     x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model, device)

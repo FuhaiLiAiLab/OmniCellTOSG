@@ -459,7 +459,7 @@ if __name__ == "__main__":
         import wandb
         wandb.init(
             project=f"{args.downstream_task}-baseline",
-            name=f"{args.downstream_task}_{args.disease_name}_{args.bl_train_model_name}_bs{args.train_batch_size}_lr{args.train_lr}",
+            name=f"{args.downstream_task}_{args.disease_name}_{args.bl_train_model_name}_bs{args.train_batch_size}_lr{args.train_lr}_rs{args.random_state}",
             config=vars(args)
         )
 
