@@ -44,7 +44,7 @@ class TextEncoder():
             batch_size (int, optional): Batch size for DataLoader. Defaults to 32.
 
         Returns:
-            List[float]: List of single-dimensional embeddings.
+            torch.Tensor: Tensor of shape (num_sentences, text_emb_dim)
         """
         dataset = SentenceDataset(sentences)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
@@ -59,20 +59,6 @@ class TextEncoder():
             projected = torch.nn.functional.adaptive_avg_pool1d(batch_embeddings.unsqueeze(1), output_size=text_emb_dim).squeeze(1)
             embedding_batches.append(projected)
         return torch.cat(embedding_batches, dim=0)
-
-    def save_embeddings(self, embeddings: List[float], output_npy_path: str) -> None:
-        """
-        Save embeddings to a .npy file and IDs to a CSV file.
-
-        Args:
-            embeddings (List[float]): List of single-dimensional embeddings.
-            ids (List[str]): List of corresponding IDs.
-            output_npy_path (str): Path to save the .npy file.
-            output_csv_path (str): Path to save the index CSV file.
-        """
-        # Save the embeddings to .npy file
-        np.save(output_npy_path, np.array(embeddings))
-        print(f"Embeddings saved at {output_npy_path} with shape {np.array(embeddings).shape}")
 
 
 import os
@@ -145,7 +131,7 @@ class RNAGPT_LM:
         # Otherwise, replace 'U' with 'T' in the string.
         return sequence.replace('U', 'T')
     
-    def generate_embeddings(self, sequences: List[str], batch_size: int = 16, max_len: int = 256, seq_emb_dim: int = 64) -> np.ndarray:
+    def generate_embeddings(self, sequences: List[str], batch_size: int = 16, max_len: int = 256, seq_emb_dim: int = 64) -> torch.Tensor:
         """
         Generate tensor embeddings for each RNA sequence. 
         Args:
@@ -154,7 +140,7 @@ class RNAGPT_LM:
             max_len (int): Maximum length of the sequences. Defaults to 256.
             seq_emb_dim (int): Dimension to which embeddings are pooled. Defaults to 64.
         Returns:
-            np.ndarray: A numpy array of shape (num_sequences, seq_emb_dim)
+            torch.Tensor: A tensor of shape (num_sequences, seq_emb_dim)
         """
         print(f"Generating embeddings for {len(sequences)} sequences.")
         device = self.device
@@ -193,9 +179,7 @@ class RNAGPT_LM:
         embeddings_tensor = torch.cat(embeddings, dim=0)
         print(f"Generated embeddings shape: {embeddings_tensor.shape}")
 
-        # Convert to numpy array and return
-        return embeddings_tensor.cpu().numpy()
-
+        return embeddings_tensor
 
 class ProtGPT_LM:
     def __init__(self, model_name: str = "prot_gpt2", device: str = "cpu"):
@@ -231,9 +215,7 @@ class ProtGPT_LM:
         Args:
             sequences (List[str]): List of DNA sequences.
         Returns:
-            torch.Tensor: A tensor of shape (num_sequences, embedding_dim) where
-                        num_sequences is the number of sequences and
-                        embedding_dim is the dimension of the reduced embeddings.
+            torch.Tensor: A tensor of shape (num_sequences, seq_emb_dim)
         """
         print(f"Generating embeddings for {len(sequences)} sequences.")
         device = self.device
@@ -268,4 +250,4 @@ class ProtGPT_LM:
         # Stack embeddings into a single tensor (shape: [num_sequences, embedding_dim])
         embeddings_tensor = torch.stack(embeddings).reshape(-1, seq_emb_dim)
         print(f"Generated embeddings shape: {embeddings_tensor.shape}")
-        return embeddings_tensor.cpu().numpy()
+        return embeddings_tensor

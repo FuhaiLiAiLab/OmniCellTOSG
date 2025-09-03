@@ -139,7 +139,7 @@ def pre_embed_text(args, dataset, pretrain_model, device):
         prot_seq_encoder.load_model()
         prot_replaced_seq_list = ['X' if type(i) == float else i for i in prot_seq_list]
         prot_seq_embeddings = prot_seq_encoder.generate_embeddings(prot_replaced_seq_list, seq_emb_dim=args.train_lm_emb_dim)
-        x_bio_emb = np.concatenate((rna_seq_embeddings, prot_seq_embeddings), axis=0)
+        x_bio_emb = torch.cat((rna_seq_embeddings, prot_seq_embeddings), dim=0)
     else:
         # Use pre-computed embeddings
         x_bio_emb = dataset.x_bio_emb
@@ -183,7 +183,7 @@ def analyze(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_ed
     analysis_num_cell = xAll.shape[0]
     num_entity = xAll.shape[1]
     num_feature = args.num_omic_feature
-    analysis_batch_size = 1
+    analysis_batch_size = 4
     
     # Run analysis model
     model.eval()
@@ -208,7 +208,7 @@ def analyze(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_ed
 if __name__ == "__main__":
     # Load and merge configurations with command line override support
     saved_model_path = Path(
-        "./CellTOSG_model_results/disease/gat/epoch_50_3_0.0005_2025_20250812_122041"
+        "./CellTOSG_model_results/disease/Alzheimers_Disease/gat/epoch_50_3_0.0005_2025_20250812_122041"
     )
 
     config_file = saved_model_path / "config.yaml"
@@ -333,25 +333,9 @@ if __name__ == "__main__":
     # load embeddings into torch tensor
     xAll = torch.from_numpy(xAll).float().to(device)
     yAll = torch.from_numpy(yAll).long().to(device)
-    # x_name_emb = torch.from_numpy(x_name_emb).float().to(device)
-    # x_desc_emb = torch.from_numpy(x_desc_emb).float().to(device)
-    # x_bio_emb = torch.from_numpy(x_bio_emb).float().to(device)
-
-    def clean_tensor(t, tag):
-        if torch.isnan(t).any():
-            print(f"[WARN] {tag} contains NaN -> replacing with 0.0")
-            t = torch.nan_to_num(t, nan=0.0)
-        if torch.isinf(t).any():
-            pos_inf = torch.isposinf(t).sum().item()
-            neg_inf = torch.isneginf(t).sum().item()
-            print(f"[WARN] {tag} contains Inf (+Inf: {pos_inf}, -Inf: {neg_inf}) -> clipping")
-            t = torch.nan_to_num(t, posinf=1e6, neginf=-1e6)
-        return t
-
-
-    x_name_emb = clean_tensor(torch.from_numpy(x_name_emb).float(), "x_name_emb").to(device)
-    x_desc_emb = clean_tensor(torch.from_numpy(x_desc_emb).float(), "x_desc_emb").to(device)
-    x_bio_emb  = clean_tensor(torch.from_numpy(x_bio_emb).float(),  "x_bio_emb").to(device)
+    x_name_emb = torch.from_numpy(x_name_emb).float().to(device)
+    x_desc_emb = torch.from_numpy(x_desc_emb).float().to(device)
+    x_bio_emb = torch.from_numpy(x_bio_emb).float().to(device)
 
     all_edge_index = torch.from_numpy(all_edge_index).long()
     internal_edge_index = torch.from_numpy(internal_edge_index).long()

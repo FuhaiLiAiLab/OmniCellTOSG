@@ -6,6 +6,8 @@
 **.pyc
 **.zip
 **.csv
+**.tsv
+**.txt
 
 # data download
 /download_links.txt
@@ -21,6 +23,7 @@
 /sc_raw_data/*
 /**dataset**/*
 /Output/*
+/Output_old/*
 /OmniCellTOSG_v1/*
 /mapping_table/*
 
@@ -33,6 +36,7 @@ pretrained_glm.pt
 /**Results**/*
 /Baseline_model_results/*
 /CellTOSG_model_results/*
+/GDA_results/*
 
 # Analysis_results
 /CellTOSG_analysis_results/*
@@ -55,3 +59,6 @@ data_read.ipynb
 data_extract.py
 generate_embedding.py
 generate_embedding.ipynb
+sum_model_results.py
+plot_gene_bar_plot.py
+node_p_value_analysis.py

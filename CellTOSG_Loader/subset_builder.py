@@ -318,11 +318,16 @@ class CellTOSGSubsetBuilder:
 
             df = self.last_query_result.copy()
 
-            # Filter out unannotated or unknown cell types
-            df = df[~df["CMT_name"].str.lower().isin(["unannoted", "unannotated", "unknown", "miscellaneous", "splatter", "cell"])].copy()
+            # Drop rows with missing cell type
+            df = df[
+                df["CMT_name"].notna()
+                & (df["CMT_name"].astype(str).str.strip() != "")
+                & (~df["CMT_name"].astype(str).str.lower().isin(
+                    ["unannoted", "unannotated", "unknown", "miscellaneous", "splatter", "cell"]
+                ))
+            ].copy()
             # ---- plain sampling (no balancing) ----
             if sample_ratio is not None:
-                # df = df.sample(frac=sample_ratio, random_state=random_state)
                 grouped = df.groupby("CMT_name")
                 sampled_parts = []
                 for name, group in grouped:
@@ -338,8 +343,8 @@ class CellTOSGSubsetBuilder:
                 df = pd.concat(sampled_parts, ignore_index=True)
 
             elif sample_size is not None:
-                print(f"[Error] sample_size is not supported for downstream_task='cell_type'.")
-                raise NotImplementedError("Use sample_ratio for stratified sampling under cell_type.")
+                take = min(sample_size, len(df))
+                df = df.sample(take, random_state=random_state)
             
             else:
                 # ensure at least 10 samples per cell type
@@ -367,28 +372,48 @@ class CellTOSGSubsetBuilder:
             df = self.last_query_result.copy()
             # ---------- un‑balanced ----------
             if not balanced:
+                if downstream_task in ("disease", "gender"):
+                    label_col = balance_field
+                    df = df[df[label_col].notna() & (df[label_col].astype(str).str.strip() != "")]
                 if sample_size:
-                    final_df = df.sample(sample_size, random_state=random_state)
+                    take = min(sample_size, len(df))
+                    final_df = df.sample(take, random_state=random_state)
                 elif sample_ratio:
                     final_df = df.sample(frac=sample_ratio, random_state=random_state)
                 else:
                     final_df = df.copy()
             # ---------- balanced ----------
             else:
-                case_df = df[df[balance_field] != balance_value]
-                case_df = case_df[
-                    case_df[balance_field].notna() &
-                    (~case_df[balance_field].str.lower().isin({"unknown", "unannotated", "unannoted", "none", ""}))
+                case_df = df.loc[
+                    df[balance_field].notna()
+                    & (df[balance_field].astype(str).str.strip() != "")
+                    & (df[balance_field] != balance_value)
+                    & (~df[balance_field].astype(str).str.lower().isin({"unknown", "unannotated", "unannoted", "none", ""}))
                 ]
                 control_conditions = self.last_query_conditions_resolved.copy()
                 control_conditions[self.FIELD_ALIAS.get(balance_field, balance_field)] = balance_value
                 control_df = self.df_all.copy()
                 for k, v in control_conditions.items():
                     control_df = control_df[control_df[k].isin(v)] if isinstance(v, (list, set, tuple)) else control_df[control_df[k] == v]
+                
+                control_df = control_df.loc[
+                    control_df[balance_field].notna()
+                    & (control_df[balance_field].astype(str).str.strip() != "")
+                    & (control_df[balance_field] == balance_value)
+                    & (~control_df[balance_field].astype(str).str.lower().isin({"unknown", "unannotated", "unannoted", "none", ""}))
+                ].copy()
+
+                if len(case_df) == 0 or len(control_df) == 0:
+                    raise ValueError(
+                        f"No available samples after filtering for task '{downstream_task}': "
+                        f"case={len(case_df)}, control={len(control_df)}. "
+                        f"Check your query or reduce filters."
+                    )
 
                 # Apply sampling before matching
                 if sample_size:
-                    case_downsample_df = case_df.sample(sample_size, random_state=random_state)
+                    take = min(sample_size, len(case_df))
+                    case_downsample_df = case_df.sample(take, random_state=random_state)
                 elif sample_ratio:
                     print(f"[Info] Sampling {sample_ratio * 100:.1f}% of case samples for task '{downstream_task}'.")
                     case_downsample_df = case_df.sample(frac=sample_ratio, random_state=random_state)
@@ -404,6 +429,10 @@ class CellTOSGSubsetBuilder:
                 else:
                     reference_df = control_df
                     target_df = case_downsample_df
+
+                for k in match_keys:
+                    reference_df = reference_df[reference_df[k].notna()]
+                    target_df    = target_df[target_df[k].notna()]
 
                 matched_target, matched_keys = sample_matched_by_keys(
                     reference_df, target_df, match_keys, random_state=random_state

@@ -100,7 +100,7 @@ def pre_embed_text(args, dataset, pretrain_model, device):
         prot_seq_encoder.load_model()
         prot_replaced_seq_list = ['X' if type(i) == float else i for i in prot_seq_list]
         prot_seq_embeddings = prot_seq_encoder.generate_embeddings(prot_replaced_seq_list, seq_emb_dim=args.lm_emb_dim)
-        x_bio_emb = np.concatenate((rna_seq_embeddings, prot_seq_embeddings), axis=0)
+        x_bio_emb = torch.cat((rna_seq_embeddings, prot_seq_embeddings), dim=0)
     else:
         # Use pre-computed embeddings
         x_bio_emb = dataset.x_bio_emb
