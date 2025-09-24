@@ -196,7 +196,7 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
     epoch_num = args.num_train_epoch
     train_batch_size = args.train_batch_size
     learning_rate = args.train_lr
-    random_state = args.random_state
+    train_test_random_seed = args.train_test_random_seed
 
     epoch_loss_list = []
     epoch_acc_list = []
@@ -207,7 +207,7 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
 
     # Clean result previous epoch_i_pred files
     print(args.bl_train_model_name)
-    folder_name = 'epoch_' + str(epoch_num) + '_' + str(train_batch_size) + '_' + str(learning_rate) + '_' + str(random_state)
+    folder_name = 'epoch_' + str(epoch_num) + '_' + str(train_batch_size) + '_' + str(learning_rate) + '_' + str(train_test_random_seed)
 
     # Add timestamp to folder name
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -459,7 +459,7 @@ if __name__ == "__main__":
         import wandb
         wandb.init(
             project=f"{args.downstream_task}-baseline",
-            name=f"{args.downstream_task}_{args.disease_name}_{args.bl_train_model_name}_bs{args.train_batch_size}_lr{args.train_lr}_rs{args.random_state}",
+            name=f"{args.downstream_task}_{args.disease_name}_{args.bl_train_model_name}_bs{args.train_batch_size}_lr{args.train_lr}_rs{args.train_test_random_seed}",
             config=vars(args)
         )
 

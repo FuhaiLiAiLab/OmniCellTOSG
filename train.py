@@ -297,7 +297,7 @@ def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_inde
     epoch_num = args.num_train_epoch
     train_batch_size = args.train_batch_size
     learning_rate = args.train_lr
-    random_state = args.random_state
+    train_test_random_seed = args.train_test_random_seed
 
     epoch_loss_list = []
     epoch_acc_list = []
@@ -307,7 +307,7 @@ def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_inde
     max_test_acc_id = 0
 
     # Clean result previous epoch_i_pred files
-    folder_name = 'epoch_' + str(epoch_num) + '_' + str(train_batch_size) + '_' + str(learning_rate) + '_' + str(random_state)
+    folder_name = 'epoch_' + str(epoch_num) + '_' + str(train_batch_size) + '_' + str(learning_rate) + '_' + str(train_test_random_seed)
 
     #Add timestamp to folder name
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -328,6 +328,12 @@ def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_inde
     config_save_path = os.path.join(path, 'config.yaml')
     save_updated_config(config_groups, config_save_path)
     print(f"[Config] Saved to {config_save_path}")
+
+    np.save(os.path.join(path, "xTr.npy"), xTr.cpu().numpy())
+    np.save(os.path.join(path, "xTe.npy"), xTe.cpu().numpy())
+    np.save(os.path.join(path, "yTr.npy"), yTr.cpu().numpy())
+    np.save(os.path.join(path, "yTe.npy"), yTe.cpu().numpy())
+    print(f"[Data Split] Saved train/test splits to {path}")
 
     for i in range(1, epoch_num + 1):
         print('---------------------------EPOCH: ' + str(i) + ' ---------------------------')
@@ -571,7 +577,7 @@ if __name__ == "__main__":
         import wandb
         wandb.init(
             project=f"{args.downstream_task}-celltosg",
-            name=f"{args.downstream_task}_{args.disease_name}_{args.train_base_layer}_bs{args.train_batch_size}_lr{args.train_lr}_rs{args.random_state}",
+            name=f"{args.downstream_task}_{args.disease_name}_{args.train_base_layer}_bs{args.train_batch_size}_lr{args.train_lr}_rs{args.train_test_random_seed}",
             config=vars(args)
         )
 
@@ -605,3 +611,5 @@ if __name__ == "__main__":
     model = build_model(args, device)
     # Train the model
     train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index, x_name_emb, x_desc_emb, x_bio_emb, config_groups)
+
+# python train.py --train_lr 0.0005 --train_batch_size 3 --train_base_layer gat --downstream_task cell_type --label_column cell_type --tissue_general brain --disease_name "Alzheimer's Disease" --sample_ratio 0.1 --dataset_output_dir ./Output/data_ad_celltype_0.1 --train_test_random_seed 42

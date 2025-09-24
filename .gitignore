@@ -19,6 +19,7 @@
 
 # Datasets
 /CellTOSG_dataset/*
+/Baseline_model_data/*
 /sc_meta_cell/*
 /sc_raw_data/*
 /**dataset**/*
@@ -62,3 +63,9 @@ generate_embedding.ipynb
 sum_model_results.py
 plot_gene_bar_plot.py
 node_p_value_analysis.py
+match_npy2labels.py
+data_extract_for_umapvis.py
+sum_model_results.py
+
+**/run_*.sh
+**/generate_*.py
