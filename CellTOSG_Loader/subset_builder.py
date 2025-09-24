@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 from typing import List, Tuple
-from .data_loader import load_expression_by_metadata
+from .data_loader import load_expression_by_metadata, dataset_correction
 
 def sample_matched_by_keys(
     reference_df: pd.DataFrame,
@@ -455,11 +455,13 @@ class CellTOSGSubsetBuilder:
         final_df.to_csv(os.path.join(self.root, "last_query_result.csv"), index=False)
 
         expression_matrix = load_expression_by_metadata(final_df, dataset_dir=self.matrix_root)
+        expression_matrix_corrected = dataset_correction(downstream_task, expression_matrix, final_df, output_dir)
 
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
             final_df.to_csv(os.path.join(output_dir, "labels.csv"), index=False)
             np.save(os.path.join(output_dir, "expression_matrix.npy"), expression_matrix)
+            np.save(os.path.join(output_dir, "expression_matrix_corrected.npy"), expression_matrix_corrected)
             print(f"[Extract] Saved {len(final_df)} samples to '{output_dir}'.")
 
         return expression_matrix, final_df
