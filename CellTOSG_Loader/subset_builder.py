@@ -464,4 +464,4 @@ class CellTOSGSubsetBuilder:
             np.save(os.path.join(output_dir, "expression_matrix_corrected.npy"), expression_matrix_corrected)
             print(f"[Extract] Saved {len(final_df)} samples to '{output_dir}'.")
 
-        return expression_matrix, final_df
+        return expression_matrix_corrected, final_df

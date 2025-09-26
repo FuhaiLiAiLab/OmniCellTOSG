@@ -511,7 +511,7 @@ if __name__ == "__main__":
     args.use_extracted_data = True
 
     data_dir = Path(args.dataset_output_dir)
-    required_files = ["expression_matrix.npy", "labels.npy"]
+    required_files = ["expression_matrix_corrected.npy", "labels.npy"]
 
     def all_required_files_exist(path, filenames):
         return all((path / f).exists() for f in filenames)
@@ -525,7 +525,7 @@ if __name__ == "__main__":
                 dataset_output_dir = Path(dataset_output_dir)
                 dataset_root = Path(dataset_root)
 
-                self.data = np.load(dataset_output_dir / "expression_matrix.npy")
+                self.data = np.load(dataset_output_dir / "expression_matrix_corrected.npy")
                 self.labels = np.load(dataset_output_dir / "labels.npy")
                 self.edge_index = np.load(dataset_root / "edge_index.npy")
                 self.internal_edge_index = np.load(dataset_root / "internal_edge_index.npy")

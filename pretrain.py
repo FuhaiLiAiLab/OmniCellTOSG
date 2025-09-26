@@ -293,7 +293,7 @@ if __name__ == "__main__":
 
     class FixedDataset:
         def __init__(self, dataset_root, dataset_output_dir):
-            self.data = np.load(f"{dataset_output_dir}/expression_matrix.npy")
+            self.data = np.load(f"{dataset_output_dir}/expression_matrix_corrected.npy")
             self.edge_index = np.load(f"{dataset_root}/edge_index.npy")
             self.internal_edge_index = np.load(f"{dataset_root}/internal_edge_index.npy")
             self.ppi_edge_index = np.load(f"{dataset_root}/ppi_edge_index.npy")

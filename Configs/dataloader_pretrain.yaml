@@ -18,4 +18,4 @@ balanced: false
 random_state: 2025
 train_text: false
 train_bio: false
-dataset_output_dir: './Output/data_pretrain_001'
+dataset_output_dir: './Output/data_pretrain_0.01'

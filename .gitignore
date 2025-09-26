@@ -8,6 +8,7 @@
 **.csv
 **.tsv
 **.txt
+**.log
 
 # data download
 /download_links.txt
