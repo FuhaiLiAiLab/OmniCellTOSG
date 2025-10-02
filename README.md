@@ -157,13 +157,17 @@ python pretrain_celltosg.py
 ## 🚀 Downstream Tasks
 
 ### 1) Disease Status Classification
-**Prepare task-specific split**:
+**Prepare task-specific data**:
 ```bash
-python pretrain_celltosg.py  # or your task-specific data prep script
+data parameters
 ```
 **Train the classifier/encoder**:
 ```bash
 python train_status.py --config configs/status.yaml
+```
+**Core signaling inference**
+```bash
+python xxxx.py
 ```
 
 ### 2) Cell Type Annotation
