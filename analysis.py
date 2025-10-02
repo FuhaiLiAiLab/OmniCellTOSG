@@ -208,7 +208,7 @@ def analyze(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_ed
 if __name__ == "__main__":
     # Load and merge configurations with command line override support
     saved_model_path = Path(
-        "./CellTOSG_model_results/disease/Crohn_disease/gat/epoch_50_3_0.0005_2025_20250916_133113"
+        "./CellTOSG_model_results/disease/Crohn_disease/gat/epoch_50_3_0.0005_2025_20250928_173207"
     )
 
     config_file = saved_model_path / "config.yaml"

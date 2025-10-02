@@ -58,6 +58,7 @@ data_read.ipynb
 /logs/*
 /task_launcher/*
 /model_results_sum/*
+/figure2/*
 data_extract.py
 generate_embedding.py
 generate_embedding.ipynb
