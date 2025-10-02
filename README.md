@@ -1,7 +1,7 @@
 # OmniCellTOSG: The First Text–Omic Dataset and Foundation Model for Single-Cell Signaling Graph Modeling and Analysis
 
 <div align="center">
-  <img src="./Figures/omnicell-log.png" width="40%" alt="OmniCellTOSG" />
+  <img src="./Figures/OmniCell-logo.png" width="40%" alt="OmniCellTOSG" />
 </div>
 
 <div align="center" style="line-height: 1;">
@@ -12,9 +12,16 @@
 
   <!-- Hugging Face Dataset -->
   <a href="https://huggingface.co/datasets/FuhaiLiAiLab/OmniCellTOSG_Dataset" target="_blank" style="margin: 2px;">
-    <img alt="Hugging Face Dataset" src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-OmniCellTOSG%20Dataset-ffc107?logo=huggingface&logoColor=white" style="display: inline-block; vertical-align: middle;"/>
+    <img alt="Hugging Face Dataset" src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-OmniCellTOSG%20Dataset-ff6f61?color=ffc107&logoColor=white" style="display: inline-block; vertical-align: middle;"/>
   </a>
+</div>
 
+<div align="center" style="line-height: 1;">
+  <!-- arXiv -->
+  <a href="https://arxiv.org/abs/2504.02148" target="_blank" style="margin: 2px;">
+    <img alt="arXiv" src="https://img.shields.io/badge/arXiv-OmniCellTOSG%20Paper-b31b1b?logo=arxiv&logoColor=white" style="display: inline-block; vertical-align: middle;"/>
+  </a>
+  
   <!-- License (update if not MIT) -->
   <a href="LICENSE" style="margin: 2px;">
     <img alt="License" src="https://img.shields.io/badge/License-MIT-0a4d92?logo=open-source-initiative&logoColor=white" style="display: inline-block; vertical-align: middle;"/>
