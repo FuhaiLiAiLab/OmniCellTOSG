@@ -87,9 +87,6 @@ pip install git+https://github.com/FuhaiLiAiLab/OmniCellTOSG
 from CellTOSG_Loader import CellTOSGDataLoader
 
 # --- Build loader (uses your argparse `args`) ---
-# Note: use the key that matches your metadata column
-#   - If your CSV uses "disease_name", prefer {"disease_name": args.disease_name}
-#   - If it uses "disease", use {"disease": args.disease_name}
 conditions = {
     "tissue_general": args.tissue_general,
     "disease_name": args.disease_name,   # or: "disease": args.disease_name
