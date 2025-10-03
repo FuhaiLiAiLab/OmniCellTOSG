@@ -15,7 +15,7 @@ scipy==1.15.2
 seaborn==0.13.2
 SEACells==0.3.3
 tokenizers==0.19.1
-torch==2.4.0+cu124
+torch
 torch-geometric
 tqdm==4.67.1
 transformers==4.40.2
