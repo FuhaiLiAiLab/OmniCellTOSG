@@ -15,14 +15,8 @@ scipy==1.15.2
 seaborn==0.13.2
 SEACells==0.3.3
 tokenizers==0.19.1
-torch==2.7.1+cu126
-torch-geometric==2.6.1
-torch_cluster==1.6.3+pt27cu126
-torch_scatter==2.1.2+pt27cu126
-torch_sparse==0.6.18+pt27cu126
-torch_spline_conv==1.2.2+pt27cu126
-torchaudio==2.7.1+cu126
-torchvision==0.22.1+cu126
+torch==2.4.0+cu124
+torch-geometric
 tqdm==4.67.1
 transformers==4.40.2
 wandb==0.21.0
