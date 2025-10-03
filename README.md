@@ -48,36 +48,29 @@ Get the full dataset on HuggingFace: **[OmniCellTOSG_Dataset](https://huggingfac
 ## 🗂️ Dataset Layout
 ```
 OmniCellTOSG_Dataset/
-├─ s_name.csv        # BioMedGraphica_ID ↔ Processed_name (2 columns)
-├─ s_desc.csv        # BioMedGraphica_ID ↔ Description (2 columns)
-├─ s_bio.csv         # BioMedGraphica_ID ↔ Sequence (2 columns)
-│
-├─ x_name_emb.npy    # Embeddings for entity names          (483,817 × ?)
-├─ x_desc_emb.npy    # Embeddings for entity descriptions   (483,817 × ?)
-├─ x_bio_emb.npy     # Embeddings for biological sequences  (483,817 × ?)
-│
-├─ edge_index.npy            # Full entity graph edges                 (2 × 33,349,084)
-├─ internal_edge_index.npy   # Transcript–Protein edges                (2 × 408,299)
-├─ ppi_edge_index.npy        # Protein–Protein interaction edges       (2 × 32,940,785)
-│
-├─ brain/                    # Organ folder
-│  ├─ alzheimer's_disease/   # Disease folder
-│  │  ├─ brain_sc_alzheimer's_disease_X_partition_0.npy  # scRNA-seq matrix N[0] × 483,817
-│  │  ├─ ... 
-│  │  ├─ brain_sc_alzheimer's_disease_Y_partition_2.npy  # Labels N[2] × 4
-│  │  ├─ ...
-│  │  └─ SEA_AD_syn61680896_alzheimer's_disease_Y_partition_26.npy  # Labels N[i] × 4
-│  ├─ epilepsy/
-│  └─ general/
-├─ lung/
-├─ kidney/
-└─ ...
+├── expression_matrix/
+│ ├── braincellatlas_brain_part_0.npy
+│ ├── braincellatlas_brain_part_1.npy
+│ ├── cellxgene_blood_part_0.npy
+│ ├── cellxgene_blood_part_1.npy
+│ ├── cellxgene_lung_part_0.npy
+│ ├── cellxgene_small_intestine_part_0.npy
+│ └── ... (additional *.npy shards)
+├── cell_metadata_with_mappings.csv
+├── edge_index.npy
+├── s_bio.csv
+├── s_desc.csv
+├── s_name.csv
+├── x_bio_emb.npy
+├── x_desc_emb.npy
+└── x_name_emb.csv
 ```
 
 > **Notes**
-> - `X_partition_*.npy` files are sparse/stacked partitions of single-cell expression matrices.
-> - `Y_partition_*.npy` files contain label matrices with four columns (task-dependent).
-> - Embedding array second dimension depends on the encoder used (hence `?`).
+> - Files in `expression_matrix/*.npy` are **sharded partitions** of single-cell expression matrices; merge shards (concatenate/stack) to reconstruct the full matrix for a given source/organ.
+> - `cell_metadata_with_mappings.csv` contains **standardized per-cell annotations** (e.g., tissue, disease, sex, cell type, ontology mappings) used by the loaders.
+> - `edge_index.npy`, `s_bio.csv`, `s_name.csv`, and `s_desc.csv` provide the **graph topology** (COO `[2, E]`) and **entity metadata** (biological sequences, entity names, and entity descriptions) consumed during training/evaluation.
+> - `x_bio_emb.npy`, `x_desc_emb.npy`, and `x_name_emb.csv` are **precomputed entity embeddings** aligned row-wise to `s_bio.csv`, `s_desc.csv`, and `s_name.csv`, respectively. Load these directly (`[#entities × D]`, encoder-dependent) to **skip on-the-fly embedding** of the CSVs.
 
 ---
 
@@ -91,55 +84,63 @@ pip install git+https://github.com/FuhaiLiAiLab/OmniCellTOSG
 ## 🐍 Loading Data in Python
 
 ```python
-import CellTOSGDataset
+from CellTOSG_Loader import CellTOSGDataLoader
 
-# Core arguments
-x, y, edge_index, internal_edge_index, ppi_edge_index, s_name, s_desc, s_bio = CellTOSGDataset(
-    root="</path/to/data>",                                   # Dataset root directory
-    categories=["get_organ", "get_disease", "get_organ_disease"],  # Retrieval granularity
-    name="brain",  # or "AD" or "brain-AD"                    # Subset name
-    label_type="ct",  # or "og" or "ds" or "status"           # Target label type
-    seed=2025,
-    ratio=0.01,                                               # Sampling ratio for quick experiments
-    train_text=False,                                         # If True → return raw text (s_name, s_desc)
-    train_bio=False,                                          # If True → return raw sequences (s_bio)
-    shuffle=True                                              # Shuffle rows when sampling/merging
+# --- Build loader (uses your argparse `args`) ---
+# Note: use the key that matches your metadata column
+#   - If your CSV uses "disease_name", prefer {"disease_name": args.disease_name}
+#   - If it uses "disease", use {"disease": args.disease_name}
+conditions = {
+    "tissue_general": args.tissue_general,
+    "disease_name": args.disease_name,   # or: "disease": args.disease_name
+    # "suspension_type": args.suspension_type,
+    # "cell_type": args.cell_type,
+    # "gender": args.gender,
+}
+
+dataset = CellTOSGDataLoader(
+    root=args.dataset_root,
+    conditions=conditions,
+    downstream_task=args.downstream_task,     # "disease" | "gender" | "cell_type"
+    label_column=args.label_column,           # e.g., "disease" / "gender" / "cell_type"
+    sample_ratio=args.sample_ratio,           # or use sample_size for absolute count
+    sample_size=args.sample_size,
+    balanced=args.balanced,                   # class-balance by priority labels
+    shuffle=args.shuffle,
+    random_state=args.random_state,
+    train_text=args.train_text,               # False → return precomputed name/desc embeddings
+    train_bio=args.train_bio,                 # False → return precomputed sequence embeddings
+    output_dir=args.dataset_output_dir,
 )
 
-# Text/sequence payload control
-if not train_text:
-    x_name_emb, x_desc_emb = x  # precomputed text embeddings
-else:
-    s_name, s_desc = (s_name, s_desc)  # raw text fields
-
-if not train_bio:
-    x_bio_emb = x  # precomputed sequence embeddings
-else:
-    s_bio = s_bio  # raw biological sequences
+# --- Access tensors/arrays ---
+x_all   = dataset.data                                # dict of feature arrays (e.g., x_name_emb / x_desc_emb / x_bio_emb)
+y_all   = dataset.labels                              # target labels aligned to rows
+all_edge_index = dataset.edge_index                   # full graph (COO [2, E])
+internal_edge_index = dataset.internal_edge_index     # optional transcript–protein edges
+ppi_edge_index = dataset.ppi_edge_index               # optional PPI edges     
+x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model, device) # Prepare text and seq embeddings
 ```
 
-### 🔧 Parameters
-- **root** *(str)*: Filesystem path to the dataset root folder.
-- **categories** *(List[str])*: Retrieval scope. Options:
-  - `"get_organ"`: choose by organ (e.g., `"brain"`)
-  - `"get_disease"`: choose by disease (e.g., `"AD"`)
-  - `"get_organ_disease"`: choose by organ–disease pair (e.g., `"brain-AD"`)
-- **name** *(str)*: The concrete subset identifier; examples: `"brain"`, `"AD"`, `"brain-AD"`.
-- **label_type** *(str)*: Target labels. Options:
-  - `"ct"`: cell type
-  - `"og"`: organ
-  - `"ds"`: disease
-  - `"status"`: disease status (e.g., control vs. case)
-- **seed** *(int)*: Random seed for sampling/shuffling.
-- **ratio** *(float)*: Sampling rate (0–1) for lightweight runs.
-- **train_text** *(bool)*: If `True`, return raw text sources (`s_name`, `s_desc`) instead of embeddings.
-- **train_bio** *(bool)*: If `True`, return raw sequences (`s_bio`) instead of embeddings.
-- **shuffle** *(bool)*: Shuffle examples during sampling or composition.
+### 🔧 Parameters (`CellTOSGDataLoader`)
+- **root** *(str, required)* — Filesystem path to the dataset root (e.g., `/path/to/OmniCellTOSG_Dataset`).
+- **conditions** *(dict, required)* — Row filters over cell metadata  
+  (e.g., `{"tissue_general": "brain", "disease_name": "Alzheimer's Disease"}`).
+- **downstream_task** *(str, required)* — `"disease"` | `"gender"` | `"cell_type"`.
+- **label_column** *(str, required)* — Target label column (e.g., `"disease"`, `"gender"`, `"cell_type"`).
+- **sample_ratio** *(float, optional)* — Fraction of rows to sample (0–1). Mutually exclusive with `sample_size`.
+- **sample_size** *(int, optional)* — Absolute number of rows to sample. Mutually exclusive with `sample_ratio`.
+- **balanced** *(bool, default: `False`)* — Enable class-balancing using task-specific priority labels.
+- **shuffle** *(bool, default: `False`)* — Shuffle rows during sampling/composition.
+- **random_state** *(int, default: `42`)* — Seed for reproducibility.
+- **train_text** *(bool, default: `False`)* — If `False`, return precomputed name/desc embeddings; if `True`, return raw text (`s_name`, `s_desc`) for custom embedding.
+- **train_bio** *(bool, default: `False`)* — If `False`, return precomputed sequence embeddings; if `True`, return raw sequences (`s_bio`) for custom embedding.
+- **output_dir** *(str, optional)* — Directory for loader-generated artifacts (splits, logs, cached subsets).
 
-> **Returns** (typical): 
-> - `x, y`: features and labels for the selected split
-> - `edge_index`, `internal_edge_index`, `ppi_edge_index`: graph connectivity
-> - `s_name`, `s_desc`, `s_bio`: optional raw fields depending on flags
+> **Returns** (typical):
+> - `x, y`: features and labels for the selected split  
+> - `edge_index`, `internal_edge_index`, `ppi_edge_index`: graph topological information  
+> - Either raw text/sequence fields (`s_name`, `s_desc`, `s_bio`) **or** their precomputed embeddings (`x_name_emb`, `x_desc_emb`, `x_bio_emb`), returned according to the `train_text`/`train_bio` flags.
 
 ---
 
@@ -147,10 +148,8 @@ else:
 ### 🔗 Edge Prediction (Topology Modeling)
 Learn topological patterns and interaction mechanisms:
 ```bash
-python pretrain_celltosg.py
+python pretrain.py
 ```
-
-> Tip: Provide `--config` YAMLs to control backbone, optimizer, scheduler, batch sizes, and checkpoint paths if your repo supports them.
 
 ---
 
