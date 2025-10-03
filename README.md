@@ -155,42 +155,65 @@ python pretrain_celltosg.py
 ---
 
 ## 🚀 Downstream Tasks
-
 ### 1) Disease Status Classification
-**Prepare task-specific data**:
+Specify the downstream task and data-loading parameters using the **`CellTOSG_Loader`** package (as invoked in **`train.py`**). Then configure the model hyperparameters to tune performance for your experiment.
+
 ```bash
-data parameters
-```
-**Train the classifier/encoder**:
-```bash
-python train_status.py --config configs/status.yaml
-```
-**Core signaling inference**
-```bash
-python xxxx.py
+# Alzheimer's Disease (Take AD as an example)
+python train.py \
+  --downstream_task disease \
+  --label_column disease \
+  --tissue_general brain \
+  --disease_name "Alzheimer's Disease" \
+  --sample_ratio 0.1 \
+  --train_base_layer gat \
+  --train_lr 0.0005 \
+  --train_batch_size 3 \
+  --train_test_random_seed 42 \
+  --dataset_output_dir ./Output/data_ad_disease_0.1
 ```
 
-### 2) Cell Type Annotation
-**Prepare task-specific split**:
+
+
+### 2) Gender Classification
 ```bash
-python pretrain_celltosg.py
-```
-**Train the annotator**:
-```bash
-python train_celltype.py --config configs/celltype.yaml
+# Alzheimer's Disease (Take AD as an example)
+python train.py \
+  --downstream_task gender \
+  --label_column gender \
+  --tissue_general brain \
+  --disease_name "Alzheimer's Disease" \
+  --sample_ratio 0.1 \
+  --train_base_layer gat \
+  --train_lr 0.0005 \
+  --train_batch_size 2 \
+  --train_test_random_seed 42 \
+  --dataset_output_dir ./Output/data_ad_gender_0.1
+
 ```
 
-### 3) Gender Classification
-**Prepare task-specific split**:
+
+### 3) Cell Type Annotation
 ```bash
-python pretrain_celltosg.py
-```
-**Train the classifier**:
-```bash
-python train_gender.py --config configs/gender.yaml
+# Lung (LUAD) (Take LUAD as an example)
+python train.py \
+  --downstream_task cell_type \
+  --label_column cell_type \
+  --tissue_general "lung" \
+  --disease_name "Lung Adenocarcinoma" \
+  --sample_ratio 0.2 \
+  --train_base_layer gat \
+  --train_lr 0.0001 \
+  --train_batch_size 3 \
+  --train_test_random_seed 42 \
+  --dataset_output_dir ./Output/data_luad_celltype_0.2
 ```
 
----
+
+### 4) Signaling Inference
+```bash
+python analysis.py
+```
 
 ## 📜 Citation
 If you use this dataset or codebase, please cite:
