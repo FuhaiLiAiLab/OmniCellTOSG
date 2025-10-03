@@ -4,10 +4,10 @@ cellxgene-census==1.17.0
 h5py==3.13.0
 numpy==1.26.4
 openpyxl==3.1.5
-pandas @ file:///croot/pandas_1732735089971/work/dist/pandas-2.2.3-cp310-cp310-linux_x86_64.whl#sha256=3fa290e76efa7b7868273de6ab4ee4a73af177cdd88202834ad0eea6dd898d9e
+pandas==2.2.3
 pyarrow==20.0.0
 pynvml==12.0.0
-PyYAML @ file:///croot/pyyaml_1728657952215/work
+PyYAML==6.0.1
 pyzmq==27.1.0
 scanpy==1.11.1
 scikit-learn==1.5.2
