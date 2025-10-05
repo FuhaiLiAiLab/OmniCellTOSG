@@ -68,6 +68,7 @@ node_p_value_analysis.py
 match_npy2labels.py
 data_extract_for_umapvis.py
 sum_model_results.py
+inspect_ckpt.py
 
 **/run_*.sh
 **/generate_*.py
