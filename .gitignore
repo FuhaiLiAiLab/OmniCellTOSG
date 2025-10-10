@@ -69,5 +69,8 @@ match_npy2labels.py
 data_extract_for_umapvis.py
 sum_model_results.py
 
+# logo script
+logo.ipynb
+
 **/run_*.sh
 **/generate_*.py
