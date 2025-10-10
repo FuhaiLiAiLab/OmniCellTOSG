@@ -18,12 +18,11 @@ from GeoDataLoader.geograph_sampler import GeoGraphLoader
 
 # custom modules
 from CellTOSG_Foundation.lm_model import TextEncoder, RNAGPT_LM, ProtGPT_LM
-from CellTOSG_Downstream.analyzer import CellTOSG_Class, DownGNNEncoder
+from CellTOSG_Downstream.embed import CellTOSG_Class, DownGNNEncoder
 from CellTOSG_Foundation.utils import tab_printer
 from CellTOSG_Foundation.model import CellTOSG_Foundation, DegreeDecoder, EdgeDecoder, GNNEncoder
 from CellTOSG_Foundation.mask import MaskEdge
 from CellTOSG_Foundation.lm_model import TextEncoder, RNAGPT_LM, ProtGPT_LM
-from CellTOSG_Loader import CellTOSGDataLoader
 
 # Config loading
 from utils import load_and_merge_configs, save_updated_config
@@ -93,63 +92,8 @@ def build_model(args, device):
                     internal_encoder=internal_graph_encoder).to(device)
     return model
 
-
-def pre_embed_text(args, dataset, pretrain_model, device):
-    """
-    Prepare text and biological sequence embeddings.
-    
-    Args:
-        args: Command line arguments
-        dataset: Dataset object containing the data
-        pretrain_model: Pretrained model with encoders
-        device: Device to load tensors on
-    
-    Returns:
-        tuple: (x_name_emb, x_desc_emb, x_bio_emb) as torch tensors
-    """
-    if args.train_text:
-        s_name = dataset.s_name
-        s_desc = dataset.s_desc
-        # Use language model to embed the name and description
-        name_sentence_list = s_name['Name'].tolist()
-        name_sentence_list = [str(name) for name in name_sentence_list]
-        desc_sentence_list = s_desc['Description'].tolist()
-        desc_sentence_list = [str(desc) for desc in desc_sentence_list]
-        text_encoder = pretrain_model.text_encoder
-        text_encoder.load_model()
-        x_name_emb = text_encoder.generate_embeddings(name_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.train_lm_emb_dim)
-        x_desc_emb = text_encoder.generate_embeddings(desc_sentence_list, batch_size=args.pretrain_text_batch_size, text_emb_dim=args.train_lm_emb_dim)
-    else:
-        # Use pre-computed embeddings
-        x_name_emb = dataset.x_name_emb
-        x_desc_emb = dataset.x_desc_emb
-
-    if args.train_bio:
-        s_bio = dataset.s_bio
-        # Use language model to embed the RNA and protein sequences
-        # sequence list where type == transcript
-        rna_seq_list = s_bio[s_bio['Type'] == 'Transcript']['Sequence'].tolist()
-        rna_seq_encoder = pretrain_model.rna_seq_encoder
-        rna_seq_encoder.load_model()
-        rna_replaced_seq_list = [' ' if type(i) == float else i.replace('U', 'T') for i in rna_seq_list]
-        rna_seq_embeddings = rna_seq_encoder.generate_embeddings(rna_replaced_seq_list, batch_size=args.pretrain_text_batch_size, max_len=args.rna_seq_max_len, seq_emb_dim=args.train_lm_emb_dim)
-        # sequence list where type == protein
-        prot_seq_list = s_bio[s_bio['Type'] == 'Protein']['Sequence'].tolist()
-        prot_seq_encoder = pretrain_model.prot_seq_encoder
-        prot_seq_encoder.load_model()
-        prot_replaced_seq_list = ['X' if type(i) == float else i for i in prot_seq_list]
-        prot_seq_embeddings = prot_seq_encoder.generate_embeddings(prot_replaced_seq_list, seq_emb_dim=args.train_lm_emb_dim)
-        x_bio_emb = torch.cat((rna_seq_embeddings, prot_seq_embeddings), dim=0)
-    else:
-        # Use pre-computed embeddings
-        x_bio_emb = dataset.x_bio_emb
-
-    return x_name_emb, x_desc_emb, x_bio_emb
-
-
-def analyze_model(dataset_loader, current_cell_num, num_entity, name_embeddings, desc_embeddings, seq_embeddings, pretrain_model, model, device, args, index):
+def embed_model(dataset_loader, current_cell_num, num_entity, name_embeddings, desc_embeddings, seq_embeddings, pretrain_model, model, device, args):
     batch_loss = 0
-    all_ypred = np.zeros((1, 1))
     for batch_idx, data in enumerate(dataset_loader):
         x = Variable(data.x.float(), requires_grad=False).to(device)
         internal_edge_index = Variable(data.internal_edge_index, requires_grad=False).to(device)
@@ -159,23 +103,23 @@ def analyze_model(dataset_loader, current_cell_num, num_entity, name_embeddings,
         # Use pretrained model to get the embedding
         z = pretrain_model.internal_encoder(x, internal_edge_index) + x
         pre_x = pretrain_model.encoder.get_embedding(z, ppi_edge_index, mode='last') # mode='cat'
-        output, ypred = model(x, pre_x, edge_index, internal_edge_index, ppi_edge_index, num_entity, name_embeddings, desc_embeddings, seq_embeddings, current_cell_num, index, args.analysis_output_dir)
+        output, ypred, embed_out = model(x, pre_x, edge_index, internal_edge_index, ppi_edge_index, num_entity, name_embeddings, desc_embeddings, seq_embeddings, current_cell_num)
         loss = model.loss(output, label)
         batch_loss += loss.item()
         print('Label: ', label)
         print('Prediction: ', ypred)
         batch_acc = accuracy_score(label.cpu().numpy(), ypred.cpu().numpy())
-        all_ypred = np.vstack((all_ypred, ypred.cpu().numpy().reshape(-1, 1)))
-        all_ypred = np.delete(all_ypred, 0, axis=0)
-    return model, batch_loss, batch_acc, all_ypred
+        batch_pre_embed = pre_x.view(current_cell_num, num_entity, -1).detach().cpu().numpy()
+        batch_embed = embed_out.detach().cpu().numpy()
+    return model, batch_loss, batch_acc, batch_pre_embed, batch_embed
 
 
-def analyze(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_edge_index, ppi_edge_index, x_name_emb, x_desc_emb, x_bio_emb, device):
-    print('-------------------------- ANALYZE START --------------------------')
-    print('-------------------------- ANALYZE START --------------------------')
-    print('-------------------------- ANALYZE START --------------------------')
-    print('-------------------------- ANALYZE START --------------------------')
-    print('-------------------------- ANALYZE START --------------------------')
+def embed(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_edge_index, ppi_edge_index, x_name_emb, x_desc_emb, x_bio_emb, device):
+    print('-------------------------- EMBED START --------------------------')
+    print('-------------------------- EMBED START --------------------------')
+    print('-------------------------- EMBED START --------------------------')
+    print('-------------------------- EMBED START --------------------------')
+    print('-------------------------- EMBED START --------------------------')
     
     print('--- LOADING ALL FILES ... ---')
     print('xAll: ', xAll.shape)
@@ -187,7 +131,8 @@ def analyze(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_ed
     
     # Run analysis model
     model.eval()
-    all_ypred = np.zeros((1, 1))
+    pre_embed_tensor = np.zeros((1, num_entity, args.pre_graph_output_dim))
+    embed_tensor = np.zeros((1, num_entity))
     upper_index = 0
     batch_loss_list = []
     for index in range(0, analysis_num_cell, analysis_batch_size):
@@ -197,18 +142,29 @@ def analyze(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_ed
             upper_index = analysis_num_cell
         geo_datalist = read_batch(index, upper_index, xAll, yAll, num_feature, num_entity, all_edge_index, internal_edge_index, ppi_edge_index)
         dataset_loader = GeoGraphLoader.load_graph(geo_datalist, analysis_batch_size, args.train_num_workers)
-        print('ANALYZE MODEL...')
+        print('EMBED MODEL...')
         current_cell_num = upper_index - index # current batch size
-        model, batch_loss, batch_acc, batch_ypred = analyze_model(dataset_loader, current_cell_num, num_entity, x_name_emb, x_desc_emb, x_bio_emb, pretrain_model, model, device, args, index)
+        model, batch_loss, batch_acc, batch_pre_embed, batch_embed = embed_model(dataset_loader, current_cell_num, num_entity, x_name_emb, x_desc_emb, x_bio_emb, pretrain_model, model, device, args)
         print('BATCH LOSS: ', batch_loss)
         batch_loss_list.append(batch_loss)
         print('BATCH ACCURACY: ', batch_acc)
+        # vstack to accumulate the results
+        pre_embed_tensor = np.vstack((pre_embed_tensor, batch_pre_embed))
+        embed_tensor = np.vstack((embed_tensor, batch_embed))
+    # Delete the first row of zeros using np.delete
+    pre_embed_tensor = np.delete(pre_embed_tensor, 0, axis=0)
+    embed_tensor = np.delete(embed_tensor, 0, axis=0)
+    print('pre_embed_tensor: ', pre_embed_tensor.shape)
+    print('embed_tensor: ', embed_tensor.shape)
+    # Save the embedding results
+    np.save(os.path.join(saved_model_path, 'pre_embed.npy'), pre_embed_tensor)
+    np.save(os.path.join(saved_model_path, 'embed.npy'), embed_tensor)
 
 
 if __name__ == "__main__":
     # Load and merge configurations with command line override support
     saved_model_path = Path(
-        "./CellTOSG_model_results/disease/Alzheimers_Disease/gat/epoch_50_3_0.0005_42_20250925_024246"
+        "/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG_model/CellTOSG_model_results/cell_type/Alzheimers_Disease/gat/epoch_50_3_0.0005_42_20250925_024811"
     )
 
     config_file = saved_model_path / "config.yaml"
@@ -229,12 +185,6 @@ if __name__ == "__main__":
 
     best_model_file = saved_model_path / "best_train_model.pt"
 
-    analysis_output_dir = Path(str(saved_model_path).replace("CellTOSG_model_results",
-                                                            "CellTOSG_analysis_results"))
-
-    analysis_output_dir.mkdir(parents=True, exist_ok=True)
-    args.analysis_output_dir = str(analysis_output_dir)
-
     # Set internal and graph layer types to the same base layer type
     args.train_internal_layer_type = args.train_base_layer
     args.train_graph_layer_type = args.train_base_layer
@@ -248,107 +198,36 @@ if __name__ == "__main__":
         device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     torch.cuda.empty_cache()
 
-    args.tissue = None
-    args.suspension_type = None
-    args.cell_type = None
-    args.gender = None
-
-    # Use extracted data if available
-    from pathlib import Path    
-    args.use_extracted_data = True
-
-    data_dir = Path(args.dataset_output_dir)
-    required_files = ["expression_matrix.npy", "labels.npy"]
-
-    def all_required_files_exist(path, filenames):
-        return all((path / f).exists() for f in filenames)
-
-    if args.use_extracted_data and all_required_files_exist(data_dir, required_files):
-        print("[Info] Using extracted data from:", data_dir)
-
-
-        class FixedDataset:
-            def __init__(self, dataset_root, dataset_output_dir):
-                dataset_output_dir = Path(dataset_output_dir)
-                dataset_root = Path(dataset_root)
-
-                self.data = np.load(dataset_output_dir / "expression_matrix.npy")
-                self.labels = np.load(dataset_output_dir / "labels.npy")
-                self.edge_index = np.load(dataset_root / "edge_index.npy")
-                self.internal_edge_index = np.load(dataset_root / "internal_edge_index.npy")
-                self.ppi_edge_index = np.load(dataset_root / "ppi_edge_index.npy")
-                self.x_name_emb = np.load(dataset_root / "x_name_emb.npy")
-                self.x_desc_emb = np.load(dataset_root / "x_desc_emb.npy")
-                self.x_bio_emb = np.load(dataset_root / "x_bio_emb.npy")
-
-        dataset = FixedDataset(args.dataset_root, args.dataset_output_dir)
-
-    else:
-        if not data_dir.exists():
-            print(f"[Info] Output directory '{data_dir}' not found. It will be created.")
-        else:
-            missing = [f for f in required_files if not (data_dir / f).exists()]
-            print(f"[Info] Missing files in extracted data: {missing}. Running data extraction.")
-
-        print("[Info] Running CellTOSGDataLoader to extract data...")
-
-        # Load dataset with conditions
-        dataset = CellTOSGDataLoader(
-            root=args.dataset_root,
-            conditions={
-                "tissue_general": args.tissue_general,
-                # "tissue": args.tissue,
-                # "suspension_type": args.suspension_type,
-                # "cell_type": args.cell_type,
-                "disease": args.disease_name,
-                # "gender": args.gender,
-            },
-            downstream_task=args.downstream_task,  
-            label_column=args.label_column,
-            sample_ratio=args.sample_ratio,
-            sample_size=args.sample_size,
-            balanced=args.balanced,
-            shuffle=args.shuffle,
-            random_state=args.random_state,
-            train_text=args.train_text,
-            train_bio=args.train_bio,
-            output_dir=args.dataset_output_dir
-        )
-
-    # Replace spaces and quotes in disease name after loading the dataset
-    args.disease_name = args.disease_name.replace("'", "").replace(" ", "_")
-
     # Build Pretrain Model
     pretrain_model = build_pretrain_model(args, device)
     pretrain_model.load_state_dict(torch.load(args.pretrained_model_save_path, map_location=device))
     pretrain_model.eval()
-    # Prepare text and seq embeddings
-    x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model, device)
-    # Graph feature
-    xAll = dataset.data
-    yAll = dataset.labels
-    all_edge_index = dataset.edge_index
-    internal_edge_index = dataset.internal_edge_index
-    ppi_edge_index = dataset.ppi_edge_index
-    # load embeddings into torch tensor
-    xAll = torch.from_numpy(xAll).float().to(device)
-    yAll = torch.from_numpy(yAll).long().to(device)
+    # Load the dataset
+    x_bio_emb = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs/x_bio_emb.npy', allow_pickle=True)
+    x_desc_emb = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs/x_desc_emb.npy', allow_pickle=True)
+    x_name_emb = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs/x_name_emb.npy', allow_pickle=True)
+    all_edge_index = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs/edge_index.npy', allow_pickle=True)
+    internal_edge_index = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs/internal_edge_index.npy', allow_pickle=True)
+    ppi_edge_index = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs/ppi_edge_index.npy', allow_pickle=True)
+    xTe = np.load(os.path.join(saved_model_path, 'xTe.npy'), allow_pickle=True)
+    yTe = np.load(os.path.join(saved_model_path, 'yTe.npy'), allow_pickle=True)
+    print('xTe: ', xTe.shape)
+    print('yTe: ', yTe.shape)
+    num_classes = len(np.unique(yTe))
+    args.num_class = num_classes
+    args.num_entity = xTe.shape[1]
+    # Convert to torch tensor
+    xTe =  torch.from_numpy(xTe).float().to(device)
+    yTe =  torch.from_numpy(yTe).long().to(device)
     x_name_emb = torch.from_numpy(x_name_emb).float().to(device)
     x_desc_emb = torch.from_numpy(x_desc_emb).float().to(device)
     x_bio_emb = torch.from_numpy(x_bio_emb).float().to(device)
-
     all_edge_index = torch.from_numpy(all_edge_index).long()
     internal_edge_index = torch.from_numpy(internal_edge_index).long()
     ppi_edge_index = torch.from_numpy(ppi_edge_index).long()
-    
-    # Get unique values from yAll
-    yAll = yAll.view(-1, 1)
-    unique_values = torch.unique(yAll)
-    num_classes = len(unique_values)
-    args.num_class = num_classes
-    args.num_entity = xAll.shape[1]
+
     # Build model
     model = build_model(args, device)
     model.load_state_dict(torch.load(best_model_file, map_location=device))
     # Analyze the model
-    analyze(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_edge_index, ppi_edge_index, x_name_emb, x_desc_emb, x_bio_emb, device)
+    embed(args, pretrain_model, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_index, x_name_emb, x_desc_emb, x_bio_emb, device)
