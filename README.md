@@ -36,7 +36,15 @@ OmniCellTOSG is, to our knowledge, the first **cell-level Text–Omic dataset** 
   <img src="./Figures/Figure1.png" alt="OmniCellTOSG Overview" />
 </div>
 
-The human body contains $\sim$37.2 trillion cells that share the same genomic blueprint yet manifest diverse phenotypes through signaling programs governed by protein abundance and interactions. These programs shift with age, sex, diet, environmental exposures, and disease, complicating the decoding of multi-gene, and multi-protein effects. Large-scale foundation models show that pretraining on vast corpora yields transferable representations; in cellular biology, this motivates fusing numerical omic signals with biological priors expressed in text (transcription start sites, functions, mechanisms, etc.), where LLMs can augment graph representation learning by injecting structured prior knowledge. Here, we introduce a data format, Text--Omic Signaling Graphs (TOSGs), which unifies textual biological priors with numerical omic evidence to enable graph-based interpretation of cell signaling. We then construct \textbf{OmniCellTOSG}, a biomedical AI infrastructure integrating $\sim$80M sc/snRNA-seq cells. To streamline pretraining, we develop \texttt{CellTOSG\_Loader}, a query--loading--balancing pipeline that yields stratified, unbiased cohorts in Numpy-ready format. Using these resources, we pretrain a multi-modal graph--language foundation model (\textbf{CellTOSG-FM}) that integrates textual priors with omic signals on TOSGs and supports downstream tasks—cell-type annotation, disease classification, and signaling inference with interpretable graph rationales.
+The human body contains ~37.2 trillion cells that share the same genomic blueprint yet manifest diverse phenotypes through signaling programs governed by protein abundance and interactions. These programs shift with age, sex, diet, environmental exposures, and disease, complicating the decoding of multi-gene and multi-protein effects.
+
+Large-scale foundation models show that pretraining on vast corpora yields transferable representations; in cellular biology, this motivates fusing numerical omic signals with biological priors expressed in text (transcription start sites, functions, mechanisms, etc.), where LLMs can augment graph representation learning by injecting structured prior knowledge.
+
+Here, we introduce a data format, **Text–Omic Signaling Graphs (TOSGs)**, which unifies textual biological priors with numerical omic evidence to enable graph-based interpretation of cell signaling.
+
+We then construct **OmniCellTOSG**, a biomedical AI infrastructure integrating ~80M sc/snRNA-seq cells. To streamline pretraining, we develop **CellTOSG_Loader**, a query–loading–balancing pipeline that yields stratified, unbiased cohorts in Numpy-ready format.
+
+Using these resources, we pretrain a multi-modal graph–language foundation model (**CellTOSG-FM**) that integrates textual priors with omic signals on TOSGs and supports downstream tasks — cell-type annotation, disease classification, and signaling inference with interpretable graph rationales.
 
 ---
 
