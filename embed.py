@@ -157,15 +157,30 @@ def embed(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_edge
     print('pre_embed_tensor: ', pre_embed_tensor.shape)
     print('embed_tensor: ', embed_tensor.shape)
     # Save the embedding results
-    np.save(os.path.join(saved_model_path, 'pre_embed.npy'), pre_embed_tensor)
-    np.save(os.path.join(saved_model_path, 'embed.npy'), embed_tensor)
+    np.save(os.path.join(saved_model_path, 'xTe_preembed.npy'), pre_embed_tensor)
+    np.save(os.path.join(saved_model_path, 'xTe_embed.npy'), embed_tensor)
 
 
 if __name__ == "__main__":
-    # Load and merge configurations with command line override support
-    saved_model_path = Path(
-        "/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG_model/CellTOSG_model_results/cell_type/Alzheimers_Disease/gat/epoch_50_3_0.0005_42_20250925_024811"
-    )
+    import sys
+    
+    downstream_tasks = ["disease", "gender", "cell_type"]
+    diseases = [
+        "Alzheimers_Disease",
+        "Lung_Adenocarcinoma",
+        "Crohn_disease",
+        "Lupus_Erythematosus,_Systemic",
+    ]
+    
+    # Check if path is provided as command line argument
+    if len(sys.argv) > 1:
+        saved_model_path = Path(sys.argv[1])
+        print(f"Using provided model path: {saved_model_path}")
+    else:
+        # Default path (you can remove this if you always want to pass the path)
+        print("Error: Please provide the saved_model_path as an argument")
+        print("Usage: python embed.py <saved_model_path>")
+        sys.exit(1)
 
     config_file = saved_model_path / "config.yaml"
     args, config_groups = load_and_merge_configs(str(config_file))
