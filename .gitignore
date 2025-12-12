@@ -14,6 +14,8 @@
 /download_links.txt
 /download.sh
 
+OmniCellTOSG_Dataset
+OmniCellTOSG_Dataset_localloader
 # BioMedGraphica
 /BioMedGraphica/*
 /BMG/*

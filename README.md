@@ -51,6 +51,12 @@ Using these resources, we pretrain a multi-modal graph–language foundation mod
 ## ⬇️ Download the OmniCellTOSG Dataset
 Get the full dataset on HuggingFace: **[OmniCellTOSG_Dataset](https://huggingface.co/datasets/FuhaiLiAiLab/OmniCellTOSG_Dataset)**
 
+
+
+With an environment with HF CLI,
+```
+huggingface-cli download FuhaiLiAiLab/OmniCellTOSG_Dataset --repo-type dataset --local-dir ./OmniCellTOSG_Dataset_localloader --local-dir-use-symlinks False
+```
 ---
 
 ## 🗂️ Dataset Layout
