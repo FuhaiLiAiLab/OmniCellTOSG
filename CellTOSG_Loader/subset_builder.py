@@ -73,15 +73,13 @@ def sample_matched_by_keys(
     # Find sex key if available
     sex_key = None
     sex_idx = None
-    for cand in ("sex_normalized", "sex", "gender"):
-        if (
-            cand in match_keys
-            and cand in reference_df.columns
-            and cand in target_df.columns
-        ):
-            sex_key = cand
-            sex_idx = match_keys.index(cand)
-            break
+    if (
+        "sex_normalized" in match_keys
+        and "sex_normalized" in reference_df.columns
+        and "sex_normalized" in target_df.columns
+    ):
+        sex_key = "sex_normalized"
+        sex_idx = match_keys.index("sex_normalized")
 
     # ---- Group by match_keys ----
     ref_groups = reference_df.groupby(match_keys, dropna=False)
