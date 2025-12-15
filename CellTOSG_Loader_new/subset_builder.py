@@ -71,7 +71,11 @@ class CellTOSGSubsetBuilder:
         print(f"Matched {len(df)} samples with given conditions.")
 
         if df.empty:
-            return "No samples matched the query conditions."
+            self.last_query_result = df
+            self.last_query_conditions_raw = query_dict
+            self.last_query_conditions_resolved = query_resolved
+            print("No samples matched the query conditions.")
+            return df
 
         fields_to_report = [
             "source", "suspension_type", "tissue_general", "tissue",
