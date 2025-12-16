@@ -71,13 +71,13 @@ class CellTOSGSubsetBuilder:
 
             if max_uniques is not None and len(vals) > max_uniques:
                 uniques[f] = {
-                    "count_unique": int(len(vals)),
+                    "n_unique": int(len(vals)),
                     "n_returned": int(max_uniques),
                     "values": vals[:max_uniques],
                 }
             else:
                 uniques[f] = {
-                    "count_unique": int(len(vals)),
+                    "n_unique": int(len(vals)),
                     "n_returned": int(len(vals)),
                     "values": vals,
                 }
