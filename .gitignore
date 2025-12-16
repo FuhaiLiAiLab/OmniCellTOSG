@@ -30,6 +30,9 @@
 /OmniCellTOSG_v1/*
 /mapping_table/*
 
+OmniCellTOSG_Dataset/*
+test_results/*
+
 # Model Checkpoints
 /Checkpoints/*
 dna_gpt0.1b_h.pth
