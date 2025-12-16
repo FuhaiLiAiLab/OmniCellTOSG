@@ -71,13 +71,13 @@ class CellTOSGSubsetBuilder:
 
             if max_uniques is not None and len(vals) > max_uniques:
                 uniques[f] = {
-                    "n_unique": int(len(vals)),
+                    "count_unique": int(len(vals)),
                     "n_returned": int(max_uniques),
                     "values": vals[:max_uniques],
                 }
             else:
                 uniques[f] = {
-                    "n_unique": int(len(vals)),
+                    "count_unique": int(len(vals)),
                     "n_returned": int(len(vals)),
                     "values": vals,
                 }
@@ -115,11 +115,7 @@ class CellTOSGSubsetBuilder:
         print(f"Matched {len(df)} samples with given conditions.")
 
         if df.empty:
-            self.last_query_result = df
-            self.last_query_conditions_raw = query_dict
-            self.last_query_conditions_resolved = query_resolved
-            print("No samples matched the query conditions.")
-            return df
+            return "No samples matched the query conditions."
 
         fields_to_report = [
             "source", "suspension_type", "tissue_general", "tissue",

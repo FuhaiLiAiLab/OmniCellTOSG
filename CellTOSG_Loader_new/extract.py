@@ -99,12 +99,6 @@ def extract_for_inference(
     if self.last_query_result is None:
         return self.available_conditions()
 
-    # Handle empty query result
-    if self.last_query_result.empty:
-        print("[Warning] No samples matched the query conditions. Returning empty data.")
-        empty_df = self.last_query_result.copy()
-        return np.array([]).reshape(0, 0), empty_df
-
     if task not in self.TASK_CONFIG:
         raise ValueError(f"Unsupported task: {task}")
 
