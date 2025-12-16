@@ -97,7 +97,7 @@ def extract_for_inference(
     random_state   Seed for deterministic sampling.
     """
     if self.last_query_result is None:
-        raise ValueError("Please call .view() first to select your subset.")
+        return self.available_conditions()
 
     if task not in self.TASK_CONFIG:
         raise ValueError(f"Unsupported task: {task}")
@@ -265,7 +265,7 @@ def extract_for_training(
     output_dir: str | None = None,
 ):
     if self.last_query_result is None:
-        raise ValueError("Please call .view() first to select your subset.")
+        return self.available_conditions()
 
     # pretrain task
     if task == "pretrain":

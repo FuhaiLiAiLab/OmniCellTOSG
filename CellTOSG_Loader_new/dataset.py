@@ -50,7 +50,7 @@ class CellTOSGDataLoader:
         if sample_ratio is not None and sample_size is not None:
             raise ValueError("Only one of sample_ratio or sample_size can be specified.")
 
-        self.data, df = self.query.extract(
+        res = self.query.extract(
             extract_mode=self.extract_mode,
             task=self.task,
             stratified_balancing=self.stratified_balancing,
@@ -62,6 +62,13 @@ class CellTOSGDataLoader:
             output_dir=self.output_dir
         )
 
+        # If no subset retrieved, return structured conditions dict
+        if isinstance(res, dict) and res.get("status") == "NO_SUBSET_RETRIEVED":
+            print("[CellTOSGDataset] No subset retrieved. Available conditions:")
+            print(res)
+            raise ValueError("NO_SUBSET_RETRIEVED")
+
+        self.data, df = res
         self.metadata = df
 
         # Build label mapping when a label_column is provided

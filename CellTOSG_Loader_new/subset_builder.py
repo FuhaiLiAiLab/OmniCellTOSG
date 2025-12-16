@@ -45,6 +45,50 @@ class CellTOSGSubsetBuilder:
             resolved[resolved_key] = v
         return resolved
 
+    def available_conditions(
+        self,
+        include_fields: List[str] | None = None,
+        max_uniques: int | None = None,
+    ) -> dict:
+        df = self.df_all
+
+        default_fields = [
+            "source",
+            "suspension_type",
+            "tissue_general",
+            "tissue",
+            "CMT_name",
+            "disease_BMG_name",
+            "development_stage_category",
+            "sex_normalized",
+        ]
+        fields = include_fields or default_fields
+        fields = [f for f in fields if f in df.columns]
+
+        uniques = {}
+        for f in fields:
+            vals = df[f].dropna().unique().tolist()
+
+            if max_uniques is not None and len(vals) > max_uniques:
+                uniques[f] = {
+                    "n_unique": int(len(vals)),
+                    "n_returned": int(max_uniques),
+                    "values": vals[:max_uniques],
+                }
+            else:
+                uniques[f] = {
+                    "n_unique": int(len(vals)),
+                    "n_returned": int(len(vals)),
+                    "values": vals,
+                }
+
+        return {
+            "status": "NO_SUBSET_RETRIEVED",
+            "field_alias": self.FIELD_ALIAS,
+            "unique_values": uniques,
+            "metadata_rows": int(len(df)),
+        }
+
     def view(self, query_dict):
         query_resolved = self._resolve_query_fields(query_dict)
 
@@ -122,7 +166,7 @@ class CellTOSGSubsetBuilder:
     ):
 
         if self.last_query_result is None:
-            raise ValueError("Please call .view() first to select your subset.")
+            return self.available_conditions()
 
         if task not in self.TASK_CONFIG:
             raise ValueError(f"Unsupported task: {task}")
