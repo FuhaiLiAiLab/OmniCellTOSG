@@ -28,12 +28,8 @@ OmniCellTOSG_Dataset_localloader
 /**dataset**/*
 /Output/*
 /Output_old/*
-/**Output**/*
 /OmniCellTOSG_v1/*
 /mapping_table/*
-
-OmniCellTOSG_Dataset/*
-test_results/*
 
 # Model Checkpoints
 /Checkpoints/*
@@ -64,17 +60,15 @@ data_read.ipynb
 /logs/*
 /task_launcher/*
 /model_results_sum/*
-/downstream_analysis/*
 /figure2/*
-*data_extract*.py
-dnn_train.py
-upload_to_box.py
+data_extract.py
 generate_embedding.py
 generate_embedding.ipynb
 sum_model_results.py
 plot_gene_bar_plot.py
 node_p_value_analysis.py
 match_npy2labels.py
+data_extract_for_umapvis.py
 sum_model_results.py
 inspect_ckpt.py
 
