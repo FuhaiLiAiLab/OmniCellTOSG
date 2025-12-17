@@ -52,7 +52,9 @@ def build_pretrain_model(args, num_entity, device):
                     internal_encoder=internal_graph_encoder,
                     edge_decoder=edge_decoder,
                     degree_decoder=degree_decoder,
-                    mask=mask).to(device)
+                    mask=mask,
+                    entity_mlp_dims=[32,32], #######################################################################
+                    ).to(device)
     return pretrain_model
 
 
