@@ -158,25 +158,39 @@ def extract_for_inference(
 
         # Balanced path
         else:
-            case_df = df.loc[
+            # Memory-efficient: use boolean masks and avoid unnecessary copies
+            case_mask = (
                 df[balance_field].notna()
                 & (df[balance_field].astype(str).str.strip() != "")
                 & (df[balance_field] != balance_value)
                 & (~df[balance_field].astype(str).str.lower().isin({"unknown", "unannotated", "unannoted", "none", ""}))
-            ]
+            )
+            # Store original indices for later lookup
+            case_indices = df.index[case_mask].tolist()
+            case_df = df.loc[case_mask]  # View, not copy
+            
             control_conditions = self.last_query_conditions_resolved.copy()
             control_conditions[self.FIELD_ALIAS.get(balance_field, balance_field)] = balance_value
 
-            control_df = self.df_all.copy()
+            # Memory-efficient: build boolean mask instead of copying entire df_all
+            control_mask = pd.Series(True, index=self.df_all.index)
             for k, v in control_conditions.items():
-                control_df = control_df[control_df[k].isin(v)] if isinstance(v, (list, set, tuple)) else control_df[control_df[k] == v]
-
-            control_df = control_df.loc[
-                control_df[balance_field].notna()
-                & (control_df[balance_field].astype(str).str.strip() != "")
-                & (control_df[balance_field] == balance_value)
-                & (~control_df[balance_field].astype(str).str.lower().isin({"unknown", "unannotated", "unannoted", "none", ""}))
-            ].copy()
+                if isinstance(v, (list, set, tuple)):
+                    control_mask &= self.df_all[k].isin(v)
+                else:
+                    control_mask &= (self.df_all[k] == v)
+            
+            # Apply additional filters
+            control_mask &= (
+                self.df_all[balance_field].notna()
+                & (self.df_all[balance_field].astype(str).str.strip() != "")
+                & (self.df_all[balance_field] == balance_value)
+                & (~self.df_all[balance_field].astype(str).str.lower().isin({"unknown", "unannotated", "unannoted", "none", ""}))
+            )
+            
+            # Store control indices - NO COPY of data yet
+            control_indices = self.df_all.index[control_mask].tolist()
+            control_df = self.df_all.loc[control_mask]  # View only
 
             if len(case_df) == 0 or len(control_df) == 0:
                 raise ValueError(
@@ -186,6 +200,7 @@ def extract_for_inference(
                 )
 
             # Optional sampling on the case side before matching
+            # Note: sample() returns a copy, so no need to .copy() again
             if sample_size:
                 take = min(sample_size, len(case_df))
                 reference_df = case_df.sample(take, random_state=random_state)
@@ -194,7 +209,8 @@ def extract_for_inference(
                 reference_df = case_df.sample(frac=sample_ratio, random_state=random_state)
                 print(f"[Info] Sampled {len(reference_df)} reference samples for task '{task}'.")
             else:
-                reference_df = case_df.copy()
+                # Use view when not sampling
+                reference_df = case_df
 
             # Choose the smaller split as reference
             if len(reference_df) <= len(control_df):
@@ -203,27 +219,39 @@ def extract_for_inference(
                 target_df = reference_df
                 reference_df = control_df
 
-            # Drop rows missing any match key
+            # Drop rows missing any match key (still using views)
             for k in match_keys:
                 reference_df = reference_df[reference_df[k].notna()]
                 target_df = target_df[target_df[k].notna()]
 
-            # Use inference balancing
-            matched_target, matched_keys = balance_for_inference(
+            # Use index-based balancing (returns indices, not data copies)
+            matched_target_indices, matched_keys = balance_for_inference(
                 reference_df=reference_df,
                 target_df=target_df,
                 match_keys=match_keys,
                 random_state=random_state,
+                return_indices=True,  # Memory-efficient mode
             )
 
             # Keep only reference rows that actually matched
-            ref_keep = reference_df[
-                reference_df[match_keys].apply(tuple, axis=1).isin(matched_keys)
-            ]
+            ref_matched_mask = reference_df[match_keys].apply(tuple, axis=1).isin(matched_keys)
+            ref_keep_indices = reference_df.index[ref_matched_mask].tolist()
 
-            final_df = pd.concat([ref_keep, matched_target], ignore_index=True)
+            # Now do a SINGLE data extraction using indices
+            # Combine indices and fetch data once from the source
+            all_indices = ref_keep_indices + matched_target_indices
+            
+            # Determine source dataframe for each index
+            ref_source = df  # case samples come from df (query result)
+            tgt_source = self.df_all  # control samples come from df_all
+            
+            # Build final_df by selecting rows using .loc (efficient index lookup)
+            ref_rows = ref_source.loc[ref_keep_indices]
+            tgt_rows = tgt_source.loc[matched_target_indices]
+            
+            final_df = pd.concat([ref_rows, tgt_rows], ignore_index=True)
             print(
-                f"[Info] Matched {len(ref_keep)} reference and {len(matched_target)} target samples "
+                f"[Info] Matched {len(ref_keep_indices)} reference and {len(matched_target_indices)} target samples "
                 f"for task '{task}'."
             )
 
@@ -234,18 +262,28 @@ def extract_for_inference(
     final_df["sample_index"] = np.arange(len(final_df))
     final_df.to_csv(os.path.join(self.root, "last_query_result.csv"), index=False)
 
-    expression_matrix = load_expression_by_metadata(final_df, dataset_dir=self.matrix_root)
-    
-    if dataset_correction is not None:
-        expression_matrix_corrected = dataset_correction(task, expression_matrix, final_df, dataset_correction, output_dir)
-
+    # Use memory-efficient mode if output_dir is provided (writes directly to disk)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
         final_df.to_csv(os.path.join(output_dir, "labels.csv"), index=False)
-        np.save(os.path.join(output_dir, "expression_matrix.npy"), expression_matrix)
+        
+        # Memory-efficient: write expression matrix directly to disk
+        expr_output_path = os.path.join(output_dir, "expression_matrix.npy")
+        expression_matrix = load_expression_by_metadata(
+            final_df, dataset_dir=self.matrix_root, output_path=expr_output_path
+        )
+        
         if dataset_correction is not None:
+            expression_matrix_corrected = dataset_correction(task, expression_matrix, final_df, dataset_correction, output_dir)
             np.save(os.path.join(output_dir, "expression_matrix_corrected.npy"), expression_matrix_corrected)
+        
         print(f"[Extract] Saved {len(final_df)} samples to '{output_dir}'.")
+    else:
+        # Original mode: load into memory
+        expression_matrix = load_expression_by_metadata(final_df, dataset_dir=self.matrix_root)
+        
+        if dataset_correction is not None:
+            expression_matrix_corrected = dataset_correction(task, expression_matrix, final_df, dataset_correction, output_dir)
 
     if dataset_correction is not None:
         return expression_matrix_corrected, final_df
@@ -368,28 +406,37 @@ def extract_for_training(
         balance_field = config["balance_field"]
         balance_value = config["balance_value"]
 
-        # case: label != balance_value & valid
-        case_df = ref_df.loc[
+        # case: label != balance_value & valid (view, not copy)
+        case_mask = (
             ref_df[balance_field].notna()
             & (ref_df[balance_field].astype(str).str.strip() != "")
             & (ref_df[balance_field] != balance_value)
             & (~ref_df[balance_field].astype(str).str.lower().isin({"unknown", "unannotated", "unannoted", "none", ""}))
-        ].copy()
+        )
+        case_df = ref_df.loc[case_mask]
 
-        # control: use view() conditions + set balance_field = balance_value, then filter valid & == balance_value
+        # control: use view() conditions + set balance_field = balance_value
+        # Memory-efficient: build boolean mask instead of copying entire df_all
         control_conditions = self.last_query_conditions_resolved.copy()
         control_conditions[self.FIELD_ALIAS.get(balance_field, balance_field)] = balance_value
 
-        control_df = self.df_all.copy()
+        control_mask = pd.Series(True, index=self.df_all.index)
         for k, v in control_conditions.items():
-            control_df = control_df[control_df[k].isin(v)] if isinstance(v, (list, set, tuple)) else control_df[control_df[k] == v]
-
-        control_df = control_df.loc[
-            control_df[balance_field].notna()
-            & (control_df[balance_field].astype(str).str.strip() != "")
-            & (control_df[balance_field] == balance_value)
-            & (~control_df[balance_field].astype(str).str.lower().isin({"unknown", "unannotated", "unannoted", "none", ""}))
-        ].copy()
+            if isinstance(v, (list, set, tuple)):
+                control_mask &= self.df_all[k].isin(v)
+            else:
+                control_mask &= (self.df_all[k] == v)
+        
+        # Apply additional filters
+        control_mask &= (
+            self.df_all[balance_field].notna()
+            & (self.df_all[balance_field].astype(str).str.strip() != "")
+            & (self.df_all[balance_field] == balance_value)
+            & (~self.df_all[balance_field].astype(str).str.lower().isin({"unknown", "unannotated", "unannoted", "none", ""}))
+        )
+        
+        # Only copy the filtered subset (much smaller than df_all)
+        control_df = self.df_all.loc[control_mask].copy()
 
         if len(case_df) == 0 or len(control_df) == 0:
             raise ValueError(

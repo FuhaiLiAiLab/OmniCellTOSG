@@ -1,7 +1,150 @@
 import os
 import pandas as pd
 import numpy as np
-from typing import List, Tuple, Set, Optional
+from typing import List, Tuple, Set, Optional, Union
+
+def balance_for_inference_indices(
+    reference_df: pd.DataFrame,
+    target_df: pd.DataFrame,
+    match_keys: List[str],
+    stage_col: str = "development_stage_category",
+    max_stage_offset: int = 2,
+    upsample: bool = True,
+    random_state: int = 2025,
+) -> Tuple[List, Set[Tuple]]:
+    """
+    Index-based balancing that returns indices instead of DataFrame copies.
+    Much more memory efficient as it only stores integer indices.
+    
+    Returns
+    -------
+    matched_target_indices : list
+        List of indices from target_df that were matched
+    matched_keys : set
+        Set of match key tuples that were successfully matched
+    """
+    rng = np.random.default_rng(random_state)
+    
+    # Stage definitions
+    STAGES = [
+        "80 and over", "aged", "middle aged", "adult", "young adult", "adolescent",
+        "child", "preschool child", "infant", "newborn", "fetal", "embryonic", "unknown",
+    ]
+    stage_order = {s: i for i, s in enumerate(STAGES)}
+
+    def is_unknown(val) -> bool:
+        if pd.isna(val):
+            return True
+        s = str(val).strip().lower()
+        return s in {"unknown", "n/a", "na", "none", ""}
+
+    # Validate
+    if stage_col not in reference_df.columns or stage_col not in target_df.columns:
+        raise KeyError(f"stage_col '{stage_col}' must be present in both DataFrames.")
+
+    # Filter using boolean masks (views, not copies)
+    ref_mask = reference_df[stage_col].notna()
+    tgt_mask = target_df[stage_col].notna()
+    reference_df = reference_df.loc[ref_mask]
+    target_df = target_df.loc[tgt_mask]
+
+    # Locate column indices
+    stage_idx = match_keys.index(stage_col)
+
+    # Cell key
+    if "CMT_id" in match_keys and "CMT_id" in target_df.columns:
+        cell_key, cell_idx = "CMT_id", match_keys.index("CMT_id")
+    elif "CMT_name" in match_keys and "CMT_name" in target_df.columns:
+        cell_key, cell_idx = "CMT_name", match_keys.index("CMT_name")
+    else:
+        raise ValueError("No cell key (CMT_id/CMT_name) found in match_keys and DataFrames.")
+
+    # Sex key
+    sex_idx = match_keys.index("sex_normalized") if "sex_normalized" in match_keys else None
+
+    # Build index lookup for target_df groups (memory efficient: store indices only)
+    # Group target indices by match_keys
+    target_df = target_df.reset_index(drop=False).rename(columns={'index': '_orig_idx'})
+    tgt_group_indices = target_df.groupby(match_keys, dropna=False)['_orig_idx'].apply(list).to_dict()
+    
+    # Also build cell-only index for loose matching
+    tgt_cell_indices = target_df.groupby(cell_key, dropna=False)['_orig_idx'].apply(list).to_dict()
+
+    # Group reference by match_keys
+    ref_groups = reference_df.groupby(match_keys, dropna=False)
+
+    matched_indices: List = []
+    matched_keys: Set[Tuple] = set()
+    used_indices: Set = set()
+
+    for key, ref_grp in ref_groups:
+        needed = len(ref_grp)
+        collected_indices = []
+
+        sex_val = key[sex_idx] if sex_idx is not None else None
+        stage_val = key[stage_idx]
+        need_loose = (sex_idx is not None and is_unknown(sex_val)) or is_unknown(stage_val)
+
+        if need_loose:
+            # Loose matching: by cell only
+            cell_val = key[cell_idx]
+            if cell_val in tgt_cell_indices:
+                available = [i for i in tgt_cell_indices[cell_val] if i not in used_indices]
+                take = min(len(available), needed)
+                if take > 0:
+                    sampled = rng.choice(available, size=take, replace=False).tolist()
+                    collected_indices.extend(sampled)
+                    used_indices.update(sampled)
+                    needed -= take
+
+            # Upsample if needed
+            if needed > 0 and upsample and collected_indices:
+                upsampled = rng.choice(collected_indices, size=needed, replace=True).tolist()
+                collected_indices.extend(upsampled)
+                needed = 0
+        else:
+            # Strict matching
+            if key in tgt_group_indices:
+                available = [i for i in tgt_group_indices[key] if i not in used_indices]
+                take = min(len(available), needed)
+                if take > 0:
+                    sampled = rng.choice(available, size=take, replace=False).tolist()
+                    collected_indices.extend(sampled)
+                    used_indices.update(sampled)
+                    needed -= take
+
+            # Stage back-off
+            if needed > 0 and stage_val in stage_order:
+                s_idx = stage_order[stage_val]
+                for offset in range(1, max_stage_offset + 1):
+                    alt_idx = s_idx + offset
+                    if alt_idx >= len(STAGES):
+                        break
+                    alt_key = tuple(list(key[:stage_idx]) + [STAGES[alt_idx]] + list(key[stage_idx+1:]))
+                    
+                    if alt_key in tgt_group_indices:
+                        available = [i for i in tgt_group_indices[alt_key] if i not in used_indices]
+                        take = min(len(available), needed)
+                        if take > 0:
+                            sampled = rng.choice(available, size=take, replace=False).tolist()
+                            collected_indices.extend(sampled)
+                            used_indices.update(sampled)
+                            needed -= take
+                    
+                    if needed == 0:
+                        break
+
+            # Upsample if needed
+            if needed > 0 and upsample and collected_indices:
+                upsampled = rng.choice(collected_indices, size=needed, replace=True).tolist()
+                collected_indices.extend(upsampled)
+
+        if collected_indices:
+            matched_indices.extend(collected_indices)
+            matched_keys.add(key)
+
+    return matched_indices, matched_keys
+
 
 def balance_for_inference(
     reference_df: pd.DataFrame,
@@ -11,18 +154,31 @@ def balance_for_inference(
     max_stage_offset: int = 2,
     upsample: bool = True,
     random_state: int = 2025,
-):
+    return_indices: bool = False,
+) -> Union[Tuple[pd.DataFrame, Set], Tuple[List, Set]]:
     """
-    Return two values:
-      1) matched_target_df – rows from target_df picked to mirror reference_df.
-      2) matched_keys_set  – the keys (tuple over match_keys) that were successfully matched.
-
-    - Use CMT_id for matching (fallback to CMT_name if not available).
-    - If sex or stage is unknown/empty, loosen matching: match only by cell (CMT_id or CMT_name).
-    - Stage back-off is no longer dependent on the position assumption, instead uses stage_col index.
+    Balance target samples to match reference samples by demographic keys.
+    
+    Parameters
+    ----------
+    return_indices : bool
+        If True, returns (matched_indices, matched_keys) instead of (matched_df, matched_keys).
+        Much more memory efficient.
+    
+    Returns
+    -------
+    If return_indices=False (default):
+        matched_target_df, matched_keys_set
+    If return_indices=True:
+        matched_target_indices, matched_keys_set
     """
-
-    # Stage definitions and unknown checker
+    if return_indices:
+        return balance_for_inference_indices(
+            reference_df, target_df, match_keys, stage_col, 
+            max_stage_offset, upsample, random_state
+        )
+    
+    # Original implementation for backward compatibility
     STAGES = [
         "80 and over", "aged", "middle aged", "adult", "young adult", "adolescent",
         "child", "preschool child", "infant", "newborn", "fetal", "embryonic", "unknown",
@@ -40,9 +196,11 @@ def balance_for_inference(
     if stage_col not in reference_df.columns or stage_col not in target_df.columns:
         raise KeyError(f"stage_col '{stage_col}' must be present in both DataFrames.")
 
-    # Keep only rows where stage_col is not NA (unknown string is still valid)
-    reference_df = reference_df[reference_df[stage_col].notna()].copy()
-    target_df = target_df[target_df[stage_col].notna()].copy()
+    # Keep only rows where stage_col is not NA (use views, not copies)
+    ref_mask = reference_df[stage_col].notna()
+    tgt_mask = target_df[stage_col].notna()
+    reference_df = reference_df.loc[ref_mask]
+    target_df = target_df.loc[tgt_mask]
 
     # Locate column indices for keys
     try:

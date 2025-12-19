@@ -5,30 +5,97 @@ import scanpy as sc
 import anndata as ad
 import matplotlib.pyplot as plt
 
-def load_expression_by_metadata(df_meta, dataset_dir):
-    all_expr_parts = []
-    sample_indices = []
+def load_expression_by_metadata(df_meta, dataset_dir, output_path=None, chunk_size=1000):
+    """
+    Load expression data from multiple matrix files based on metadata.
+    
+    Parameters
+    ----------
+    df_meta : pd.DataFrame
+        Metadata with 'matrix_file_path', 'matrix_row_idx', 'sample_index' columns
+    dataset_dir : str
+        Path to directory containing expression matrices
+    output_path : str, optional
+        If provided, writes directly to this .npy file in memory-mapped mode
+        to reduce peak memory usage. Returns a memory-mapped array.
+    chunk_size : int
+        Number of samples to process at a time when writing to disk
+        
+    Returns
+    -------
+    np.ndarray
+        Expression matrix with shape (n_samples, n_features)
+    """
+    # Get feature dimension from first matrix
+    first_file = df_meta["matrix_file_path"].iloc[0]
+    first_matrix = np.load(os.path.join(dataset_dir, first_file), mmap_mode="r")
+    n_features = first_matrix.shape[1]
+    n_samples = len(df_meta)
+    del first_matrix
+    
+    if output_path is not None:
+        # Memory-efficient mode: write directly to disk
+        print(f"[Memory-efficient mode] Writing {n_samples} samples to {output_path}")
+        
+        # Pre-allocate memory-mapped output file
+        output_array = np.lib.format.open_memmap(
+            output_path, mode='w+', dtype=np.float32, shape=(n_samples, n_features)
+        )
+        
+        # Create index mapping: sample_index -> position in output
+        sample_to_pos = {idx: pos for pos, idx in enumerate(df_meta["sample_index"].values)}
+        
+        for matrix_file in df_meta["matrix_file_path"].unique():
+            group = df_meta[df_meta["matrix_file_path"] == matrix_file]
+            matrix_path = os.path.join(dataset_dir, matrix_file)
+            matrix = np.load(matrix_path, mmap_mode="r")
+            print(f"Processing matrix from {matrix_path} with shape {matrix.shape}")
+            
+            row_indices = group["matrix_row_idx"].values
+            sample_indices = group["sample_index"].values
+            
+            # Write in chunks to reduce memory
+            for i in range(0, len(row_indices), chunk_size):
+                chunk_rows = row_indices[i:i+chunk_size]
+                chunk_samples = sample_indices[i:i+chunk_size]
+                chunk_data = matrix[chunk_rows, :]
+                
+                for j, sample_idx in enumerate(chunk_samples):
+                    output_pos = sample_to_pos[sample_idx]
+                    output_array[output_pos, :] = chunk_data[j, :]
+            
+            del matrix
+        
+        # Flush to disk
+        output_array.flush()
+        print(f"[Memory-efficient mode] Saved to {output_path}")
+        return output_array
+    
+    else:
+        # Original mode: collect in memory
+        all_expr_parts = []
+        sample_indices = []
 
-    for matrix_file in df_meta["matrix_file_path"].unique():
-        group = df_meta[df_meta["matrix_file_path"] == matrix_file]
-        matrix_path = os.path.join(dataset_dir, matrix_file)
-        matrix = np.load(matrix_path, mmap_mode="r")
-        print(f"Loaded matrix from {matrix_path} with shape {matrix.shape}")
+        for matrix_file in df_meta["matrix_file_path"].unique():
+            group = df_meta[df_meta["matrix_file_path"] == matrix_file]
+            matrix_path = os.path.join(dataset_dir, matrix_file)
+            matrix = np.load(matrix_path, mmap_mode="r")
+            print(f"Loaded matrix from {matrix_path} with shape {matrix.shape}")
 
-        row_indices = group["matrix_row_idx"].values
-        expr_subset = matrix[row_indices, :]
-        all_expr_parts.append(expr_subset)
+            row_indices = group["matrix_row_idx"].values
+            expr_subset = matrix[row_indices, :]
+            all_expr_parts.append(expr_subset)
 
-        sample_indices.extend(group["sample_index"].values)
+            sample_indices.extend(group["sample_index"].values)
 
-        del matrix
+            del matrix
 
-    expr_all = np.vstack(all_expr_parts)
+        expr_all = np.vstack(all_expr_parts)
 
-    sort_order = np.argsort(sample_indices)
-    expr_all_sorted = expr_all[sort_order, :]
+        sort_order = np.argsort(sample_indices)
+        expr_all_sorted = expr_all[sort_order, :]
 
-    return expr_all_sorted
+        return expr_all_sorted
 
 def dataset_correction(
     downstream_task,
