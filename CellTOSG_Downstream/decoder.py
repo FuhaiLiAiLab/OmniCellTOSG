@@ -339,19 +339,14 @@ class CellTOSG_Class(nn.Module):
         linear_hidden_dims,
         linear_activation,
         linear_dropout_rate,
-        text_encoder,
-        rna_seq_encoder,
-        prot_seq_encoder,
         encoder,
-        internal_encoder
+        internal_encoder,
+        entity_mlp_dims=[32, 32],  # num_entity → decrease → increase → num_entity
+        mlp_dropout=0.1,
     ):
         super().__init__()
 
         self.num_class = num_class
-
-        self.text_encoder = text_encoder
-        self.rna_seq_encoder = rna_seq_encoder
-        self.prot_seq_encoder = prot_seq_encoder
         self.encoder = encoder
         self.internal_encoder = internal_encoder
 
@@ -362,6 +357,21 @@ class CellTOSG_Class(nn.Module):
         self.cross_modal_fusion = nn.Linear(text_input_dim * 3 + omic_input_dim, cross_fusion_output_dim)
         self.pre_transform = nn.Linear(pre_input_output_dim, pre_input_output_dim)
         self.fusion = nn.Linear(cross_fusion_output_dim + pre_input_output_dim, final_fusion_output_dim)
+
+        # Add MLP layers for entity interaction flow
+        dims = [num_entity] + entity_mlp_dims + [num_entity]
+        
+        # Build MLP layers operating on entity dimension
+        self.entity_mlp_layers = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(dims[i], dims[i + 1]),
+                nn.ReLU(inplace=False),
+                nn.Dropout(mlp_dropout)
+            ) if i < len(dims) - 2 else nn.Linear(dims[i], dims[i + 1])
+            for i in range(len(dims) - 1)
+        ])
+
+        self.layer_norm = nn.LayerNorm(num_entity)
 
         # ========================= Graph Readout Layer Configuration =========================
         # Linear transformation for single-value output
@@ -401,6 +411,14 @@ class CellTOSG_Class(nn.Module):
         self.cross_modal_fusion.reset_parameters()
         self.pre_transform.reset_parameters()
         self.fusion.reset_parameters()
+
+        # Reset entity MLP layers
+        for mlp in self.entity_mlp_layers:
+            for module in mlp.modules():
+                if isinstance(module, nn.Linear):
+                    module.reset_parameters()
+        
+        self.layer_norm.reset_parameters()
 
         # Reset readout layer
         if hasattr(self, 'readout'):
@@ -446,6 +464,17 @@ class CellTOSG_Class(nn.Module):
         # import pdb; pdb.set_trace()
         internal_output = self.internal_encoder(fused_features, internal_edge_index)
         z = internal_output + x  # Residual connection
+
+        # ********************** MLP Information Flow *************************
+        # Reshape: (batch*num_entity, feature) → (batch, num_entity)
+        z = z.view(batch_size, num_entity, -1).squeeze(-1)
+        # Apply MLP on entity dimension
+        for mlp in self.entity_mlp_layers:
+            z = mlp(z)
+        z = self.layer_norm(z)
+        # Expand and flatten: (batch, num_entity) → (batch*num_entity, 1)
+        z = z.reshape(-1, 1)
+        # **********************************************************************
         
         # Apply main graph convolution
         # import pdb; pdb.set_trace()
@@ -457,6 +486,207 @@ class CellTOSG_Class(nn.Module):
         z = self.readout(z)  # Apply linear transformation: (B*N, D) -> (B*N, 1)
         z = z.view(batch_size, num_entity)  # Reshape to (B, N)
         z = self.linear_repr(z)  # Apply MLP: (B, N) -> (B, D')
+        # ========================================================================
+
+        # ===================== Final Classification ===========================
+        output = self.classifier(z)
+        _, pred = torch.max(output, dim=1)
+        # ========================================================================
+
+        return output, pred
+    
+    def loss(self, output, label):
+        # import pdb; pdb.set_trace()
+        num_class = self.num_class
+        # Use weight vector to balance the loss
+        weight_vector = torch.zeros([num_class]).to(device='cuda')
+        label = label.long()
+        for i in range(num_class):
+            n_samplei = torch.sum(label == i)
+            if n_samplei == 0:
+                weight_vector[i] = 0
+            else:
+                weight_vector[i] = len(label) / (n_samplei)
+        # Calculate the loss
+        output = torch.log_softmax(output, dim=-1)
+        loss = F.nll_loss(output, label, weight_vector)
+        return loss
+
+
+class CellTOSG_DrugRes(nn.Module):
+    def __init__(
+        self,
+        text_input_dim,
+        omic_input_dim,
+        drug_output_dim,
+        cross_fusion_output_dim,
+        pre_input_output_dim,
+        final_fusion_output_dim,
+        num_class,
+        num_entity,
+        linear_hidden_dims,
+        linear_activation,
+        linear_dropout_rate,
+        encoder,
+        internal_encoder,
+        drug_encoder,
+        entity_mlp_dims=[32, 32],  # num_entity → decrease → increase → num_entity
+        mlp_dropout=0.1,
+    ):
+        super().__init__()
+
+        self.num_class = num_class
+        self.encoder = encoder
+        self.internal_encoder = internal_encoder
+        self.drug_encoder = drug_encoder
+
+        self.name_linear_transform = nn.Linear(text_input_dim, text_input_dim)
+        self.desc_linear_transform = nn.Linear(text_input_dim, text_input_dim)
+        self.seq_linear_transform = nn.Linear(text_input_dim, text_input_dim)
+        self.omic_linear_transform = nn.Linear(omic_input_dim, omic_input_dim)
+        self.cross_modal_fusion = nn.Linear(text_input_dim * 3 + omic_input_dim, cross_fusion_output_dim)
+        self.pre_transform = nn.Linear(pre_input_output_dim, pre_input_output_dim)
+        self.fusion = nn.Linear(cross_fusion_output_dim + pre_input_output_dim, final_fusion_output_dim)
+        self.drug_linear_transform = nn.Linear(drug_output_dim, text_input_dim)
+
+        # Add MLP layers for entity interaction flow
+        dims = [num_entity] + entity_mlp_dims + [num_entity]
+        
+        # Build MLP layers operating on entity dimension
+        self.entity_mlp_layers = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(dims[i], dims[i + 1]),
+                nn.ReLU(inplace=False),
+                nn.Dropout(mlp_dropout)
+            ) if i < len(dims) - 2 else nn.Linear(dims[i], dims[i + 1])
+            for i in range(len(dims) - 1)
+        ])
+
+        self.layer_norm = nn.LayerNorm(num_entity)
+
+        # ========================= Graph Readout Layer Configuration =========================
+        # Linear transformation for single-value output
+        self.readout = nn.Linear(final_fusion_output_dim, 1)
+        # Build multi-layer perceptron with configurable architecture
+        layers = []
+        current_dim = num_entity + 1 # +1 for drug representation
+        # Add hidden layers
+        for hidden_dim in linear_hidden_dims:
+            layers.append(nn.Linear(current_dim, hidden_dim))
+            # Add activation function using the helper function
+            layers.append(create_linear_activation_layer(linear_activation))
+            # Add dropout
+            layers.append(nn.Dropout(linear_dropout_rate))
+            current_dim = hidden_dim
+        # Create the sequential model
+        self.linear_repr = nn.Sequential(*layers)
+        # =================================================================================
+
+        # Final classification layer
+        self.classifier = nn.Linear(linear_hidden_dims[-1], num_class)
+
+        # Reset parameters
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        """Reset all learnable parameters in the model to their initial values."""
+        # Reset graph encoder parameters
+        self.encoder.reset_parameters()
+        self.internal_encoder.reset_parameters()
+        self.drug_encoder.reset_parameters()
+
+        # Reset linear transformation layers
+        self.name_linear_transform.reset_parameters()
+        self.desc_linear_transform.reset_parameters()
+        self.seq_linear_transform.reset_parameters()
+        self.omic_linear_transform.reset_parameters()
+        self.cross_modal_fusion.reset_parameters()
+        self.pre_transform.reset_parameters()
+        self.fusion.reset_parameters()
+        self.drug_linear_transform.reset_parameters()
+
+        # Reset entity MLP layers
+        for mlp in self.entity_mlp_layers:
+            for module in mlp.modules():
+                if isinstance(module, nn.Linear):
+                    module.reset_parameters()
+        
+        self.layer_norm.reset_parameters()
+
+        # Reset readout layer
+        if hasattr(self, 'readout'):
+            self.readout.reset_parameters()
+        
+        # Reset linear representation layers
+        if hasattr(self, 'linear_repr'):
+            for layer in self.linear_repr:
+                if hasattr(layer, 'reset_parameters'):
+                    layer.reset_parameters()
+        
+        # Reset final classifier
+        self.classifier.reset_parameters()
+
+    def forward(self, x, pre_x, edge_index, internal_edge_index, ppi_edge_index,
+                num_entity, drug_chem_x, drug_chem_edge_index, x_name_emb, x_desc_emb, x_bio_emb, batch_size):
+        
+        num_node = num_entity * batch_size
+
+        # =================== Multi-Modal Feature Integration ===================
+        # Transform and expand embeddings for all batch samples
+        name_features = self.name_linear_transform(x_name_emb)
+        name_features = name_features.repeat(batch_size, 1)
+        desc_features = self.desc_linear_transform(x_desc_emb)
+        desc_features = desc_features.repeat(batch_size, 1)
+        bio_features = self.seq_linear_transform(x_bio_emb)
+        bio_features = bio_features.repeat(batch_size, 1)
+        omic_features = self.omic_linear_transform(x)
+        # Concatenate all modalities and fuse them
+        multi_modal_features = torch.cat([name_features, desc_features, bio_features, omic_features], dim=-1)
+        cross_modal_output = self.cross_modal_fusion(multi_modal_features)
+        # ========================================================================
+
+        # ================= Hierarchical Feature Fusion =======================
+        # Combine pre-trained features with cross-modal features
+        pre_features_transformed = self.pre_transform(pre_x)
+        combined_features = torch.cat([pre_features_transformed, cross_modal_output], dim=-1)
+        fused_features = self.fusion(combined_features)
+        # ========================================================================
+
+        # =================== Graph Neural Network Encoding ====================
+        # Apply internal graph convolution with residual connection
+        # import pdb; pdb.set_trace()
+        internal_output = self.internal_encoder(fused_features, internal_edge_index)
+        z = internal_output + x  # Residual connection
+
+        # ********************** MLP Information Flow *************************
+        # Reshape: (batch*num_entity, feature) → (batch, num_entity)
+        z = z.view(batch_size, num_entity, -1).squeeze(-1)
+        # Apply MLP on entity dimension
+        for mlp in self.entity_mlp_layers:
+            z = mlp(z)
+        z = self.layer_norm(z)
+        # Expand and flatten: (batch, num_entity) → (batch*num_entity, 1)
+        z = z.reshape(-1, 1)
+        # **********************************************************************
+        
+        # Apply main graph convolution
+        # import pdb; pdb.set_trace()
+        z = self.encoder(z, ppi_edge_index)
+        # ========================================================================
+
+        # =================== Graph-Level Linear Representation ==================
+        # For linear readout - use MLP approach
+        z = self.readout(z)  # Apply linear transformation: (B*N, D) -> (B*N, 1)
+        z = z.view(batch_size, num_entity)  # Reshape to (B, N)
+        # Add drug embedding 
+        drug_z = self.drug_encoder(drug_chem_x, drug_chem_edge_index)  # (B, M, args.train_drug_output_dim)
+        drug_z = self.drug_linear_transform(drug_z).squeeze(-1)  # (B, M)
+        # Mean pooling over drug nodes
+        drug_z = torch.mean(drug_z, dim=1, keepdim=True)  # (B, 1)
+
+        # Make vertical concatenation
+        z = torch.cat([z, drug_z], dim=1)  # (B, N+1)
+        z = self.linear_repr(z)  # Apply MLP: (B, N+1) -> (B, D')
         # ========================================================================
 
         # ===================== Final Classification ===========================

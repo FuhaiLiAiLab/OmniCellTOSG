@@ -17,7 +17,7 @@ from GeoDataLoader.geograph_sampler import GeoGraphLoader
 
 # custom modules
 from CellTOSG_Foundation.lm_model import TextEncoder, RNAGPT_LM, ProtGPT_LM
-from CellTOSG_Downstream.decoder import CellTOSG_Class, DownGNNEncoder
+from CellTOSG_Downstream.decoder import CellTOSG_DrugRes, DownGNNEncoder
 from CellTOSG_Foundation.utils import tab_printer
 from CellTOSG_Foundation.model import CellTOSG_Foundation, DegreeDecoder, EdgeDecoder, GNNEncoder
 from CellTOSG_Foundation.mask import MaskEdge
@@ -28,7 +28,7 @@ from CellTOSG_Loader import CellTOSGDataLoader
 from utils import load_and_merge_configs, save_updated_config
 
 
-def build_pretrain_model(args, device):
+def build_pretrain_model(args, num_entity, device):
     # Build the mask for edge reconstruction
     mask = MaskEdge(p=args.p)
     # Build the text, rna and protein sequence encoders
@@ -48,7 +48,8 @@ def build_pretrain_model(args, device):
     degree_decoder = DegreeDecoder(args.pre_graph_output_dim, args.pre_decoder_dim,
                                 num_layers=args.pre_decoder_layers, dropout=args.pre_decoder_dropout)
     # Build the pretraining model
-    pretrain_model = CellTOSG_Foundation(text_input_dim=args.pre_lm_emb_dim,
+    pretrain_model = CellTOSG_Foundation(num_entity=num_entity,
+                    text_input_dim=args.pre_lm_emb_dim,
                     omic_input_dim=args.num_omic_feature,
                     cross_fusion_output_dim=args.pre_cross_fusion_output_dim, 
                     text_encoder=text_encoder,
@@ -58,7 +59,9 @@ def build_pretrain_model(args, device):
                     internal_encoder=internal_graph_encoder,
                     edge_decoder=edge_decoder,
                     degree_decoder=degree_decoder,
-                    mask=mask).to(device)
+                    mask=mask,
+                    entity_mlp_dims=[32,32], #######################################################################
+                    ).to(device)
     return pretrain_model
 
 
@@ -70,22 +73,29 @@ def build_model(args, device):
     graph_encoder = DownGNNEncoder(args.train_graph_input_dim, args.train_graph_hidden_dim, args.train_graph_output_dim,
                     num_layers=args.train_graph_encoder_layers, dropout=args.train_graph_encoder_dropout,
                     bn=args.train_graph_bn, layer=args.train_graph_layer_type, activation=args.train_graph_encoder_activation)
+    ####################################################################### Need to add all drug encoder parameters here ####################
+    drug_encoder = DownGNNEncoder(args.drug_input_dim, args.train_drug_hidden_dim, args.train_drug_output_dim,
+                    num_layers=args.train_drug_encoder_layers, dropout=args.train_drug_encoder_dropout,
+                    bn=args.train_drug_bn, layer=args.train_drug_layer_type, activation=args.train_drug_encoder_activation)
+    ####################################################################### Need to add all drug encoder parameters here ####################
     # Build the downstream task model
-    model = CellTOSG_Class(text_input_dim=args.train_lm_emb_dim,
-                    omic_input_dim=args.num_omic_feature,
-                    cross_fusion_output_dim=args.train_cross_fusion_output_dim,
-                    pre_input_output_dim=args.pre_input_output_dim,
-                    final_fusion_output_dim=args.final_fusion_output_dim,
-                    num_class=args.num_class,
-                    num_entity=args.num_entity,
-                    linear_hidden_dims=args.train_linear_hidden_dims,
-                    linear_activation=args.train_linear_activation,
-                    linear_dropout_rate=args.train_linear_dropout,
-                    encoder=graph_encoder,
-                    internal_encoder=internal_graph_encoder,
-                    entity_mlp_dims=[32, 32],  # num_entity → decrease → increase → num_entity
-                    mlp_dropout=0.1,
-                    ).to(device)
+    model = CellTOSG_DrugRes(text_input_dim=args.train_lm_emb_dim,
+                        omic_input_dim=args.num_omic_feature,
+                        drug_output_dim=args.train_drug_output_dim, #################################################################################################
+                        cross_fusion_output_dim=args.train_cross_fusion_output_dim,
+                        pre_input_output_dim=args.pre_input_output_dim,
+                        final_fusion_output_dim=args.final_fusion_output_dim,
+                        num_class=args.num_class,
+                        num_entity=args.num_entity,
+                        linear_hidden_dims=args.train_linear_hidden_dims,
+                        linear_activation=args.train_linear_activation,
+                        linear_dropout_rate=args.train_linear_dropout,
+                        encoder=graph_encoder,
+                        internal_encoder=internal_graph_encoder,
+                        drug_encoder=drug_encoder,
+                        entity_mlp_dims=[32, 32],  # num_entity → decrease → increase → num_entity
+                        mlp_dropout=0.1,
+                        ).to(device)
     return model
 
 
@@ -231,7 +241,8 @@ def write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list
         file.write(best_model_info)
 
 
-def train_model(train_dataset_loader, current_cell_num, num_entity, name_embeddings, desc_embeddings, seq_embeddings, pretrain_model, model, device, args):
+def train_model(train_dataset_loader, current_cell_num, num_entity, name_embeddings, desc_embeddings, seq_embeddings,
+                drug_chem_x, drug_chem_edge_index, pretrain_model, model, device, args):
     optimizer = torch.optim.Adam(filter(lambda p : p.requires_grad, model.parameters()), lr=args.train_lr, eps=args.train_eps, weight_decay=args.train_weight_decay)
     batch_loss = 0
     for batch_idx, data in enumerate(train_dataset_loader):
@@ -241,12 +252,15 @@ def train_model(train_dataset_loader, current_cell_num, num_entity, name_embeddi
         ppi_edge_index = Variable(data.edge_index, requires_grad=False).to(device)
         edge_index = Variable(data.all_edge_index, requires_grad=False).to(device)
         label = Variable(data.label, requires_grad=False).to(device)
+        drug_chem_x = Variable(drug_chem_x.float(), requires_grad=False).to(device)
+        drug_chem_edge_index = Variable(drug_chem_edge_index, requires_grad=False).to(device)
 
         # import pdb; pdb.set_trace()
         # Use pretrained model to get the embedding
         z = pretrain_model.internal_encoder(x, internal_edge_index) + x
         pre_x = pretrain_model.encoder.get_embedding(z, ppi_edge_index, mode='last') # mode='cat'
-        output, ypred = model(x, pre_x, edge_index, internal_edge_index, ppi_edge_index, num_entity, name_embeddings, desc_embeddings, seq_embeddings, current_cell_num)
+        output, ypred = model(x, pre_x, edge_index, internal_edge_index, ppi_edge_index, 
+                              num_entity, drug_chem_x, drug_chem_edge_index, name_embeddings, desc_embeddings, seq_embeddings, current_cell_num)
         loss = model.loss(output, label)
         loss.backward()
         batch_loss += loss.item()
@@ -286,7 +300,8 @@ def test_model(test_dataset_loader, current_cell_num, num_entity, name_embedding
     return model, batch_loss, batch_acc, all_ypred
 
 
-def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index, x_name_emb, x_desc_emb, x_bio_emb, config_groups):
+def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index, 
+          drug_chem_x, drug_chem_edge_index, x_name_emb, x_desc_emb, x_bio_emb, config_groups):
     train_num_cell = xTr.shape[0]
     num_entity = xTr.shape[1]
     num_feature = args.num_omic_feature
@@ -349,7 +364,8 @@ def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_inde
             geo_train_datalist = read_batch(index, upper_index, xTr, yTr, num_feature, num_entity, all_edge_index, internal_edge_index, ppi_edge_index)
             train_dataset_loader = GeoGraphLoader.load_graph(geo_train_datalist, args.train_batch_size, args.train_num_workers)
             current_cell_num = upper_index - index # current batch size
-            model, batch_loss, batch_acc, batch_ypred = train_model(train_dataset_loader, current_cell_num, num_entity, x_name_emb, x_desc_emb, x_bio_emb, pretrain_model, model, device, args)
+            model, batch_loss, batch_acc, batch_ypred = train_model(train_dataset_loader, current_cell_num, num_entity, x_name_emb, x_desc_emb, x_bio_emb,
+                                                                    drug_chem_x, drug_chem_edge_index, pretrain_model, model, device, args)
             print('BATCH LOSS: ', batch_loss)
             print('BATCH ACCURACY: ', batch_acc)
             batch_loss_list.append(batch_loss)
@@ -578,11 +594,15 @@ if __name__ == "__main__":
         )
 
     # Build Pretrain Model
-    pretrain_model = build_pretrain_model(args, device)
+    num_entity = 533458 ###############################################################################################################################################################################################
+    pretrain_model = build_pretrain_model(args, num_entity, device)
     pretrain_model.load_state_dict(torch.load(args.pretrained_model_save_path, map_location=device))
     pretrain_model.eval()
     # Prepare text and seq embeddings
     x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model, device)
+    # Prepare drug embeddings
+    drug_chem_x = dataset.drug_chem_x ########################################################################################################
+    drug_chem_edge_index = dataset.drug_chem_edge_index ######################################################################################
     # Graph feature
     xAll = dataset.data
     yAll = dataset.labels
@@ -606,6 +626,7 @@ if __name__ == "__main__":
     # Build model
     model = build_model(args, device)
     # Train the model
-    train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index, x_name_emb, x_desc_emb, x_bio_emb, config_groups)
+    train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index, 
+          drug_chem_x, drug_chem_edge_index, x_name_emb, x_desc_emb, x_bio_emb, config_groups)
 
 # python train.py --train_lr 0.0005 --train_batch_size 3 --train_base_layer gat --downstream_task cell_type --label_column cell_type --tissue_general brain --disease_name "Alzheimer's Disease" --sample_ratio 0.1 --dataset_output_dir ./Output/data_ad_celltype_0.1 --train_test_random_seed 42
