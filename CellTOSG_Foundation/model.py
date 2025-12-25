@@ -447,6 +447,7 @@ def random_negative_sampler(edge_index, num_nodes, num_neg_samples):
 class CellTOSG_Foundation(nn.Module):
     def __init__(
         self,
+        num_entity,
         text_input_dim,
         omic_input_dim,
         cross_fusion_output_dim,
@@ -460,6 +461,8 @@ class CellTOSG_Foundation(nn.Module):
         mask=None,
         random_negative_sampling=False,
         loss="ce",
+        entity_mlp_dims=[32, 32],  # num_entity → decrease → increase → num_entity
+        mlp_dropout=0.1,
     ):
         super().__init__()
         # Language model encoder
@@ -479,6 +482,21 @@ class CellTOSG_Foundation(nn.Module):
         self.omic_linear_transform = nn.Linear(omic_input_dim, omic_input_dim)
         self.cross_modal_fusion = nn.Linear(text_input_dim * 3 + omic_input_dim, cross_fusion_output_dim)
 
+        # Add MLP layers for entity interaction flow
+        dims = [num_entity] + entity_mlp_dims + [num_entity]
+        
+        # Build MLP layers operating on entity dimension
+        self.entity_mlp_layers = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(dims[i], dims[i + 1]),
+                nn.ReLU(inplace=False),
+                nn.Dropout(mlp_dropout)
+            ) if i < len(dims) - 2 else nn.Linear(dims[i], dims[i + 1])
+            for i in range(len(dims) - 1)
+        ])
+
+        self.layer_norm = nn.LayerNorm(num_entity)
+
         if loss == "ce":
             self.loss_fn = ce_loss
         elif loss == "auc":
@@ -493,18 +511,30 @@ class CellTOSG_Foundation(nn.Module):
             raise ValueError(loss)
 
         if random_negative_sampling:
-            # this will be faster than pyg negative_sampling
             self.negative_sampler = random_negative_sampler
         else:
             self.negative_sampler = negative_sampling
 
     def reset_parameters(self):
-        self.encoder.reset_parameters()
-        self.internal_encoder.reset_parameters()
-        self.edge_decoder.reset_parameters()
+        for module in [self.encoder, self.internal_encoder, self.edge_decoder]:
+            module.reset_parameters()
 
         if self.degree_decoder is not None:
             self.degree_decoder.reset_parameters()
+        
+        # Reset all linear transforms
+        for transform in [self.name_linear_transform, self.desc_linear_transform,
+                          self.seq_linear_transform, self.omic_linear_transform,
+                          self.cross_modal_fusion]:
+            transform.reset_parameters()
+        
+        # Reset entity MLP layers
+        for mlp in self.entity_mlp_layers:
+            for module in mlp.modules():
+                if isinstance(module, nn.Linear):
+                    module.reset_parameters()
+        
+        self.layer_norm.reset_parameters()
 
     def forward(self, x, edge_index):
         return self.encoder(x, edge_index)
@@ -562,6 +592,17 @@ class CellTOSG_Foundation(nn.Module):
             # ********************** Internal Encoder *******************************
             z = self.internal_encoder(cross_x, internal_edge_index) + x
             # **********************************************************************
+            
+            # ********************** MLP Information Flow *************************
+            # Reshape: (batch*num_entity, feature) → (batch, num_entity)
+            z = z.view(batch_size, num_entity, -1).squeeze(-1)
+            # Apply MLP on entity dimension
+            for mlp in self.entity_mlp_layers:
+                z = mlp(z)
+            z = self.layer_norm(z)
+            # Expand and flatten: (batch, num_entity) → (batch*num_entity, 1)
+            z = z.reshape(-1, 1)
+            # **********************************************************************
 
             # ******************* Graph pretraining with link **********************
             z = self.encoder(z, remaining_edges)
@@ -611,13 +652,37 @@ class CellTOSG_Foundation(nn.Module):
         return pred
 
     @torch.no_grad()
-    def test_step(self, data, pos_edge_index, neg_edge_index):
+    def test_step(self, num_entity, data, x_name_emb, x_desc_emb, x_bio_emb, pos_edge_index, neg_edge_index, batch_size=2 ** 16):
         self.eval()
+
         x, edge_index = data.x, data.edge_index
         internal_edge_index = data.internal_edge_index
 
-        z = self.internal_encoder(x, internal_edge_index)
-        z = self(z, edge_index)
+        # ********************** Cross-modality Fusion *************************
+        name_emb = self.name_linear_transform(x_name_emb).clone()
+        name_emb = name_emb.repeat(batch_size, 1)
+        desc_emb = self.desc_linear_transform(x_desc_emb).clone()
+        desc_emb = desc_emb.repeat(batch_size, 1)
+        bio_emb = self.seq_linear_transform(x_bio_emb).clone()
+        bio_emb = bio_emb.repeat(batch_size, 1)
+        omic_emb = self.omic_linear_transform(x).clone()
+        merged_emb = torch.cat([name_emb, desc_emb, bio_emb, omic_emb], dim=-1)
+        cross_x = self.cross_modal_fusion(merged_emb)
+        # **********************************************************************
+
+        # ********************** Internal Encoder *******************************
+        z = self.internal_encoder(cross_x, internal_edge_index) + x
+        # **********************************************************************
+
+       # ********************** MLP Information Flow *************************
+        z = z.view(batch_size, num_entity, -1).squeeze(-1)
+        for mlp in self.entity_mlp_layers:
+            z = mlp(z)
+        z = self.layer_norm(z)
+        z = z.reshape(-1, 1)
+        # **********************************************************************
+
+        z = self.encoder(z, edge_index)
         pos_pred = self.batch_predict(z, pos_edge_index)
         neg_pred = self.batch_predict(z, neg_edge_index)
 

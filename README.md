@@ -36,13 +36,27 @@ OmniCellTOSG is, to our knowledge, the first **cell-level Text–Omic dataset** 
   <img src="./Figures/Figure1.png" alt="OmniCellTOSG Overview" />
 </div>
 
-The human body consists of approximately 37 trillion cells, all originating from a single embryonic cell and sharing the same copy of genome. The complex, robust and accurate cell signaling systems, regulated by varying abundance of proteins and their interactions, create diverse cell types with different functions at different organs. The cell signaling systems are evolved and altered by many factors, inlcuding age, sex, diet, environment exposures and diseases. However, the interaction of a multitude of genes and proteins in conjunction introduces complexity in decoding cell signaling systems or patterns in normal development or diseases. The recent advent in the open-source availability of millions of single cell omic data has presented the unique opportunity to integrate multiple layers from the central dogma of molecular biology, for each individual, to unravel how these multi-omic interactions contribute to disease morbidity. Moreover, inspired by the success of foundation models pre-trained on large corpora (e.g., large language models (LLMs) and large vision models (LVMs)), we introduce, to our knowledge, the first dataset of cell-level Text–Omic Signaling Graphs (TOSGs), OmniCellTOSG, together with a unified graph–language foundation model (GLFM), CellTOSG_Foundation (GLFM). In OmniCellTOSG, each TOSG encodes the signaling system of an individual cell or meta-cell and is paired with contextual labels (organ, disease, sex, age, and cell subtype), enabling scalable pretraining and downstream inference over cellular signaling. In sum, we have three major contributions: (i) a Text–Omic Signaling Graph (TOSG) data model that unifies human-interpretable textual priors (functions, locations, pathways, diseases, drugs) with quantitative single-cell measurements, enabling graph interpretation over cell signaling; (ii) a large-scale, training-ready resource built from about 120 millions scRNA-seq cells across diverse tissues and states, packaged in a PyTorch-native format and supported by a rigorous query–loading–balancing pipeline that yields stratified, unbiased cohorts (by tissue, cell type, disease, age, gender, and condition); and (iii) a joint LLM+GNN foundation-model paradigm that fuses language and graph encoders to propagate textual knowledge with omic signals on TOSGs, enabling tasks such as cell-type annotation, classification, signaling inference. Together, OmniCellTOSG provides both the data substrate and modeling framework to accelerate accurate, interpretable decoding of cellular signaling for life sciences and precision medicine.
+The human body contains ~37.2 trillion cells that share the same genomic blueprint yet manifest diverse phenotypes through signaling programs governed by protein abundance and interactions. These programs shift with age, sex, diet, environmental exposures, and disease, complicating the decoding of multi-gene and multi-protein effects.
+
+Large-scale foundation models show that pretraining on vast corpora yields transferable representations; in cellular biology, this motivates fusing numerical omic signals with biological priors expressed in text (transcription start sites, functions, mechanisms, etc.), where LLMs can augment graph representation learning by injecting structured prior knowledge.
+
+Here, we introduce a data format, **Text–Omic Signaling Graphs (TOSGs)**, which unifies textual biological priors with numerical omic evidence to enable graph-based interpretation of cell signaling.
+
+We then construct **OmniCellTOSG**, a biomedical AI infrastructure integrating ~80M sc/snRNA-seq cells. To streamline pretraining, we develop **CellTOSG_Loader**, a query–loading–balancing pipeline that yields stratified, unbiased cohorts in Numpy-ready format.
+
+Using these resources, we pretrain a multi-modal graph–language foundation model (**CellTOSG-FM**) that integrates textual priors with omic signals on TOSGs and supports downstream tasks — cell-type annotation, disease classification, and signaling inference with interpretable graph rationales.
 
 ---
 
 ## ⬇️ Download the OmniCellTOSG Dataset
 Get the full dataset on HuggingFace: **[OmniCellTOSG_Dataset](https://huggingface.co/datasets/FuhaiLiAiLab/OmniCellTOSG_Dataset)**
 
+
+
+With an environment with HF CLI,
+```
+huggingface-cli download FuhaiLiAiLab/OmniCellTOSG_Dataset --repo-type dataset --local-dir ./OmniCellTOSG_Dataset_localloader --local-dir-use-symlinks False
+```
 ---
 
 ## 🗂️ Dataset Layout

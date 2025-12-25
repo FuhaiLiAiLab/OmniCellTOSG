@@ -21,7 +21,7 @@ from CellTOSG_Loader import CellTOSGDataLoader
 from utils import load_and_merge_configs
 
 
-def build_pretrain_model(args, device):
+def build_pretrain_model(args, num_entity, device):
     # Build the mask for edge reconstruction
     mask = MaskEdge(p=float(args.p))
     # Build the text, rna and protein sequence encoders
@@ -41,7 +41,8 @@ def build_pretrain_model(args, device):
     degree_decoder = DegreeDecoder(args.pre_graph_output_dim, args.pre_decoder_dim,
                                 num_layers=args.pre_decoder_layers, dropout=args.pre_decoder_dropout)
     # Build the pretraining model
-    pretrain_model = CellTOSG_Foundation(text_input_dim=args.pre_lm_emb_dim,
+    pretrain_model = CellTOSG_Foundation(num_entity=num_entity,
+                    text_input_dim=args.pre_lm_emb_dim,
                     omic_input_dim=args.num_omic_feature,
                     cross_fusion_output_dim=args.pre_cross_fusion_output_dim, 
                     text_encoder=text_encoder,
@@ -51,7 +52,9 @@ def build_pretrain_model(args, device):
                     internal_encoder=internal_graph_encoder,
                     edge_decoder=edge_decoder,
                     degree_decoder=degree_decoder,
-                    mask=mask).to(device)
+                    mask=mask,
+                    entity_mlp_dims=[32,32], #######################################################################
+                    ).to(device)
     return pretrain_model
 
 
@@ -178,9 +181,13 @@ def pretrain_foundation(args, device, xAll, x_name_emb, x_desc_emb, x_bio_emb, a
                     f.write("%s\n" % item)
 
             test_data = test_data.to(device)
-            test_auc, test_ap = pretrain_model.test_step(test_data, 
+            test_auc, test_ap = pretrain_model.test_step(
+                                    num_entity,
+                                    test_data, 
+                                    x_name_emb, x_desc_emb, x_bio_emb,
                                     test_data.pos_edge_label_index, 
-                                    test_data.neg_edge_label_index) 
+                                    test_data.neg_edge_label_index,
+                                    batch_size=current_cell_num) 
             batch_auc_list.append(test_auc)
             batch_acc_list.append(test_ap)
 
@@ -305,7 +312,8 @@ if __name__ == "__main__":
 
     # Build Pretrain Model
     # os.makedirs(os.path.dirname(args.pretrained_model_save_path), exist_ok=True)
-    pretrain_model = build_pretrain_model(args, device)
+    num_entity = 533458 ###############################################################################################################################################################################################
+    pretrain_model = build_pretrain_model(args, num_entity, device)
     pretrain_model.reset_parameters()
 
     # Prepare embeddings

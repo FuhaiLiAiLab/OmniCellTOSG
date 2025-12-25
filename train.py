@@ -17,7 +17,7 @@ from GeoDataLoader.geograph_sampler import GeoGraphLoader
 
 # custom modules
 from CellTOSG_Foundation.lm_model import TextEncoder, RNAGPT_LM, ProtGPT_LM
-from CellTOSG_Downstream.classifier import CellTOSG_Class, DownGNNEncoder
+from CellTOSG_Downstream.decoder import CellTOSG_Class, DownGNNEncoder
 from CellTOSG_Foundation.utils import tab_printer
 from CellTOSG_Foundation.model import CellTOSG_Foundation, DegreeDecoder, EdgeDecoder, GNNEncoder
 from CellTOSG_Foundation.mask import MaskEdge
@@ -63,10 +63,6 @@ def build_pretrain_model(args, device):
 
 
 def build_model(args, device):
-    # Build the text, rna and protein sequence encoders
-    text_encoder = TextEncoder(args.text_lm_model_path, device)
-    rna_seq_encoder = RNAGPT_LM(args.rna_seq_lm_model_path, args.rna_model_name, device)
-    prot_seq_encoder = ProtGPT_LM(args.prot_model_name, device)
     # Build the internal GNN encoder, graph GNN encoder
     internal_graph_encoder = DownGNNEncoder(args.train_internal_input_dim, args.train_internal_hidden_dim, args.train_internal_output_dim,
                             num_layers=args.train_internal_encoder_layers, dropout=args.train_internal_encoder_dropout,
@@ -85,11 +81,11 @@ def build_model(args, device):
                     linear_hidden_dims=args.train_linear_hidden_dims,
                     linear_activation=args.train_linear_activation,
                     linear_dropout_rate=args.train_linear_dropout,
-                    text_encoder=text_encoder,
-                    rna_seq_encoder=rna_seq_encoder,
-                    prot_seq_encoder=prot_seq_encoder,
                     encoder=graph_encoder,
-                    internal_encoder=internal_graph_encoder).to(device)
+                    internal_encoder=internal_graph_encoder,
+                    entity_mlp_dims=[32, 32],  # num_entity → decrease → increase → num_entity
+                    mlp_dropout=0.1,
+                    ).to(device)
     return model
 
 
