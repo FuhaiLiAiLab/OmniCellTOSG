@@ -26,6 +26,7 @@
 /**dataset**/*
 /Output/*
 /Output_old/*
+/Data/*
 /**Output**/*
 /OmniCellTOSG_v1/*
 /mapping_table/*
@@ -75,6 +76,7 @@ node_p_value_analysis.py
 match_npy2labels.py
 sum_model_results.py
 inspect_ckpt.py
+exam_data.py
 
 **/run_*.sh
 **/generate_*.py
