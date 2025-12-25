@@ -2,74 +2,115 @@
 import os
 import numpy as np
 import pandas as pd
-from .data_loader import load_expression_by_metadata, dataset_correction
+from typing import Tuple, Optional
+from .data_loader import load_expression_by_metadata, l1_normalize_log1p, pad_protein_zeros, combat_seq_correction_by_tissue, build_gene_df
 from .balancing import balance_for_inference, balance_for_training
 from .split import celltype_task_sampling, study_wise_split_pretrain, study_wise_split_without_balancing, study_wise_split_with_balancing
 
-def correct_and_export_split(
+N_PROTEIN = 121_419
+
+def norm_and_export_split(
     self,
     task: str,
     train_df: pd.DataFrame,
     test_df: pd.DataFrame,
-    output_dir: str | None,
+    output_dir: Optional[str],
     shuffle: bool = False,
     random_state: int = 2025,
+    target_sum: float = 1e4,
+    correction_method: Optional[str] = None,  # None | "combat_seq"
 ):
-
     if shuffle:
         train_df = train_df.sample(frac=1, random_state=random_state).reset_index(drop=True)
-        test_df  = test_df.sample(frac=1,  random_state=random_state).reset_index(drop=True)
+        test_df = test_df.sample(frac=1, random_state=random_state).reset_index(drop=True)
 
-    # Sample indices
     train_df = train_df.copy()
     test_df = test_df.copy()
     train_df["sample_index"] = np.arange(len(train_df))
-    test_df["sample_index"]  = np.arange(len(test_df))
+    test_df["sample_index"] = np.arange(len(test_df))
 
-    # Raw matrices (row order must match DataFrame)
     train_matrix = load_expression_by_metadata(train_df, dataset_dir=self.matrix_root)
-    test_matrix  = load_expression_by_metadata(test_df,  dataset_dir=self.matrix_root)
+    test_matrix = load_expression_by_metadata(test_df, dataset_dir=self.matrix_root)
 
-    try:
-        train_corr, test_corr = dataset_correction(
-            task,
-            train_matrix, train_df,
-            output_dir,
-            split=True,
-            test_matrix=test_matrix,
-            test_meta=test_df,
+    # ComBat-Seq correction
+    if correction_method is not None:
+        method = str(correction_method).strip().lower()
+    else:
+        method = None
+
+    if method in (None, "", "none"):
+        train_corr = train_matrix
+        test_corr = test_matrix
+    elif method in ("combat", "combat_seq", "pycombat_seq"):
+        print("[Info] Applying ComBat-Seq correction.")
+        train_corr = combat_seq_correction_by_tissue(
+            matrix=train_matrix,
+            meta=train_df,
+            tissue_col="tissue_general",
+            disease_col="disease_BMG_name",
+            dataset_id_col="dataset_id",
+            fallback_cols=["source", "tissue", "suspension_type", "assay"],
+            min_batches_per_group=2,
+            min_per_disease=5,
         )
-    except TypeError:
-        print("[Warning] dataset_correction(split=True, ...) not available; falling back to single-matrix correction (may cause leakage).")
-        all_df = pd.concat([train_df, test_df], ignore_index=True)
-        all_matrix = load_expression_by_metadata(all_df, dataset_dir=self.matrix_root)
-        all_corr = dataset_correction(task, all_matrix, all_df, output_dir)
-        n_tr = len(train_df)
-        train_corr, test_corr = all_corr[:n_tr], all_corr[n_tr:]
 
-    # Save
+        test_corr = combat_seq_correction_by_tissue(
+            matrix=test_matrix,
+            meta=test_df,
+            tissue_col="tissue_general",
+            disease_col="disease_BMG_name",
+            dataset_id_col="dataset_id",
+            fallback_cols=["source", "tissue", "suspension_type", "assay"],
+            min_batches_per_group=2,
+            min_per_disease=5,
+        )
+    else:
+        raise ValueError(f"Unsupported correction_method: {correction_method}")
+
+    print(f"shape train_matrix: {train_matrix.shape}, shape test_matrix: {test_matrix.shape}")
+    print(f"shape train_corr: {train_corr.shape}, shape test_corr: {test_corr.shape}")
+
+    print(f"first 5 rows of train_matrix:\n{train_matrix[:5, :5]}")
+    print(f"first 5 rows of train_corr:\n{train_corr[:5, :5]}")
+
+
+    train_norm = l1_normalize_log1p(
+        matrix=train_corr,
+        target_sum=target_sum,
+    )
+
+    test_norm = l1_normalize_log1p(
+        matrix=test_corr,
+        target_sum=target_sum,
+    )
+
+    train_norm = pad_protein_zeros(train_norm, n_protein_cols=N_PROTEIN)
+    test_norm = pad_protein_zeros(test_norm, n_protein_cols=N_PROTEIN)
+
+    print(f"shape train_norm: {train_norm.shape}, shape test_norm: {test_norm.shape}")
+
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
         train_dir = os.path.join(output_dir, "train")
-        test_dir  = os.path.join(output_dir, "test")
+        test_dir = os.path.join(output_dir, "test")
         os.makedirs(train_dir, exist_ok=True)
-        os.makedirs(test_dir,  exist_ok=True)
+        os.makedirs(test_dir, exist_ok=True)
 
-        # labels
         train_df.to_csv(os.path.join(train_dir, "labels.csv"), index=False)
         test_df.to_csv(os.path.join(test_dir, "labels.csv"), index=False)
 
-        # raw matrices
-        np.save(os.path.join(train_dir, "expression_matrix.npy"), train_matrix)
-        np.save(os.path.join(test_dir,  "expression_matrix.npy"), test_matrix)
+        # np.save(os.path.join(train_dir, "expression_matrix.npy"), train_matrix)
+        # np.save(os.path.join(test_dir, "expression_matrix.npy"), test_matrix)
 
-        # corrected matrices
-        np.save(os.path.join(train_dir, "expression_matrix_corrected.npy"), train_corr)
-        np.save(os.path.join(test_dir,  "expression_matrix_corrected.npy"), test_corr)
+        # np.save(os.path.join(train_dir, "expression_matrix_norm.npy"), train_norm)
+        # np.save(os.path.join(test_dir, "expression_matrix_norm.npy"), test_norm)
+
+        np.save(os.path.join(train_dir, "expression_matrix.npy"), train_norm)
+        np.save(os.path.join(test_dir, "expression_matrix.npy"), test_norm)
 
         print(f"[Export] Saved train ({len(train_df)}) and test ({len(test_df)}) to '{output_dir}'.")
 
-    return (train_corr, train_df), (test_corr, test_df)
+    return (train_norm, train_df), (test_norm, test_df)
 
 
 def extract_for_inference(
@@ -80,7 +121,7 @@ def extract_for_inference(
     sample_ratio: float | None = None,
     sample_size: int | None = None,
     random_state: int = 2025,
-    dataset_correction: str | None = None,
+    correction_method: str | None = None,
     output_dir: str | None = None,
 ):
     """
@@ -236,21 +277,34 @@ def extract_for_inference(
 
     expression_matrix = load_expression_by_metadata(final_df, dataset_dir=self.matrix_root)
     
-    if dataset_correction is not None:
-        expression_matrix_corrected = dataset_correction(task, expression_matrix, final_df, dataset_correction, output_dir)
+    gene_df_raw, gene_df_corr, final_df, choice_df = build_gene_df(
+        final_df=final_df,
+        expression_matrix=expression_matrix,
+        bmg_gene_index_csv=self.bmg_gene_index_csv,
+        n_col_expected=412039,
+        correction_method=correction_method,
+    )
+
+    print(f"gene_df_raw shape: {gene_df_raw.shape}")
+    print(f"gene_df_corr shape: {gene_df_corr.shape}")
+    print(f"first 5x5 gene_df_raw:\n{gene_df_raw.iloc[:5, :5]}")
+    print(f"first 5x5 gene_df_corr:\n{gene_df_corr.iloc[:5, :5]}")
 
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
         final_df.to_csv(os.path.join(output_dir, "labels.csv"), index=False)
-        np.save(os.path.join(output_dir, "expression_matrix.npy"), expression_matrix)
-        if dataset_correction is not None:
-            np.save(os.path.join(output_dir, "expression_matrix_corrected.npy"), expression_matrix_corrected)
+        choice_df.to_csv(os.path.join(output_dir, "bmg_to_gene_choice.csv"), index=False)
+
+        gene_df_raw.to_csv(os.path.join(output_dir, "expression_gene.csv"))
+
+        if correction_method is not None:
+            gene_df_corr.to_csv(os.path.join(output_dir, "expression_gene_corrected.csv"))
+
         print(f"[Extract] Saved {len(final_df)} samples to '{output_dir}'.")
 
-    if dataset_correction is not None:
-        return expression_matrix_corrected, final_df
-    else:
-        return expression_matrix, final_df
+    gene_df_out = gene_df_corr if gene_df_corr is not None else gene_df_raw
+
+    return gene_df_out, final_df
 
 
 def extract_for_training(
@@ -262,6 +316,7 @@ def extract_for_training(
     sample_size: int | None = None,
     random_state: int = 2025,
     study_test_ratio: float = 0.2,
+    correction_method: str | None = None,
     output_dir: str | None = None,
 ):
     if self.last_query_result is None:
@@ -283,7 +338,7 @@ def extract_for_training(
         )
 
         # Export with correction
-        return correct_and_export_split(
+        return norm_and_export_split(
             self=self,
             task=task,
             train_df=train_df,
@@ -291,6 +346,7 @@ def extract_for_training(
             output_dir=output_dir,
             shuffle=shuffle,
             random_state=random_state,
+            correction_method=correction_method,
         )
     # end pretrain
 
@@ -349,7 +405,7 @@ def extract_for_training(
             )
 
             # Export with correction
-            return correct_and_export_split(
+            return norm_and_export_split(
                 self=self,
                 task=task,
                 train_df=train,
@@ -357,6 +413,7 @@ def extract_for_training(
                 output_dir=output_dir,
                 shuffle=shuffle,
                 random_state=random_state,
+                correction_method=correction_method,
             )
         else:
             raise ValueError("Other train tasks require stratified_balancing=True.")
@@ -426,7 +483,7 @@ def extract_for_training(
             test_balanced  = test_balanced.sample(n=take_te, random_state=random_state)
 
         # Export with correction
-        return correct_and_export_split(
+        return norm_and_export_split(
             self=self,
             task=task,
             train_df=train_balanced,
@@ -434,6 +491,7 @@ def extract_for_training(
             output_dir=output_dir,
             shuffle=shuffle,
             random_state=random_state,
+            correction_method=correction_method,
         )
     else:
         raise ValueError("Invalid stratified_balancing value.")

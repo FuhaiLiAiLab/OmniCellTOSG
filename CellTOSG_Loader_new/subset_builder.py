@@ -30,6 +30,7 @@ class CellTOSGSubsetBuilder:
 
     def __init__(self, root):
         self.root = root
+        self.bmg_gene_index_csv = os.path.join(root, "bmg_gene_index.csv")
         self.metadata_path = os.path.join(root, "cell_metadata_with_mappings.parquet")
         self.matrix_root = os.path.join(root, "expression_matrix")
         self.df_all = pd.read_parquet(self.metadata_path)
@@ -161,7 +162,7 @@ class CellTOSGSubsetBuilder:
         sample_ratio=None,
         sample_size=None,
         random_state=2025,
-        dataset_correction=None,
+        correction_method=None, # None / "combat_seq"
         output_dir=None,
     ):
 
@@ -185,7 +186,7 @@ class CellTOSGSubsetBuilder:
                 sample_ratio=sample_ratio,
                 sample_size=sample_size,
                 random_state=random_state,
-                dataset_correction=dataset_correction,
+                correction_method=correction_method,
                 output_dir=output_dir,
             )
     
@@ -201,7 +202,7 @@ class CellTOSGSubsetBuilder:
                 sample_ratio=sample_ratio,
                 sample_size=sample_size,
                 random_state=random_state,
-                dataset_correction=dataset_correction,
+                correction_method=correction_method,
                 output_dir=output_dir,
             )
         else:

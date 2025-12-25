@@ -1,9 +1,11 @@
 import os
 import numpy as np
 import pandas as pd
+import csv
 import scanpy as sc
 import anndata as ad
 import matplotlib.pyplot as plt
+from typing import Tuple, Optional
 
 def load_expression_by_metadata(df_meta, dataset_dir):
     all_expr_parts = []
@@ -30,219 +32,524 @@ def load_expression_by_metadata(df_meta, dataset_dir):
 
     return expr_all_sorted
 
-def dataset_correction(
-    downstream_task,
-    expression_matrix,
-    labels,
-    output_dir,
-    MIN_GROUP=20,
-    MIN_PER_BATCH=3
-):
+def l1_normalize_log1p(
+    matrix: np.ndarray,
+    target_sum: float = 1e4,
+    eps: float = 1e-12,
+    dtype: np.dtype = np.float32,
+) -> np.ndarray:
 
-    N_TRANSCRIPT_COLS = 412_039
+    x = np.asarray(matrix, dtype=np.float64)
 
-    # Load
-    X_full = np.array(expression_matrix, copy=True)
-    meta   = labels.copy()
+    if np.any(x < 0):
+        raise ValueError("Input matrices must be non-negative for L1 normalize -> log1p.")
 
-    # Transcript block
-    X = X_full[:, :N_TRANSCRIPT_COLS].copy()
+    x_sums = x.sum(axis=1, keepdims=True)
 
-    adata = ad.AnnData(X)
-    adata.obs = meta
-    adata.var_names = [f"f{i}" for i in range(adata.n_vars)]
+    x_scale = target_sum / np.maximum(x_sums, eps)
 
-    # Keep original dataset_id
-    adata.obs['dataset_id_raw'] = (
-        adata.obs['dataset_id'].astype(str).str.strip()
-            .replace({'': np.nan, 'nan': np.nan, 'None': np.nan, 'NA': np.nan,
-                      'Unknown': np.nan, 'unknown': np.nan, 'Nan': np.nan, 'NaN': np.nan})
-    )
+    x_norm = np.log1p(x * x_scale)
 
-    # Composite key to fill missing ids
-    batch_cols = ["source", "suspension_type", "tissue_general", "tissue"]
-    for c in batch_cols:
-        adata.obs[c] = (
-            adata.obs[c].astype(str).str.strip()
-                .replace({'': np.nan, 'nan': np.nan, 'None': np.nan, 'NA': np.nan,
-                          'Unknown': np.nan, 'unknown': np.nan, 'Nan': np.nan, 'NaN': np.nan})
-                .fillna('unknown')
-        )
-    key = adata.obs[batch_cols].agg('|'.join, axis=1)
+    return x_norm.astype(dtype, copy=False)
 
-    # Assign synthetic batch to missing dataset_id rows
-    adata.obs['dataset_id_filled'] = adata.obs['dataset_id_raw'].copy()
-    missing = adata.obs['dataset_id_filled'].isna()
-    if missing.any():
-        uniq_keys = pd.Index(key[missing].unique()).sort_values()
-        new_map = {k: f"batch_{i+1:03d}" for i, k in enumerate(uniq_keys)}
-        adata.obs.loc[missing, 'dataset_id_filled'] = key[missing].map(new_map)
 
-    # Batch labels to category
-    adata.obs['dataset_id_filled'] = adata.obs['dataset_id_filled'].astype('category')
+def pad_protein_zeros(matrix: np.ndarray, n_protein_cols: int = 121_419, dtype=None) -> np.ndarray:
+    if matrix.ndim != 2:
+        raise ValueError(f"matrix must be 2D, got shape {matrix.shape}")
+    if n_protein_cols < 0:
+        raise ValueError("n_protein_cols must be >= 0")
 
-    # Disease covariate
-    if downstream_task.lower() == "disease" and ("disease_BMG_name" in adata.obs.columns):
-        adata.obs["disease_BMG_name"] = (
-            adata.obs["disease_BMG_name"].astype(str).str.strip()
-                .replace({'': np.nan, 'nan': np.nan, 'None': np.nan, 'NA': np.nan,
-                          'Unknown': np.nan, 'unknown': np.nan, 'Nan': np.nan, 'NaN': np.nan})
-                .fillna('unknown')
-        )
-        disease_cov = "disease_BMG_name"
+    if n_protein_cols == 0:
+        return matrix
+
+    if dtype is None:
+        dtype = matrix.dtype
+
+    zeros = np.zeros((matrix.shape[0], n_protein_cols), dtype=dtype)
+    return np.concatenate([matrix, zeros], axis=1)
+
+
+def combat_seq_correction(
+    matrix: np.ndarray,
+    meta: pd.DataFrame,
+    dataset_id_col: str = "dataset_id",
+    dataset_batch_col: str = "dataset_batch",
+    batch_id_col: str = "combat_batch",
+    covar_cols: Optional[list[str]] = None,
+    shrink: bool = False,
+    shrink_disp: bool = False,
+    gene_subset_n: Optional[int] = None,
+    ref_batch: Optional[str] = None,
+    na_cov_action: str = "raise",
+) -> np.ndarray:
+    try:
+        from inmoose.pycombat import pycombat_seq
+    except Exception as e:
+        raise ImportError(
+            "Failed to import inmoose.pycombat.pycombat_seq. Please install inmoose."
+        ) from e
+
+    counts = np.asarray(matrix)
+    if counts.ndim != 2:
+        raise ValueError(f"matrix must be 2D, got shape {counts.shape}.")
+    if len(meta) != counts.shape[0]:
+        raise ValueError("meta rows must match number of samples in matrix.")
+
+    meta = meta.copy()
+
+    batch_source = "unknown"
+
+    if batch_id_col in meta.columns:
+        batch = meta[batch_id_col].fillna("NA").astype(str).values
+        batch_source = batch_id_col
     else:
-        print("[INFO] no disease covariate or not in disease mode; running without it.")
-        disease_cov = None
-
-    adata.layers["X_before_combat"] = adata.X.copy()
-
-    failed_groups, skipped_groups = [], []
-    used_cov_stage1, ran_stage2 = [], []
-
-    group_key = "CMT_name"
-
-    for g in adata.obs[group_key].astype(str).unique():
-        idx = (adata.obs[group_key].astype(str) == g)
-        n_cells = int(idx.sum())
-        print(f"\n[GROUP] {group_key}={g} | n_cells={n_cells}")
-
-        if n_cells < MIN_GROUP:
-            print("  -> skipped (too few cells)")
-            skipped_groups.append((g, f"too few cells ({n_cells})"))
-            continue
-
-        # Keep batches with enough cells
-        cols_needed = ["dataset_id_filled", "suspension_type"] + ([disease_cov] if disease_cov else [])
-        sub_obs = adata.obs.loc[idx, cols_needed]
-        batch_counts = sub_obs['dataset_id_filled'].value_counts()
-        ok_batches = batch_counts[batch_counts >= MIN_PER_BATCH].index
-        print(f"  batches total={len(batch_counts)}, kept={len(ok_batches)}")
-        if len(ok_batches) < 2:
-            print("  -> skipped (need >=2 valid batches)")
-            skipped_groups.append((g, "need >=2 batches with enough cells"))
-            continue
-
-        keep_mask = idx.copy()
-        keep_mask[idx] = sub_obs['dataset_id_filled'].isin(ok_batches).values
-        sub = adata[keep_mask].copy()
-        Xw = np.asarray(sub.X)
-
-        # ComBat by dataset_id
-        covs_stage1 = [disease_cov] if disease_cov else []
-
-        std = np.nanstd(Xw, axis=0)
-        zv_mask = (std == 0) | ~np.isfinite(std)
-        work_mask = ~zv_mask
-        if work_mask.sum() == 0:
-            print("  -> all-zero-variance; set block to 0 and skip ComBat (stage 1)")
-            Xw[:, :] = 0.0
+        if dataset_id_col not in meta.columns:
+            raise KeyError(f"Missing '{dataset_id_col}' in meta.")
+        ds = meta[dataset_id_col].fillna("NA").astype(str)
+        if dataset_batch_col in meta.columns:
+            db = meta[dataset_batch_col].fillna("NA").astype(str)
+            batch = (ds + "__" + db).values
+            batch_source = f"{dataset_id_col}+{dataset_batch_col}"
         else:
-            try:
-                sub_work = ad.AnnData(Xw[:, work_mask].copy(), obs=sub.obs.copy())
-                if covs_stage1:
-                    sc.pp.combat(sub_work, key='dataset_id_filled', covariates=covs_stage1)
-                    used_cov_stage1.append(g)
-                    print("  -> Stage 1 ComBat (by dataset_id) WITH covariates:", covs_stage1)
-                else:
-                    sc.pp.combat(sub_work, key='dataset_id_filled')
-                    print("  -> Stage 1 ComBat (by dataset_id) WITHOUT covariates")
-                Xw[:, work_mask] = sub_work.X
-            except Exception as e:
-                print(f"  -> Stage 1 fallback (no covariates) due to: {e}")
-                try:
-                    sub_work = ad.AnnData(Xw[:, work_mask].copy(), obs=sub.obs.copy())
-                    sc.pp.combat(sub_work, key='dataset_id_filled')
-                    Xw[:, work_mask] = sub_work.X
-                except Exception as e2:
-                    failed_groups.append((g, f"stage1 {repr(e2)}"))
+            batch = ds.values
+            batch_source = dataset_id_col
 
-        Xw[:, zv_mask] = 0.0
-        sub.X = Xw
+    covar_mod = None
+    if covar_cols:
+        missing = [c for c in covar_cols if c not in meta.columns]
+        if missing:
+            raise KeyError(f"covar_cols missing in meta: {missing}")
+        covar_mod = meta[covar_cols].copy()
+        for c in covar_cols:
+            covar_mod[c] = covar_mod[c].fillna("NA").astype("category")
 
-        # ComBat by suspension_type
-        if "suspension_type" in sub.obs.columns:
-            mod_counts = sub.obs["suspension_type"].value_counts()
-            n_modalities = mod_counts.shape[0]
-            if n_modalities == 2 and mod_counts.min() >= 3:
-                sub2 = sub.copy()
-                X2 = np.asarray(sub2.X)
-
-                # Run ComBat by suspension_type on variable columns;
-                std2 = np.nanstd(X2, axis=0)
-                zv2 = (std2 == 0) | ~np.isfinite(std2)
-                work2 = ~zv2
-                try:
-                    if work2.sum() > 0:
-                        sub2_work = ad.AnnData(X2[:, work2].copy(), obs=sub2.obs.copy())
-                        covs_stage2 = [disease_cov] if disease_cov else []
-                        if covs_stage2:
-                            sc.pp.combat(sub2_work, key='suspension_type', covariates=covs_stage2)
-                            print("  -> Stage 2 ComBat (by suspension_type) WITH covariates:", covs_stage2)
-                        else:
-                            sc.pp.combat(sub2_work, key='suspension_type')
-                            print("  -> Stage 2 ComBat (by suspension_type) WITHOUT covariates")
-                        X2[:, work2] = sub2_work.X
-                    X2[:, zv2] = 0.0
-                    sub2.X = X2
-
-                    # Write back to sub
-                    sub.X[:, :] = sub2.X
-                    ran_stage2.append(g)
-                except Exception as e:
-                    print(f"  -> Stage 2 skipped for group {g} due to error: {e}")
-            else:
-                print(f"  -> Stage 2 skipped (need 2 suspension_type with >=3 cells each; got {mod_counts.to_dict()})")
-
-        # Cleanup and write back to the main matrix
-        bad = ~np.isfinite(sub.X)
-        if np.any(bad):
-            n_bad = int(bad.sum())
-            print(f"  [WARN] subset has {n_bad} NaN/Inf; setting to 0.")
-            sub.X[bad] = 0.0
-
-        adata.X[keep_mask, :] = sub.X
-
-    print(f"\n[INFO] Stage 1 used disease covariate in {len(used_cov_stage1)} groups.")
-    print(f"[INFO] Stage 2 ran in {len(ran_stage2)} groups.")
-    if skipped_groups:
-        print("[INFO] skipped groups (first 5):", skipped_groups[:5], "..." if len(skipped_groups) > 5 else "")
-    if failed_groups:
-        print("[WARN] failed groups (first 5):", failed_groups[:5], "..." if len(failed_groups) > 5 else "")
-
-    Xg = np.asarray(adata.X)
-    if np.any(~np.isfinite(Xg)):
-        n_bad = int((~np.isfinite(Xg)).sum())
-        print(f"[WARN] global NaN/Inf={n_bad}; set to 0.")
-        Xg = np.nan_to_num(Xg, nan=0.0, posinf=0.0, neginf=0.0)
-    col_std = np.std(Xg, axis=0)
-    glob_zv = (col_std == 0) | ~np.isfinite(col_std)
-    if glob_zv.any():
-        print(f"[INFO] global zero-variance genes: {int(glob_zv.sum())} (set to 0)")
-        Xg[:, glob_zv] = 0.0
-    adata.X = Xg
-
-    # Stitch back protein tail and return
-    X_prot_tail = X_full[:, N_TRANSCRIPT_COLS:]
-    X_full_corrected = np.concatenate(
-        [adata.X.astype(np.float32), X_prot_tail.astype(np.float32)], axis=1
+    n_samples, n_features = counts.shape
+    n_batches = pd.Series(batch).nunique(dropna=False)
+    covar_info = covar_cols if covar_cols else None
+    print(
+        f"[ComBat-Seq] Start: samples={n_samples}, features={n_features}, "
+        f"batch_source={batch_source}, n_batches={n_batches}, covar_cols={covar_info}, "
+        f"shrink={shrink}, shrink_disp={shrink_disp}"
     )
 
-    if output_dir:
-        sc.pp.scale(adata, max_value=10)
-        sc.tl.pca(adata, n_comps=50)
-        sc.pp.neighbors(adata, n_neighbors=15, n_pcs=30)
-        sc.tl.umap(adata)
+    if np.any(counts < 0):
+        raise ValueError("Counts contain negative values; ComBat-Seq expects non-negative counts.")
+    if not np.issubdtype(counts.dtype, np.integer):
+        counts = np.rint(counts).astype(np.int64)
+    else:
+        counts = counts.astype(np.int64, copy=False)
 
-        os.makedirs(output_dir, exist_ok=True)
-        sc.pl.umap(adata, color=["dataset_id_filled"], title=["ComBat Dataset ID"], show=False)
-        plt.savefig(os.path.join(output_dir, "umap_dataset_id_filled.png"), dpi=300, bbox_inches="tight"); plt.close()
-        sc.pl.umap(adata, color=["CMT_name"], title=["Cell Type"], show=False)
-        plt.savefig(os.path.join(output_dir, "umap_cell_type.png"), dpi=300, bbox_inches="tight"); plt.close()
-        if "suspension_type" in adata.obs.columns:
-            sc.pl.umap(adata, color=["suspension_type"], title=["suspension_type (post-ComBat)"], show=False)
-            plt.savefig(os.path.join(output_dir, "umap_suspension_type.png"), dpi=300, bbox_inches="tight"); plt.close()
-        if disease_cov:
-            sc.pl.umap(adata, color=[disease_cov], title=[f"{disease_cov} (post-ComBat)"], show=False)
-            plt.savefig(os.path.join(output_dir, f"umap_{disease_cov}.png"), dpi=300, bbox_inches="tight"); plt.close()
+    corrected_gxs = pycombat_seq(
+        counts=counts.T,
+        batch=batch,
+        covar_mod=covar_mod,
+        shrink=shrink,
+        shrink_disp=shrink_disp,
+        gene_subset_n=gene_subset_n,
+        ref_batch=ref_batch,
+        na_cov_action=na_cov_action,
+    )
 
-    return X_full_corrected
+    corrected = np.asarray(corrected_gxs).T
+    corrected = np.clip(corrected, 0, None)
+    if not np.issubdtype(corrected.dtype, np.integer):
+        corrected = np.rint(corrected).astype(np.int64)
+
+    print("[ComBat-Seq] Done.")
+
+    return corrected
+
+def _safe_str_col(meta: pd.DataFrame, col: str) -> pd.Series:
+    if col not in meta.columns:
+        return pd.Series(["NA"] * len(meta), index=meta.index, dtype="object")
+    return meta[col].fillna("NA").astype(str)
+
+
+def build_batch_series(
+    meta: pd.DataFrame,
+    dataset_id_col: str = "dataset_id",
+    fallback_cols: Optional[list[str]] = None,
+) -> pd.Series:
+    if fallback_cols is None:
+        fallback_cols = ["source", "tissue", "suspension_type", "assay"]
+
+    ds = _safe_str_col(meta, dataset_id_col).str.strip()
+    ds_lower = ds.str.lower()
+    ds_valid = (ds != "") & (~ds_lower.isin({"na", "nan"}))
+
+    parts = [_safe_str_col(meta, c).str.strip() for c in fallback_cols]
+    fb = parts[0]
+    for p in parts[1:]:
+        fb = fb + "__" + p
+
+    return ds.where(ds_valid, fb)
+
+def combat_seq_correction_by_tissue(
+    matrix: np.ndarray,
+    meta: pd.DataFrame,
+    tissue_col: str = "tissue_general",
+    disease_col: str = "disease_BMG_name",
+    dataset_id_col: str = "dataset_id",
+    fallback_cols: Optional[list[str]] = None,
+    min_batches_per_group: int = 2,
+    min_per_disease: int = 5,
+) -> np.ndarray:
+    if tissue_col not in meta.columns:
+        raise KeyError(f"Missing '{tissue_col}' in meta.")
+
+    corrected = np.asarray(matrix).copy()
+    meta = meta.reset_index(drop=True)
+
+    total_groups = meta[tissue_col].nunique(dropna=False)
+    print(f"[ComBat-Seq] Grouping by '{tissue_col}', total_groups={total_groups}")
+
+    for tissue_value, idx in meta.groupby(tissue_col).groups.items():
+        idx = np.array(list(idx), dtype=int)
+        sub_meta = meta.iloc[idx].copy()
+        sub_mat = corrected[idx]
+
+        sub_meta["combat_batch"] = build_batch_series(
+            sub_meta,
+            dataset_id_col=dataset_id_col,
+            fallback_cols=fallback_cols,
+        )
+
+        n_samples = len(sub_meta)
+        n_batches_before = sub_meta["combat_batch"].nunique(dropna=False)
+
+        if n_batches_before < min_batches_per_group:
+            print(
+                f"[ComBat-Seq] Skip tissue='{tissue_value}': samples={n_samples}, "
+                f"n_batches={n_batches_before} < {min_batches_per_group}"
+            )
+            continue
+
+        covar_cols = None
+        disease_info = "NA"
+        if disease_col in sub_meta.columns:
+            sub_meta[disease_col] = (
+                sub_meta[disease_col].fillna("NA").astype(str).str.strip()
+            )
+            disease = sub_meta[disease_col]
+            n_disease = disease.nunique(dropna=False)
+
+            if n_disease >= 2:
+                vc = disease.value_counts()
+                ok = (vc >= min_per_disease).sum()
+                if ok >= 2:
+                    covar_cols = [disease_col]
+                    disease_info = f"use {disease_col} (n_disease={n_disease}, ok_classes={ok})"
+                else:
+                    disease_info = f"no covar (n_disease={n_disease}, ok_classes={ok} < 2)"
+            else:
+                disease_info = f"no covar (n_disease={n_disease})"
+        else:
+            disease_info = f"no covar (missing '{disease_col}')"
+
+        batch_counts = sub_meta["combat_batch"].value_counts(dropna=False)
+        singleton_batches = set(batch_counts[batch_counts < 2].index.tolist())
+
+        if singleton_batches:
+            keep_mask = ~sub_meta["combat_batch"].isin(singleton_batches)
+            n_drop = int((~keep_mask).sum())
+            n_keep = int(keep_mask.sum())
+            n_batches_after = sub_meta.loc[keep_mask, "combat_batch"].nunique(dropna=False)
+
+            print(
+                f"[ComBat-Seq] tissue='{tissue_value}': drop_singleton_batches_samples={n_drop}, "
+                f"kept_samples={n_keep}, batches_before={n_batches_before}, batches_after={n_batches_after}, "
+                f"{disease_info}"
+            )
+
+            if n_keep == 0 or n_batches_after < min_batches_per_group:
+                print(
+                    f"[ComBat-Seq] Skip tissue='{tissue_value}' after filtering singletons: "
+                    f"kept_samples={n_keep}, n_batches_after={n_batches_after}"
+                )
+                continue
+
+            sub_meta_keep = sub_meta.loc[keep_mask].copy()
+            sub_mat_keep = sub_mat[keep_mask.values]
+
+            if covar_cols is not None and disease_col in sub_meta_keep.columns:
+                vc_keep = sub_meta_keep[disease_col].value_counts(dropna=False)
+                ok_keep = (vc_keep >= min_per_disease).sum()
+                if ok_keep < 2:
+                    covar_cols_keep = None
+                else:
+                    covar_cols_keep = covar_cols
+            else:
+                covar_cols_keep = None
+
+            corrected_keep = combat_seq_correction(
+                matrix=sub_mat_keep,
+                meta=sub_meta_keep,
+                batch_id_col="combat_batch",
+                covar_cols=covar_cols_keep,
+                shrink=False,
+                shrink_disp=False,
+                ref_batch=None,
+                na_cov_action="raise",
+            )
+
+            sub_corr = sub_mat.copy()
+            sub_corr[keep_mask.values] = corrected_keep
+            corrected[idx] = sub_corr
+            continue
+
+        print(
+            f"[ComBat-Seq] Run tissue='{tissue_value}': samples={n_samples}, "
+            f"n_batches={n_batches_before}, {disease_info}"
+        )
+
+        try:
+            sub_corr = combat_seq_correction(
+                matrix=sub_mat,
+                meta=sub_meta,
+                batch_id_col="combat_batch",
+                covar_cols=covar_cols,
+                shrink=False,
+                shrink_disp=False,
+                ref_batch=None,
+                na_cov_action="raise",
+            )
+
+        except ValueError as e:
+            msg = str(e).lower()
+            retryable = (
+                ("confounded" in msg)
+                or ("not full rank" in msg)
+                or ("full rank" in msg)
+                or ("not estimable" in msg)
+                or ("coefficients are not estimable" in msg)
+            )
+            if retryable and (covar_cols is not None):
+                print(f"[ComBat-Seq] tissue='{tissue_value}': design issue, retry without covariates.")
+                sub_corr = combat_seq_correction(
+                    matrix=sub_mat,
+                    meta=sub_meta,
+                    batch_id_col="combat_batch",
+                    covar_cols=None,
+                    shrink=False,
+                    shrink_disp=False,
+                    ref_batch=None,
+                    na_cov_action="raise",
+                )
+            else:
+                raise
+
+        corrected[idx] = sub_corr
+
+    print("[ComBat-Seq] Finished all tissue groups.")
+    return corrected
+
+
+def load_bmg_gene_index(csv_path: str) -> list[tuple[str, list[int]]]:
+    genes: list[tuple[str, list[int]]] = []
+    with open(csv_path, "r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        if not reader.fieldnames:
+            raise ValueError("Empty CSV header in bmg_gene_index.csv")
+        if "gene_name" not in reader.fieldnames or "indices" not in reader.fieldnames:
+            raise ValueError("bmg_gene_index.csv must have columns: gene_name, indices")
+
+        for row in reader:
+            gene = (row.get("gene_name") or "").strip()
+            idx_str = (row.get("indices") or "").strip()
+            if not gene or not idx_str:
+                continue
+
+            idx_list: list[int] = []
+            for part in idx_str.split(";"):
+                part = part.strip()
+                if not part:
+                    continue
+                try:
+                    idx_list.append(int(part))
+                except ValueError:
+                    continue
+
+            if idx_list:
+                genes.append((gene, idx_list))
+
+    return genes
+
+
+def choose_best_column_index(matrix: np.ndarray, indices: list[int]) -> tuple[int, str]:
+    if len(indices) == 1:
+        chosen = int(indices[0])
+        reason = f"Only one candidate index; chose index={chosen}."
+        return chosen, reason
+
+    sub = matrix[:, indices]
+    n_samples = int(matrix.shape[0])
+
+    nonzero = np.count_nonzero(sub, axis=0)
+    best_nz = int(np.max(nonzero))
+    tied_pos = np.where(nonzero == best_nz)[0]
+
+    nonzero_fracs = (nonzero / float(n_samples)).astype(float)
+
+    if tied_pos.size == 1:
+        chosen = int(indices[int(tied_pos[0])])
+        parts = [f"{int(indices[i])}:{nonzero_fracs[i]:.6f}" for i in range(len(indices))]
+        reason = (
+            f"Chose index={chosen} because it has the highest nonzero fraction "
+            f"({(best_nz / float(n_samples)):.6f}). "
+            f"Nonzero fractions by index: " + "; ".join(parts)
+        )
+        return chosen, reason
+
+    if best_nz == 0:
+        chosen = int(indices[0])
+        idx_list_str = ", ".join(str(int(i)) for i in indices)
+        reason = (
+            f"All candidates are all-zero columns (nonzero fraction 0.000000). "
+            f"Chose index={chosen} by stable rule: pick the first index from [{idx_list_str}]."
+        )
+        return chosen, reason
+
+    totals = np.sum(sub[:, tied_pos], axis=0, dtype=np.int64)
+    best_tied = int(np.argmax(totals))
+    chosen = int(indices[int(tied_pos[best_tied])])
+
+    parts_nonzero = [f"{int(indices[i])}:{nonzero_fracs[i]:.6f}" for i in range(len(indices))]
+    parts_total = [f"{int(indices[int(tied_pos[j])])}:{int(totals[j])}" for j in range(len(tied_pos))]
+
+    reason = (
+        f"Nonzero fraction tied at {(best_nz / float(n_samples)):.6f}. "
+        f"Chose index={chosen} because it has the largest total count among tied indices. "
+        f"Nonzero fractions by index: " + "; ".join(parts_nonzero) + ". "
+        f"Total counts among tied indices: " + "; ".join(parts_total)
+    )
+    return chosen, reason
+
+def bmg_matrix_to_gene_matrix(
+    bmg_matrix: np.ndarray,
+    bmg_gene_index_csv: str,
+    n_col_expected: int,
+) -> Tuple[np.ndarray, list[str], pd.DataFrame]:
+    mat = np.asarray(bmg_matrix)
+    if mat.ndim != 2:
+        raise ValueError(f"Expected 2D matrix, got shape={mat.shape}")
+
+    n_samples, n_cols = mat.shape
+    if n_cols != int(n_col_expected):
+        raise ValueError(f"Column count mismatch: got {n_cols}, expected {n_col_expected}")
+
+    genes = load_bmg_gene_index(bmg_gene_index_csv)
+
+    gene_names: list[str] = []
+    chosen_indices: list[int] = []
+    candidate_strs: list[str] = []
+    reasons: list[str] = []
+
+    for gene, indices in genes:
+        bad = [i for i in indices if i < 0 or i >= n_cols]
+        if bad:
+            raise ValueError(f"Out-of-range indices for gene={gene}: {bad}")
+
+        chosen, reason = choose_best_column_index(mat, indices)
+        gene_names.append(gene)
+        chosen_indices.append(int(chosen))
+        candidate_strs.append(";".join(str(int(i)) for i in indices))
+        reasons.append(reason)
+
+    chosen_idx_arr = np.asarray(chosen_indices, dtype=np.int64)
+    gene_matrix = mat[:, chosen_idx_arr]
+
+    choice_df = pd.DataFrame(
+        {
+            "gene_name": gene_names,
+            "chosen_bmg_index": chosen_indices,
+            "candidate_bmg_indices": candidate_strs,
+            "choice_reason": reasons,
+        }
+    )
+    return gene_matrix, gene_names, choice_df
+
+def build_gene_df_from_bmg_matrix(
+    bmg_matrix: np.ndarray,
+    meta: pd.DataFrame,
+    bmg_gene_index_csv: str,
+    n_col_expected: int,
+    sample_id_col: str = "sample_index",
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    if sample_id_col not in meta.columns:
+        raise KeyError(f"Missing '{sample_id_col}' in meta.")
+
+    gene_matrix, gene_names, choice_df = bmg_matrix_to_gene_matrix(
+        bmg_matrix=bmg_matrix,
+        bmg_gene_index_csv=bmg_gene_index_csv,
+        n_col_expected=n_col_expected,
+    )
+
+    sample_ids = meta[sample_id_col].astype(int).tolist()
+    gene_df = pd.DataFrame(gene_matrix, index=sample_ids, columns=gene_names)
+    gene_df.index.name = sample_id_col
+    return gene_df, choice_df
+
+
+
+def build_gene_df(
+    final_df: pd.DataFrame,
+    expression_matrix: np.ndarray,
+    bmg_gene_index_csv: str,
+    n_col_expected: int,
+    correction_method: Optional[str] = None,
+    tissue_col: str = "tissue_general",
+    disease_col: str = "disease_BMG_name",
+    dataset_id_col: str = "dataset_id",
+    fallback_cols: Optional[list[str]] = None,
+    min_batches_per_group: int = 2,
+    min_per_disease: int = 5,
+) -> Tuple[pd.DataFrame, Optional[pd.DataFrame], pd.DataFrame, pd.DataFrame]:
+    """
+    Returns:
+        gene_df_raw: sample x gene (no correction)
+        gene_df_corrected: sample x gene (corrected) or None
+        final_df_out: metadata aligned with gene_df rows (has sample_index)
+        choice_df: gene -> chosen BMG column mapping
+    """
+    final_df_out = final_df.copy()
+    if "sample_index" not in final_df_out.columns:
+        final_df_out["sample_index"] = np.arange(len(final_df_out), dtype=int)
+
+    if fallback_cols is None:
+        fallback_cols = ["source", "tissue", "suspension_type", "assay"]
+
+    gene_df_raw, choice_df = build_gene_df_from_bmg_matrix(
+        bmg_matrix=expression_matrix,
+        meta=final_df_out,
+        bmg_gene_index_csv=bmg_gene_index_csv,
+        n_col_expected=n_col_expected,
+        sample_id_col="sample_index",
+    )
+
+    method = (str(correction_method).strip().lower() if correction_method is not None else None)
+
+    if method in (None, "", "none"):
+        return gene_df_raw, None, final_df_out, choice_df
+
+    if method not in ("combat", "combat_seq", "pycombat_seq"):
+        raise ValueError(f"Unsupported correction_method: {correction_method}")
+
+    corrected_counts = combat_seq_correction_by_tissue(
+        matrix=gene_df_raw.to_numpy(),
+        meta=final_df_out,
+        tissue_col=tissue_col,
+        disease_col=disease_col,
+        dataset_id_col=dataset_id_col,
+        fallback_cols=fallback_cols,
+        min_batches_per_group=min_batches_per_group,
+        min_per_disease=min_per_disease,
+    )
+
+    gene_df_corrected = pd.DataFrame(
+        corrected_counts,
+        index=gene_df_raw.index,
+        columns=gene_df_raw.columns,
+    )
+    gene_df_corrected.index.name = gene_df_raw.index.name
+
+    return gene_df_raw, gene_df_corrected, final_df_out, choice_df
