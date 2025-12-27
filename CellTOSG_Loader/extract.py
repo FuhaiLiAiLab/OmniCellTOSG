@@ -384,7 +384,8 @@ def extract_for_training(
                 reference_df=ref_df,
                 category_col=category_col,
                 study_col="dataset_id",
-                test_fraction_studies=study_test_ratio,
+                test_fraction_by_samples=0.20,
+                hard_cap_fraction_by_samples=0.40,
                 random_state=random_state,
             )
 
@@ -424,6 +425,7 @@ def extract_for_training(
         config = self.TASK_CONFIG[task]
         balance_field = config["balance_field"]
         balance_value = config["balance_value"]
+        match_keys = config["match_keys"]
 
         # case: label != balance_value & valid
         case_df = ref_df.loc[
@@ -464,12 +466,13 @@ def extract_for_training(
             target_df = case_df
 
         # study-wise split + joint balancing
-        train_balanced, test_balanced, test_studies, forced_train = study_wise_split_with_balancing(
+        train_balanced, test_balanced, tgt_train, tgt_test, test_studies, forced_train = study_wise_split_with_balancing(
             reference_df=reference_df,
             target_df=target_df,
-            category_col=category_col,
+            match_keys=match_keys,
             study_col="dataset_id",
-            test_fraction_studies=study_test_ratio,
+            test_fraction_by_samples=0.20,
+            hard_cap_fraction_by_samples=0.40,
             random_state=random_state,
         )
         # Downsampling AFTER balancing (per split)

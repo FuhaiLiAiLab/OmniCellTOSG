@@ -1,22 +1,23 @@
 # Dataset loading parameters
-# dataset_root: '../OmniCellTOSG/dataset_outputs'
-dataset_root: '/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs'
-categories: null
+# dataset_root: '../OmniCellTOSG/CellTOSG_dataset_v2'
+dataset_root: '/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/CellTOSG_dataset_v2'
+extract_mode: 'train'
 tissue_general: null
 tissue: null
 suspension_type: null
 cell_type: null
 disease_name: "Alzheimer's Disease"
 gender: null
-downstream_task: 'disease'
+task: 'disease'
 label_column: 'disease'
 
 # Dataset loading parameters for shuffling and sampling
 shuffle: true
 sample_ratio: null
 sample_size: null
-balanced: true
+stratified_balancing: false
 random_state: 2025
 train_text: false
 train_bio: false
-dataset_output_dir: './Output/'
+correction_method: 'combat_seq'
+dataset_output_dir: './Data/'

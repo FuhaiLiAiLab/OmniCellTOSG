@@ -4,6 +4,7 @@ import numpy as np
 import argparse
 import sys
 from typing import Dict, Any, Tuple
+import ast
 
 from pynvml import *
 import yaml
@@ -36,6 +37,20 @@ def get_available_devices():
         device = torch.device('cpu')
         return device, gpu_ids
 
+def parse_int_list(v):
+    if isinstance(v, list):
+        return [int(x) for x in v]
+
+    if isinstance(v, str):
+        s = v.strip()
+        obj = ast.literal_eval(s)
+        if not isinstance(obj, list):
+            raise argparse.ArgumentTypeError("must be a list, e.g. [32,32]")
+        return [int(x) for x in obj]
+
+    raise argparse.ArgumentTypeError("must be a list or a string like '[32,32]'")
+
+
 def load_config(config_path: str) -> Dict[str, Any]:
     """Load configuration from YAML file with automatic type conversion."""
     with open(config_path, 'r') as file:
@@ -49,11 +64,11 @@ def load_config(config_path: str) -> Dict[str, Any]:
     
     # Dataset parameters
     type_map.update({
-        'data_root': str, 'categories': str, 'tissue_general': str, 'tissue': str,
+        'data_root': str, 'extract_mode': str, 'tissue_general': str, 'tissue': str,
         'suspension_type': str, 'cell_type': str, 'disease_name': str, 'gender': str,
-        'downstream_task': str, 'label_column': str, 'dataset_output_dir': str,
-        'shuffle': bool, 'balanced': bool, 'train_text': bool, 'train_bio': bool,
-        'sample_ratio': float, 'sample_size': int, 'random_state': int
+        'task': str, 'label_column': str, 'dataset_output_dir': str,
+        'shuffle': bool, 'stratified_balancing': bool, 'train_text': bool, 'train_bio': bool,
+        'sample_ratio': float, 'sample_size': int, 'random_state': int, 'correction_method': str
     })
     
     # Pretraining parameters
@@ -90,7 +105,7 @@ def load_config(config_path: str) -> Dict[str, Any]:
     type_map.update({
         'pre_decoder_dim': int, 'pre_decoder_layers': int,
         'pre_decoder_dropout': float, 'pre_lm_emb_dim': int,
-        'pre_cross_fusion_output_dim': int, 'pretrained_model_save_path': str
+        'pre_cross_fusion_output_dim': int, 'entity_mlp_dims': parse_int_list, 'pretrained_model_save_path': str
     })
 
     # Baseline parameters
@@ -153,6 +168,9 @@ def load_config(config_path: str) -> Dict[str, Any]:
                 elif target_type == str:
                     # Ensure string type
                     config[key] = str(value)
+                else:
+                    # Handle custom types like parse_int_list
+                    config[key] = target_type(value)
             except (ValueError, TypeError) as e:
                 print(f"Warning: Could not convert {key}='{value}' to {target_type.__name__}: {e}")
     
@@ -232,6 +250,9 @@ def parse_command_line_overrides() -> Dict[str, Any]:
     # Pretraining cross fusion parameters
     parser.add_argument('--pre_lm_emb_dim', type=int, help='Pretraining language model embedding dimension')
     parser.add_argument('--pre_cross_fusion_output_dim', type=int, help='Pretraining cross fusion output dimension')
+
+    # Entity mlp dimensions
+    parser.add_argument('--entity_mlp_dims', type=parse_int_list, help='Entity MLP hidden dimensions, e.g. [32,32]')
     
     # Pretraining model save path
     parser.add_argument('--pretrained_model_save_path', type=str, help='Pretrained model save path')

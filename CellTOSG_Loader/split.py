@@ -227,34 +227,33 @@ def study_wise_split_without_balancing(
     reference_df: pd.DataFrame,
     category_col: str,                 # e.g., "CMT_name" for cell_type, or balance_field for disease/gender
     study_col: str = "dataset_id",
-    test_fraction_studies: float = 0.20,
+    test_fraction_by_samples: float = 0.20,
+    hard_cap_fraction_by_samples: float = 0.40,
     random_state: int = 2025,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, List[str], List[str]]:
-    """
-    Split reference_df into train, test sets at study level. If a category (e.g., a cell type) exists ONLY in a single study, that study goes to train.
 
-    --------
-    - Sort studies by size (desc).
-    - Compute 'must-train' studies: studies that contain any category exclusive to that study.
-    - From the remaining studies (desc order), pick ceil(20% of total studies) as test.
-      If that would result in zero test studies, pick the first remaining one.
-    - Return train_df and test_df, along with chosen test_studies and forced_train_studies.
-
-    """
     if study_col not in reference_df.columns:
         raise KeyError(f"Column '{study_col}' not found in reference_df.")
     if category_col not in reference_df.columns:
         raise KeyError(f"Column '{category_col}' not found in reference_df.")
 
-    # Count samples per study and sort desc
-    study_sizes = reference_df[study_col].astype(str).value_counts().sort_values(ascending=False)
-    studies_desc = study_sizes.index.tolist()
-    if len(studies_desc) < 2:
+    if test_fraction_by_samples <= 0 or test_fraction_by_samples >= 1:
+        raise ValueError("test_fraction_by_samples must be in (0, 1).")
+    if hard_cap_fraction_by_samples <= 0 or hard_cap_fraction_by_samples >= 1:
+        raise ValueError("hard_cap_fraction_by_samples must be in (0, 1).")
+    if hard_cap_fraction_by_samples < test_fraction_by_samples:
+        raise ValueError("hard_cap_fraction_by_samples must be >= test_fraction_by_samples.")
+
+    df = reference_df.copy()
+    df[study_col] = df[study_col].astype(str)
+
+    study_sizes = df[study_col].value_counts()
+    studies_all = study_sizes.index.tolist()
+    if len(studies_all) < 2:
         raise ValueError("At least 2 distinct studies are required for a train/test split.")
 
-    # Map category -> set of studies that contain it
     cat_study_map = (
-        reference_df[[study_col, category_col]]
+        df[[study_col, category_col]]
         .dropna(subset=[study_col, category_col])
         .astype({study_col: str, category_col: str})
         .drop_duplicates()
@@ -262,30 +261,56 @@ def study_wise_split_without_balancing(
         .apply(set)
     )
 
-    # Studies that contain any category that appears in exactly one study
-    exclusive_cats = [cat for cat, s in cat_study_map.items() if len(s) == 1]
-    forced_train_studies: set = set()
-    for cat in exclusive_cats:
-        forced_train_studies |= cat_study_map[cat]
+    forced_train_studies: set[str] = set()
+    for _, studies in cat_study_map.items():
+        if len(studies) == 1:
+            forced_train_studies |= studies
 
-    # Desired number of test studies (by count, not by samples)
-    desired_test_count = max(1, math.ceil(len(studies_desc) * float(test_fraction_studies)))
-
-    # Candidate studies that are NOT forced to train
-    remaining = [s for s in studies_desc if s not in forced_train_studies]
-
+    remaining = [s for s in studies_all if s not in forced_train_studies]
     if not remaining:
-        # All studies are forced into train by exclusivity; cannot form a leakage-free test set
-        raise ValueError("All studies contain exclusive categories; cannot form a test split without leakage.")
+        raise ValueError("All studies are forced into train by exclusivity; cannot form a test split without leakage.")
 
-    # Pick top 'desired_test_count' studies from the remaining (desc order)
-    test_studies = remaining[:desired_test_count]
-    train_studies = [s for s in studies_desc if s not in test_studies]
+    total_samples = int(len(df))
+    target_min = int(math.floor(total_samples * float(test_fraction_by_samples)))
+    hard_max = int(math.floor(total_samples * float(hard_cap_fraction_by_samples)))
 
-    # Make DataFrames
-    test_mask = reference_df[study_col].astype(str).isin(set(test_studies))
-    test_df = reference_df[test_mask].copy()
-    train_df = reference_df[~test_mask].copy()
+    if target_min <= 0:
+        raise ValueError("test_fraction_by_samples is too small; target test sample count is 0.")
+    if hard_max <= 0:
+        raise ValueError("hard_cap_fraction_by_samples is too small; hard cap test sample count is 0.")
+    if hard_max >= total_samples:
+        raise ValueError("hard_cap_fraction_by_samples must keep hard cap < total samples.")
+
+    remaining_sorted_small_to_large = sorted(remaining, key=lambda s: int(study_sizes[s]))
+
+    test_studies: List[str] = []
+    test_n = 0
+
+    for ds in remaining_sorted_small_to_large:
+        c = int(study_sizes.loc[ds])
+        if test_n + c <= target_min:
+            test_studies.append(ds)
+            test_n += c
+        else:
+            break
+
+    remaining_after = [ds for ds in remaining_sorted_small_to_large if ds not in test_studies]
+    if test_n < target_min and remaining_after:
+        ds_extra = remaining_after[0]
+        c_extra = int(study_sizes.loc[ds_extra])
+        if test_n + c_extra <= hard_max:
+            test_studies.append(ds_extra)
+            test_n += c_extra
+
+    if not test_studies:
+        ds_smallest = remaining_sorted_small_to_large[0]
+        if int(study_sizes.loc[ds_smallest]) <= 0:
+            raise ValueError("Cannot form a non-empty test split.")
+        test_studies = [ds_smallest]
+
+    test_mask = df[study_col].isin(set(test_studies))
+    test_df = df[test_mask].copy()
+    train_df = df[~test_mask].copy()
 
     if test_df.empty or train_df.empty:
         raise ValueError(
@@ -299,31 +324,40 @@ def study_wise_split_without_balancing(
 def study_wise_split_with_balancing(
     reference_df: pd.DataFrame,
     target_df: pd.DataFrame,
-    category_col: str,
+    match_keys: List[str],
     study_col: str = "dataset_id",
-    test_fraction_studies: float = 0.20,
+    test_fraction_by_samples: float = 0.20,
+    hard_cap_fraction_by_samples: float = 0.40,
     random_state: int = 2025,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, List[str], List[str]]:
 
-    # validations
+    if isinstance(match_keys, str):
+        match_keys = [match_keys]
+    else:
+        match_keys = list(match_keys)
+
     if study_col not in reference_df.columns:
         raise KeyError(f"Column '{study_col}' not found in reference_df.")
     if study_col not in target_df.columns:
         raise KeyError(f"Column '{study_col}' not found in target_df.")
-    if category_col not in reference_df.columns:
-        raise KeyError(f"Column '{category_col}' not found in reference_df.")
 
-    # study sizes (desc)
-    study_sizes = reference_df[study_col].astype(str).value_counts().sort_values(ascending=False)
-    studies_desc = study_sizes.index.tolist()
-    if len(studies_desc) < 2:
+    missing_ref = [k for k in match_keys if k not in reference_df.columns]
+    missing_tgt = [k for k in match_keys if k not in target_df.columns]
+    if missing_ref:
+        raise KeyError(f"Missing match_keys in reference_df: {missing_ref}")
+    if missing_tgt:
+        raise KeyError(f"Missing match_keys in target_df: {missing_tgt}")
+
+    # Study sizes in reference (desc)
+    study_counts = reference_df[study_col].astype(str).value_counts().sort_values(ascending=False)
+    unique_studies_desc = study_counts.index.tolist()
+    if len(unique_studies_desc) < 2:
         raise ValueError("At least 2 distinct studies are required for a train/test split.")
 
-    # compute forced_train by exclusivity on stage/sex if available
+    # forced_train by exclusivity on stage/sex (same as your original idea)
     forced_train_studies: set = set()
     for guard_col in ["development_stage_category", "sex_normalized"]:
         if guard_col in reference_df.columns:
-            # value -> set of studies
             val_study_map = (
                 reference_df[[study_col, guard_col]]
                 .dropna(subset=[study_col, guard_col])
@@ -332,25 +366,50 @@ def study_wise_split_with_balancing(
                 .groupby(guard_col)[study_col]
                 .apply(set)
             )
-            # any value that appears in exactly one study forces that study into train
             for _, studies in val_study_map.items():
                 if len(studies) == 1:
                     forced_train_studies |= studies
 
-    # pick ~20%  remaining smallest studies for test
-    desired_test_count = max(1, int(np.ceil(len(studies_desc) * float(test_fraction_studies))))
-    remaining = [s for s in studies_desc if s not in forced_train_studies]
-    if not remaining:
+    remaining_desc = [s for s in unique_studies_desc if s not in forced_train_studies]
+    if not remaining_desc:
         raise ValueError("All studies are forced into train by exclusivity; cannot form a leakage-free test set.")
 
-    # from the tail (smallest) pick desired_test_count
-    remaining_tail_smallest = list(reversed(remaining))
-    test_studies = remaining_tail_smallest[:desired_test_count]
+    total_n = int(study_counts.sum())
+    target_min = int(math.floor(total_n * float(test_fraction_by_samples)))
+    hard_max = int(math.floor(total_n * float(hard_cap_fraction_by_samples)))
+    if target_min <= 0:
+        raise ValueError("test_fraction_by_samples too small; target test sample count is 0.")
+    if hard_max <= 0:
+        raise ValueError("hard_cap_fraction_by_samples too small; hard cap test sample count is 0.")
+    if hard_max >= total_n:
+        raise ValueError("hard_cap_fraction_by_samples must keep hard cap < total samples.")
 
-    # ensure at least one test study
+    # pick from smallest studies first, accumulate to target_min, optional one extra under hard cap
+    remaining_smallest = list(reversed(remaining_desc))  # smallest -> largest (because remaining_desc is desc)
+    test_studies: List[str] = []
+    test_n = 0
+
+    for ds in remaining_smallest:
+        c = int(study_counts.loc[ds])
+        if test_n + c <= target_min:
+            test_studies.append(ds)
+            test_n += c
+        else:
+            break
+
+    remaining_after = [ds for ds in remaining_smallest if ds not in test_studies]
+    if test_n < target_min and remaining_after:
+        ds_extra = remaining_after[0]
+        c_extra = int(study_counts.loc[ds_extra])
+        if test_n + c_extra <= hard_max:
+            test_studies.append(ds_extra)
+            test_n += c_extra
+
     if not test_studies:
-        # take the smallest non-forced study
-        test_studies = [remaining_tail_smallest[0]]
+        ds_smallest = remaining_smallest[0]
+        if int(study_counts.loc[ds_smallest]) <= 0:
+            raise ValueError("Cannot form a non-empty test split.")
+        test_studies = [ds_smallest]
 
     # split reference
     test_mask = reference_df[study_col].astype(str).isin(set(test_studies))
@@ -362,20 +421,19 @@ def study_wise_split_with_balancing(
             "Adjust data or the splitting rule."
         )
 
-    # split target for inspection/debug (not strictly required)
+    # split target (debug/inspection)
     tgt_test_mask = target_df[study_col].astype(str).isin(set(test_studies))
     tgt_test = target_df[tgt_test_mask].copy()
     tgt_train = target_df[~tgt_test_mask].copy()
 
-    # balancing
+    # balancing (this is the important call fix)
     train_balanced, test_balanced = balance_for_training(
         ref_train=ref_train,
         ref_test=ref_test,
         target_df=target_df,
-        category_col=category_col,
+        match_keys=match_keys,
         study_col=study_col,
         random_state=random_state,
     )
 
-    # Return balanced splits plus raw target splits and bookkeeping lists
     return train_balanced, test_balanced, tgt_train, tgt_test, test_studies, sorted(forced_train_studies)

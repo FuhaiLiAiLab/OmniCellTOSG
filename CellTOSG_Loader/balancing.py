@@ -228,9 +228,6 @@ def balance_for_training(
     # initial test pool rows
     tgt_test_pool = target_df[target_df[study_col].astype(str).isin(test_study_pool)].copy()
 
-    # run initial test matching
-    from .balancing import balance_for_inference  # ensure path correct
-
     test_matched_target, test_matched_keys = balance_for_inference(
         reference_df=ref_test,
         target_df=tgt_test_pool,

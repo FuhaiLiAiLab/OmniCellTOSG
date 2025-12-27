@@ -1,21 +1,22 @@
 # Dataset loading parameters
-dataset_root: '/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs'
-categories: 'pretrain'
+dataset_root: '/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/CellTOSG_dataset_v2'
+extract_mode: 'train'
 tissue_general: ''
 tissue: ''
 suspension_type: ''
 cell_type: ''
 disease_name: ""
 gender: ''
-downstream_task: 'disease'
+task: 'pretrain'
 label_column: 'disease'
 
 # Dataset loading parameters for shuffling and sampling
 shuffle: true
-sample_ratio: 0.01
+sample_ratio: 0.05
 sample_size: null
-balanced: false
+stratified_balancing: false
 random_state: 2025
 train_text: false
 train_bio: false
-dataset_output_dir: './Output/data_pretrain_0.01'
+correction_method: 'combat_seq'
+dataset_output_dir: './Data/pretrain_data'

@@ -53,7 +53,7 @@ def build_pretrain_model(args, num_entity, device):
                     edge_decoder=edge_decoder,
                     degree_decoder=degree_decoder,
                     mask=mask,
-                    entity_mlp_dims=[32,32], #######################################################################
+                    entity_mlp_dims=args.entity_mlp_dims,
                     ).to(device)
     return pretrain_model
 
@@ -110,29 +110,85 @@ def pre_embed_text(args, dataset, pretrain_model, device):
 
     return x_name_emb, x_desc_emb, x_bio_emb
 
+def eval_on_x(model, args, device, x, x_name_emb, x_desc_emb, x_bio_emb,
+              all_edge_index, internal_edge_index, ppi_edge_index, max_batches=None):
+    model.eval()
+    num_cell = x.shape[0]
+    num_entity = x.shape[1]
+    batch_size = args.pretrain_batch_size
+    num_feature = args.num_omic_feature
 
-def pretrain_foundation(args, device, xAll, x_name_emb, x_desc_emb, x_bio_emb, all_edge_index, internal_edge_index, ppi_edge_index):
+    auc_list, ap_list = [], []
+    batch_count = 0
+
+    with torch.no_grad():
+        for index in range(0, num_cell, batch_size):
+            upper_index = min(index + batch_size, num_cell)
+            current_cell_num = upper_index - index
+
+            geo_list = read_pretrain_batch(
+                index, upper_index, x, num_feature, num_entity,
+                all_edge_index, internal_edge_index, ppi_edge_index
+            )
+            loader = GeoGraphLoader.load_graph(geo_list, args.pretrain_batch_size, args.pretrain_num_workers)
+
+            for data in loader:
+                _, _, test_data = T.RandomLinkSplit(
+                    num_test=0.1,
+                    num_val=0.0,
+                    is_undirected=False,
+                    split_labels=True,
+                    add_negative_train_samples=False
+                )(data)
+
+                test_data = test_data.to(device)
+                test_auc, test_ap = model.test_step(
+                    num_entity,
+                    test_data,
+                    x_name_emb, x_desc_emb, x_bio_emb,
+                    test_data.pos_edge_label_index,
+                    test_data.neg_edge_label_index,
+                    batch_size=current_cell_num
+                )
+                auc_list.append(test_auc)
+                ap_list.append(test_ap)
+
+                batch_count += 1
+                if max_batches is not None and batch_count >= max_batches:
+                    break
+
+            if max_batches is not None and batch_count >= max_batches:
+                break
+
+    if len(auc_list) == 0:
+        return 0.0, 0.0
+    return float(np.mean(auc_list)), float(np.mean(ap_list))
+
+def pretrain_foundation(args, device, xTrain, xTest, x_name_emb, x_desc_emb, x_bio_emb, all_edge_index, internal_edge_index, ppi_edge_index, pretrain_model):
     # Add NaN checks at the beginning
     print("Checking for NaN values in input tensors:")
-    print(f"xAll has NaN: {torch.isnan(xAll).any()}")
+    print(f"xTrain has NaN: {torch.isnan(xTrain).any()}")
+    print(f"xTest has NaN: {torch.isnan(xTest).any()}")
     print(f"x_name_emb has NaN: {torch.isnan(x_name_emb).any()}")
     print(f"x_desc_emb has NaN: {torch.isnan(x_desc_emb).any()}")
     print(f"x_bio_emb has NaN: {torch.isnan(x_bio_emb).any()}")
     
     # Check for infinite values
-    print(f"xAll has inf: {torch.isinf(xAll).any()}")
+    print(f"xTrain has inf: {torch.isinf(xTrain).any()}")
+    print(f"xTest has inf: {torch.isinf(xTest).any()}")
     print(f"x_name_emb has inf: {torch.isinf(x_name_emb).any()}")
     print(f"x_desc_emb has inf: {torch.isinf(x_desc_emb).any()}")
     print(f"x_bio_emb has inf: {torch.isinf(x_bio_emb).any()}")
     
     # Check data ranges
-    print(f"xAll range: [{xAll.min().item():.6f}, {xAll.max().item():.6f}]")
+    print(f"xTrain range: [{xTrain.min().item():.6f}, {xTrain.max().item():.6f}]")
+    print(f"xTest range: [{xTest.min().item():.6f}, {xTest.max().item():.6f}]")
     print(f"x_name_emb range: [{x_name_emb.min().item():.6f}, {x_name_emb.max().item():.6f}]")
     print(f"x_desc_emb range: [{x_desc_emb.min().item():.6f}, {x_desc_emb.max().item():.6f}]")
     print(f"x_bio_emb range: [{x_bio_emb.min().item():.6f}, {x_bio_emb.max().item():.6f}]")
 
-    num_cell = xAll.shape[0]
-    num_entity = xAll.shape[1]
+    num_cell = xTrain.shape[0]
+    num_entity = xTrain.shape[1]
     upper_index = 0
     batch_size = args.pretrain_batch_size
     num_feature = args.num_omic_feature
@@ -150,25 +206,26 @@ def pretrain_foundation(args, device, xAll, x_name_emb, x_desc_emb, x_bio_emb, a
         else:
             upper_index = num_cell
         current_cell_num = upper_index - index
-        pretrain_geo_datalist = read_pretrain_batch(index, upper_index, xAll, num_feature, num_entity, all_edge_index, internal_edge_index, ppi_edge_index)
+        pretrain_geo_datalist = read_pretrain_batch(index, upper_index, xTrain, num_feature, num_entity, all_edge_index, internal_edge_index, ppi_edge_index)
         dataset_loader = GeoGraphLoader.load_graph(pretrain_geo_datalist, args.pretrain_batch_size, args.pretrain_num_workers) # read by batch size
 
         for batch_idx, data in enumerate(dataset_loader):
             print(f'Starting {index} - {upper_index}')
             print('Start Training (Link Prediction Pretext Training)...')
+            pretrain_model.train()
+            train_data = data.to(device)
 
-            train_data, val_data, test_data = T.RandomLinkSplit(num_test=0.1, num_val=0.0,
-                                                            is_undirected=False,
-                                                            split_labels=True,
-                                                            add_negative_train_samples=False)(data)
-            
-            train_data = train_data.to(device)
-            avg_loss, step_avg_loss_list = pretrain_model.train_step(train_data,
-                                        num_entity,
-                                        x_name_emb, x_desc_emb, x_bio_emb,
-                                        optimizer,
-                                        alpha=args.pre_alpha,
-                                        batch_size=current_cell_num)
+            assert train_data.x.size(0) == current_cell_num * num_entity, \
+                f"node count mismatch: {train_data.x.size(0)} vs {current_cell_num * num_entity}"
+
+            avg_loss, step_avg_loss_list = pretrain_model.train_step(
+                                                train_data,
+                                                num_entity,
+                                                x_name_emb, x_desc_emb, x_bio_emb,
+                                                optimizer,
+                                                alpha=args.pre_alpha,
+                                                batch_size=current_cell_num
+                                            )
             batch_avg_loss_list.append(avg_loss)
             all_step_avg_loss_list.extend(step_avg_loss_list)
 
@@ -180,14 +237,12 @@ def pretrain_foundation(args, device, xAll, x_name_emb, x_desc_emb, x_bio_emb, a
                 for item in all_step_avg_loss_list:
                     f.write("%s\n" % item)
 
-            test_data = test_data.to(device)
-            test_auc, test_ap = pretrain_model.test_step(
-                                    num_entity,
-                                    test_data, 
+            test_auc, test_ap = eval_on_x(
+                                    pretrain_model, args, device, xTest,
                                     x_name_emb, x_desc_emb, x_bio_emb,
-                                    test_data.pos_edge_label_index, 
-                                    test_data.neg_edge_label_index,
-                                    batch_size=current_cell_num) 
+                                    all_edge_index, internal_edge_index, ppi_edge_index,
+                                    max_batches=1
+                                )
             batch_auc_list.append(test_auc)
             batch_acc_list.append(test_ap)
 
@@ -300,7 +355,9 @@ if __name__ == "__main__":
 
     class FixedDataset:
         def __init__(self, dataset_root, dataset_output_dir):
-            self.data = np.load(f"{dataset_output_dir}/expression_matrix_corrected.npy")
+            self.x_train = np.load(f"{dataset_output_dir}/train/expression_matrix.npy")
+            self.x_test = np.load(f"{dataset_output_dir}/test/expression_matrix.npy")
+            
             self.edge_index = np.load(f"{dataset_root}/edge_index.npy")
             self.internal_edge_index = np.load(f"{dataset_root}/internal_edge_index.npy")
             self.ppi_edge_index = np.load(f"{dataset_root}/ppi_edge_index.npy")
@@ -312,9 +369,6 @@ if __name__ == "__main__":
 
     # Build Pretrain Model
     # os.makedirs(os.path.dirname(args.pretrained_model_save_path), exist_ok=True)
-    num_entity = 533458 ###############################################################################################################################################################################################
-    pretrain_model = build_pretrain_model(args, num_entity, device)
-    pretrain_model.reset_parameters()
 
     # Prepare embeddings
     # x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model, device)
@@ -322,12 +376,16 @@ if __name__ == "__main__":
     x_desc_emb = dataset.x_desc_emb
     x_bio_emb = dataset.x_bio_emb
     # Graph feature
-    xAll = dataset.data
+    xTrain = dataset.x_train
+    xTest = dataset.x_test
+
     all_edge_index = dataset.edge_index
     internal_edge_index = dataset.internal_edge_index
     ppi_edge_index = dataset.ppi_edge_index
+
     # load embeddings into torch tensor
-    xAll = torch.from_numpy(xAll).float().to(device)
+    xTrain = torch.from_numpy(dataset.x_train).float().to(device)
+    xTest  = torch.from_numpy(dataset.x_test).float().to(device)
     x_name_emb = torch.from_numpy(x_name_emb).float().to(device)
     x_desc_emb = torch.from_numpy(x_desc_emb).float().to(device)
     x_bio_emb = torch.from_numpy(x_bio_emb).float().to(device)
@@ -335,5 +393,19 @@ if __name__ == "__main__":
     internal_edge_index = torch.from_numpy(internal_edge_index).long()
     ppi_edge_index = torch.from_numpy(ppi_edge_index).long()
 
+    num_entity = xTrain.shape[1]
+    print(f"Number of entities: {num_entity}")
+
+    print(f"Number of training cells: {xTrain.shape[0]}")
+    print(f"Number of testing cells: {xTest.shape[0]}")
+
+    pretrain_model = build_pretrain_model(args, num_entity, device)
+    pretrain_model.reset_parameters()
+
     # Pretrain model
-    pretrain_model = pretrain_foundation(args, device, xAll, x_name_emb, x_desc_emb, x_bio_emb, all_edge_index, internal_edge_index, ppi_edge_index)
+    pretrain_model = pretrain_foundation(args, device, xTrain, xTest, x_name_emb, x_desc_emb, x_bio_emb, all_edge_index, internal_edge_index, ppi_edge_index, pretrain_model)
+
+
+'''
+python pretrain.py --dataset_output_dir ./Data/pretrain_data
+'''
