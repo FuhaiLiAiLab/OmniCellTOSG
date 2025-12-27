@@ -171,7 +171,8 @@ def balance_for_inference(
 def balance_for_training(
     ref_train: pd.DataFrame,
     ref_test: pd.DataFrame,
-    target_df: pd.DataFrame,
+    tgt_train: pd.DataFrame,
+    tgt_test: pd.DataFrame,
     match_keys: List[str],
     study_col: str = "dataset_id",
     stage_col: str = "development_stage_category",
@@ -179,58 +180,33 @@ def balance_for_training(
     upsample: bool = True,
     random_state: int = 2025,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    
-    for df_name, df in [("ref_train", ref_train), ("ref_test", ref_test), ("target_df", target_df)]:
+
+    if isinstance(match_keys, str):
+        match_keys = [match_keys]
+    else:
+        match_keys = list(match_keys)
+
+    for df_name, df in [("ref_train", ref_train), ("ref_test", ref_test), ("tgt_train", tgt_train), ("tgt_test", tgt_test)]:
         if study_col not in df.columns:
             raise KeyError(f"Column '{study_col}' not found in {df_name}.")
-    if stage_col not in target_df.columns:
-        raise KeyError(f"Column '{stage_col}' must exist in target_df.")
+        if stage_col not in df.columns:
+            raise KeyError(f"Column '{stage_col}' not found in {df_name}.")
+        missing = [k for k in match_keys if k not in df.columns]
+        if missing:
+            raise KeyError(f"Missing match_keys in {df_name}: {missing}")
 
-    # decide cell_key
     cell_key: Optional[str] = None
-    if "CMT_id" in match_keys and "CMT_id" in target_df.columns:
+    if "CMT_id" in match_keys and "CMT_id" in tgt_train.columns and "CMT_id" in tgt_test.columns:
         cell_key = "CMT_id"
-    elif "CMT_name" in match_keys and "CMT_name" in target_df.columns:
+    elif "CMT_name" in match_keys and "CMT_name" in tgt_train.columns and "CMT_name" in tgt_test.columns:
         cell_key = "CMT_name"
     else:
-        raise ValueError("Neither 'CMT_id' nor 'CMT_name' available in target_df for matching.")
+        raise ValueError("Neither 'CMT_id' nor 'CMT_name' available in tgt_train/tgt_test for matching.")
 
-    def _unmatched_keys(ref_df: pd.DataFrame, matched_keys: Set[Tuple]) -> Set[Tuple]:
-        ref_all = set(ref_df[match_keys].apply(tuple, axis=1))
-        return ref_all - matched_keys
-
-    # global study order by size (desc)
-    all_studies_desc = (
-        target_df[study_col].astype(str).value_counts().sort_values(ascending=False).index.tolist()
-    )
-
-    # identify 'exclusive-source' studies (study hosts at least one cell type exclusively)
-    ck_study_map = (
-        target_df[[cell_key, study_col]]
-        .dropna(subset=[cell_key, study_col])
-        .astype({cell_key: str, study_col: str})
-        .drop_duplicates()
-        .groupby(cell_key)[study_col]
-        .apply(set)
-    )
-    exclusive_celltypes = {ck for ck, sset in ck_study_map.items() if len(sset) == 1}
-    exclusive_studies: Set[str] = set()
-    for ck in exclusive_celltypes:
-        exclusive_studies |= ck_study_map[ck]
-
-    # TEST: initial study pool = ref_test's studies minus exclusive studies
-    ref_test_studies: Set[str] = set(ref_test[study_col].astype(str).unique())
-    test_study_pool: Set[str] = set(s for s in ref_test_studies if s not in exclusive_studies)
-
-    # forbid using ref_test studies in target_train later (no leakage)
-    forbid_for_train: Set[str] = set(ref_test_studies)
-
-    # initial test pool rows
-    tgt_test_pool = target_df[target_df[study_col].astype(str).isin(test_study_pool)].copy()
-
+    # TEST: match within tgt_test only
     test_matched_target, test_matched_keys = balance_for_inference(
         reference_df=ref_test,
-        target_df=tgt_test_pool,
+        target_df=tgt_test,
         match_keys=match_keys,
         stage_col=stage_col,
         max_stage_offset=max_stage_offset,
@@ -240,98 +216,10 @@ def balance_for_training(
     ref_test_keep = ref_test[ref_test[match_keys].apply(tuple, axis=1).isin(test_matched_keys)].copy()
     test_balanced = pd.concat([ref_test_keep, test_matched_target], ignore_index=True)
 
-    # try to augment test pool with additional studies (not in ref_test, not exclusive)
-    needed_keys = _unmatched_keys(ref_test, test_matched_keys)
-    augmentation_candidates = [s for s in all_studies_desc if (s not in ref_test_studies and s not in exclusive_studies)]
-    added_to_test: Set[str] = set()
-
-    # quick feasibility check for adding a study
-    STAGES = [
-        "80 and over", "aged", "middle aged", "adult", "young adult", "adolescent",
-        "child", "preschool child", "infant", "newborn", "fetal", "embryonic", "unknown",
-    ]
-    stage_order = {s: i for i, s in enumerate(STAGES)}
-
-    def _can_help(study_id: str, missing_keys: Set[Tuple]) -> bool:
-        sub = target_df[target_df[study_col].astype(str) == study_id]
-        if sub.empty:
-            return False
-        if cell_key not in sub.columns or stage_col not in sub.columns:
-            return False
-        sub_cells = set(sub[cell_key].astype(str))
-        sub_stage_vals = set(sub[stage_col].astype(str).map(str.lower))
-
-        for key in missing_keys:
-            # locate indices for cell and stage
-            try:
-                idx_cell = match_keys.index(cell_key)
-            except ValueError:
-                idx_cell = None
-            try:
-                idx_stage = match_keys.index(stage_col)
-            except ValueError:
-                idx_stage = None
-
-            cell_val = str(key[idx_cell]) if idx_cell is not None else None
-            stage_val = str(key[idx_stage]).lower() if idx_stage is not None else None
-
-            if (cell_val is None) or (cell_val not in sub_cells):
-                continue
-            if stage_val is None:
-                return True
-            s_idx = stage_order.get(stage_val, None)
-            if s_idx is None:
-                return True
-            # any stage within backoff window
-            for off in range(0, max_stage_offset + 1):
-                alt_idx = s_idx + off
-                if 0 <= alt_idx < len(STAGES) and STAGES[alt_idx] in sub_stage_vals:
-                    return True
-        return False
-
-    improved = True
-    while needed_keys and augmentation_candidates and improved:
-        improved = False
-        for st in list(augmentation_candidates):
-            if not _can_help(st, needed_keys):
-                continue
-            # add the study to test pool
-            add_rows = target_df[target_df[study_col].astype(str) == st]
-            if add_rows.empty:
-                augmentation_candidates.remove(st)
-                continue
-            tgt_test_pool = pd.concat([tgt_test_pool, add_rows], ignore_index=True)
-            test_study_pool.add(st)
-            added_to_test.add(st)
-            augmentation_candidates.remove(st)
-
-            # re-run matching
-            test_matched_target, test_matched_keys = balance_for_inference(
-                reference_df=ref_test,
-                target_df=tgt_test_pool,
-                match_keys=match_keys,
-                stage_col=stage_col,
-                max_stage_offset=max_stage_offset,
-                upsample=upsample,
-                random_state=random_state,
-            )
-            needed_after = _unmatched_keys(ref_test, test_matched_keys)
-
-            if len(needed_after) < len(needed_keys):
-                needed_keys = needed_after
-                ref_test_keep = ref_test[ref_test[match_keys].apply(tuple, axis=1).isin(test_matched_keys)].copy()
-                test_balanced = pd.concat([ref_test_keep, test_matched_target], ignore_index=True)
-                improved = True
-
-    # Train: build pool from remaining studies
-    # train cant use： study in ref_test_studies + added_to_test
-    forbidden_for_train = forbid_for_train.union(test_study_pool)
-    tgt_train_pool = target_df[~target_df[study_col].astype(str).isin(forbidden_for_train)].copy()
-
-    # run train matching
+    # TRAIN: match within tgt_train only
     train_matched_target, train_matched_keys = balance_for_inference(
         reference_df=ref_train,
-        target_df=tgt_train_pool,
+        target_df=tgt_train,
         match_keys=match_keys,
         stage_col=stage_col,
         max_stage_offset=max_stage_offset,
@@ -340,5 +228,10 @@ def balance_for_training(
     )
     ref_train_keep = ref_train[ref_train[match_keys].apply(tuple, axis=1).isin(train_matched_keys)].copy()
     train_balanced = pd.concat([ref_train_keep, train_matched_target], ignore_index=True)
+
+    # hard safety check: no dataset_id overlap
+    overlap = set(train_balanced[study_col].astype(str)) & set(test_balanced[study_col].astype(str))
+    if overlap:
+        raise ValueError(f"Leakage: train/test share dataset_id (examples): {sorted(list(overlap))[:10]}")
 
     return train_balanced, test_balanced

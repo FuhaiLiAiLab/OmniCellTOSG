@@ -357,6 +357,10 @@ def extract_for_training(
 
     # Prepare reference_df per task
     ref_df = self.last_query_result.copy()
+
+    if task != "pretrain" and "is_pretrain_data" in ref_df.columns:
+        ref_df = ref_df[~ref_df["is_pretrain_data"].fillna(False)].copy()
+
     if task == "cell_type":
         if stratified_balancing:
             print("[Warning] task='cell_type' should not use stratified balancing, setting stratified_balancing=False.")
@@ -440,6 +444,10 @@ def extract_for_training(
         control_conditions[self.FIELD_ALIAS.get(balance_field, balance_field)] = balance_value
 
         control_df = self.df_all.copy()
+        
+        if task != "pretrain" and "is_pretrain_data" in control_df.columns:
+            control_df = control_df[~control_df["is_pretrain_data"].fillna(False)].copy()
+
         for k, v in control_conditions.items():
             control_df = control_df[control_df[k].isin(v)] if isinstance(v, (list, set, tuple)) else control_df[control_df[k] == v]
 

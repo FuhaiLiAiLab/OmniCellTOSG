@@ -430,7 +430,8 @@ def study_wise_split_with_balancing(
     train_balanced, test_balanced = balance_for_training(
         ref_train=ref_train,
         ref_test=ref_test,
-        target_df=target_df,
+        tgt_train=tgt_train,
+        tgt_test=tgt_test,
         match_keys=match_keys,
         study_col=study_col,
         random_state=random_state,
