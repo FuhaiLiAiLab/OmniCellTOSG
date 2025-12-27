@@ -357,6 +357,7 @@ class CellTOSG_Class(nn.Module):
         self.cross_modal_fusion = nn.Linear(text_input_dim * 3 + omic_input_dim, cross_fusion_output_dim)
         self.pre_transform = nn.Linear(pre_input_output_dim, pre_input_output_dim)
         self.fusion = nn.Linear(cross_fusion_output_dim + pre_input_output_dim, final_fusion_output_dim)
+        self.internal_transform = nn.Linear(pre_input_output_dim, omic_input_dim)
 
         # Add MLP layers for entity interaction flow
         dims = [num_entity] + entity_mlp_dims + [num_entity]
@@ -411,6 +412,7 @@ class CellTOSG_Class(nn.Module):
         self.cross_modal_fusion.reset_parameters()
         self.pre_transform.reset_parameters()
         self.fusion.reset_parameters()
+        self.internal_transform.reset_parameters()
 
         # Reset entity MLP layers
         for mlp in self.entity_mlp_layers:
@@ -463,6 +465,7 @@ class CellTOSG_Class(nn.Module):
         # Apply internal graph convolution with residual connection
         # import pdb; pdb.set_trace()
         internal_output = self.internal_encoder(fused_features, internal_edge_index)
+        internal_output = self.internal_transform(internal_output)
         z = internal_output + x  # Residual connection
 
         # ********************** MLP Information Flow *************************
@@ -530,6 +533,7 @@ class CellTOSG_DrugRes(nn.Module):
         encoder,
         internal_encoder,
         drug_encoder,
+        num_drug_per_point,
         entity_mlp_dims=[32, 32],  # num_entity → decrease → increase → num_entity
         mlp_dropout=0.1,
     ):
@@ -548,6 +552,7 @@ class CellTOSG_DrugRes(nn.Module):
         self.pre_transform = nn.Linear(pre_input_output_dim, pre_input_output_dim)
         self.fusion = nn.Linear(cross_fusion_output_dim + pre_input_output_dim, final_fusion_output_dim)
         self.drug_linear_transform = nn.Linear(drug_output_dim, text_input_dim)
+        self.internal_transform = nn.Linear(pre_input_output_dim, omic_input_dim)
 
         # Add MLP layers for entity interaction flow
         dims = [num_entity] + entity_mlp_dims + [num_entity]
@@ -569,7 +574,7 @@ class CellTOSG_DrugRes(nn.Module):
         self.readout = nn.Linear(final_fusion_output_dim, 1)
         # Build multi-layer perceptron with configurable architecture
         layers = []
-        current_dim = num_entity + 1 # +1 for drug representation
+        current_dim = num_entity + num_drug_per_point # +num_drug_per_point for drug representation
         # Add hidden layers
         for hidden_dim in linear_hidden_dims:
             layers.append(nn.Linear(current_dim, hidden_dim))
@@ -604,6 +609,7 @@ class CellTOSG_DrugRes(nn.Module):
         self.pre_transform.reset_parameters()
         self.fusion.reset_parameters()
         self.drug_linear_transform.reset_parameters()
+        self.internal_transform.reset_parameters()
 
         # Reset entity MLP layers
         for mlp in self.entity_mlp_layers:
@@ -627,7 +633,7 @@ class CellTOSG_DrugRes(nn.Module):
         self.classifier.reset_parameters()
 
     def forward(self, x, pre_x, edge_index, internal_edge_index, ppi_edge_index,
-                num_entity, drug_chem_x, drug_chem_edge_index, x_name_emb, x_desc_emb, x_bio_emb, batch_size):
+                num_entity, drug_chem_x, drug_chem_edge_index, drug_batch, num_drug_per_point, x_name_emb, x_desc_emb, x_bio_emb, batch_size):
         
         num_node = num_entity * batch_size
 
@@ -656,6 +662,7 @@ class CellTOSG_DrugRes(nn.Module):
         # Apply internal graph convolution with residual connection
         # import pdb; pdb.set_trace()
         internal_output = self.internal_encoder(fused_features, internal_edge_index)
+        internal_output = self.internal_transform(internal_output)
         z = internal_output + x  # Residual connection
 
         # ********************** MLP Information Flow *************************
@@ -679,14 +686,19 @@ class CellTOSG_DrugRes(nn.Module):
         z = self.readout(z)  # Apply linear transformation: (B*N, D) -> (B*N, 1)
         z = z.view(batch_size, num_entity)  # Reshape to (B, N)
         # Add drug embedding 
-        drug_z = self.drug_encoder(drug_chem_x, drug_chem_edge_index)  # (B, M, args.train_drug_output_dim)
-        drug_z = self.drug_linear_transform(drug_z).squeeze(-1)  # (B, M)
-        # Mean pooling over drug nodes
-        drug_z = torch.mean(drug_z, dim=1, keepdim=True)  # (B, 1)
+        # import pdb; pdb.set_trace()
+        drug_z = self.drug_encoder(drug_chem_x, drug_chem_edge_index)  # (drug_atom, M, args.train_drug_output_dim)
+        drug_z = self.drug_linear_transform(drug_z).squeeze(-1)  # (drug_atom, M)
+        # Map drug atoms to batch points by [drug_batch] and use pooling to get drug representation per point
+        drug_z_pooled = torch.zeros(batch_size, num_drug_per_point, device=drug_z.device)
+        for i in range(batch_size):
+            mask = (drug_batch == i)
+            if mask.any():
+                drug_z_pooled[i] = drug_z[mask].mean(dim=0)  # Add dim=0 to preserve feature dimension
 
         # Make vertical concatenation
-        z = torch.cat([z, drug_z], dim=1)  # (B, N+1)
-        z = self.linear_repr(z)  # Apply MLP: (B, N+1) -> (B, D')
+        z = torch.cat([z, drug_z_pooled], dim=1)  # (B, N+num_drug_per_point)
+        z = self.linear_repr(z)  # Apply MLP: (B, N+num_drug_per_point) -> (B, D')
         # ========================================================================
 
         # ===================== Final Classification ===========================
@@ -711,4 +723,4 @@ class CellTOSG_DrugRes(nn.Module):
         # Calculate the loss
         output = torch.log_softmax(output, dim=-1)
         loss = F.nll_loss(output, label, weight_vector)
-        return loss
+        return lo

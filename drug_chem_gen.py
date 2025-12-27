@@ -2,6 +2,7 @@ import requests
 from urllib.parse import quote
 from rdkit import Chem
 import torch
+import json
 
 def pubchem_name_to_smiles(name: str) -> str:
     # Prefer IsomericSMILES (keeps stereochemistry), then fall back
@@ -52,3 +53,34 @@ print("x shape:", x.shape)
 print("All atom features:\n", x)
 print("edge_index shape:", edge_index.shape)
 print("All edges:\n", edge_index)
+
+drug_name_list = sorted(["Etoposide", "Geminticine", "Methotrexate", "SN-38", "Paclitaxel"])
+
+# Generate dictionary for multiple drugs
+drug_dict = {}
+for drug_name in drug_name_list:
+    try:
+        smiles = pubchem_name_to_smiles(drug_name)
+        x, edge_index = rdkit_to_pyg_graph(smiles)
+        drug_dict[drug_name] = (smiles, x, edge_index)
+        print(f"✓ Successfully processed {drug_name}")
+    except Exception as e:
+        print(f"✗ Failed to process {drug_name}: {e}")
+
+print(f"\nSuccessfully processed {len(drug_dict)}/{len(drug_name_list)} drugs")
+print(f"Drug names in dictionary: {list(drug_dict.keys())}")
+
+# Convert to JSON-serializable format
+drug_dict_json = {}
+for drug_name, (smiles, x, edge_index) in drug_dict.items():
+    drug_dict_json[drug_name] = {
+        "smiles": smiles,
+        "atom_features": x.tolist(),
+        "edge_index": edge_index.tolist()
+    }
+
+# Save to JSON file
+with open("drug_database.json", "w") as f:
+    json.dump(drug_dict_json, f, indent=2)
+
+print(f"\n✓ Saved drug database to drug_database.json")

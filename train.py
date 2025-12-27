@@ -48,7 +48,9 @@ def build_pretrain_model(args, device):
     degree_decoder = DegreeDecoder(args.pre_graph_output_dim, args.pre_decoder_dim,
                                 num_layers=args.pre_decoder_layers, dropout=args.pre_decoder_dropout)
     # Build the pretraining model
-    pretrain_model = CellTOSG_Foundation(text_input_dim=args.pre_lm_emb_dim,
+    pretrain_model = CellTOSG_Foundation(
+                    num_entity=args.num_entity,
+                    text_input_dim=args.pre_lm_emb_dim,
                     omic_input_dim=args.num_omic_feature,
                     cross_fusion_output_dim=args.pre_cross_fusion_output_dim, 
                     text_encoder=text_encoder,
@@ -245,6 +247,16 @@ def train_model(train_dataset_loader, current_cell_num, num_entity, name_embeddi
         # import pdb; pdb.set_trace()
         # Use pretrained model to get the embedding
         z = pretrain_model.internal_encoder(x, internal_edge_index) + x
+        # ********************** MLP Information Flow *************************
+        # Reshape: (batch*num_entity, feature) → (batch, num_entity)
+        z = z.view(current_cell_num, num_entity, -1).squeeze(-1)
+        # Apply MLP on entity dimension
+        for mlp in pretrain_model.entity_mlp_layers:
+            z = mlp(z)
+        z = pretrain_model.layer_norm(z)
+        # Expand and flatten: (batch, num_entity) → (batch*num_entity, 1)
+        z = z.reshape(-1, 1)
+        # **********************************************************************
         pre_x = pretrain_model.encoder.get_embedding(z, ppi_edge_index, mode='last') # mode='cat'
         output, ypred = model(x, pre_x, edge_index, internal_edge_index, ppi_edge_index, num_entity, name_embeddings, desc_embeddings, seq_embeddings, current_cell_num)
         loss = model.loss(output, label)
@@ -274,6 +286,16 @@ def test_model(test_dataset_loader, current_cell_num, num_entity, name_embedding
         label = Variable(data.label, requires_grad=False).to(device)
         # Use pretrained model to get the embedding
         z = pretrain_model.internal_encoder(x, internal_edge_index) + x
+        # ********************** MLP Information Flow *************************
+        # Reshape: (batch*num_entity, feature) → (batch, num_entity)
+        z = z.view(current_cell_num, num_entity, -1).squeeze(-1)
+        # Apply MLP on entity dimension
+        for mlp in pretrain_model.entity_mlp_layers:
+            z = mlp(z)
+        z = pretrain_model.layer_norm(z)
+        # Expand and flatten: (batch, num_entity) → (batch*num_entity, 1)
+        z = z.reshape(-1, 1)
+        # **********************************************************************
         pre_x = pretrain_model.encoder.get_embedding(z, ppi_edge_index, mode='last') # mode='cat'
         output, ypred = model(x, pre_x, edge_index, internal_edge_index, ppi_edge_index, num_entity, name_embeddings, desc_embeddings, seq_embeddings, current_cell_num)
         loss = model.loss(output, label)
@@ -577,24 +599,26 @@ if __name__ == "__main__":
             config=vars(args)
         )
 
-    # Build Pretrain Model
-    pretrain_model = build_pretrain_model(args, device)
-    pretrain_model.load_state_dict(torch.load(args.pretrained_model_save_path, map_location=device))
-    pretrain_model.eval()
-    # Prepare text and seq embeddings
-    x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model, device)
     # Graph feature
     xAll = dataset.data
     yAll = dataset.labels
+    # Build Pretrain Model
+    args.num_entity = xAll.shape[1]
+    pretrain_model = build_pretrain_model(args, device)
+    pretrain_model.load_state_dict(torch.load(args.pretrained_model_save_path, map_location=device))
+    pretrain_model.eval()
+
     all_edge_index = dataset.edge_index
     internal_edge_index = dataset.internal_edge_index
     ppi_edge_index = dataset.ppi_edge_index
-    # load embeddings into torch tensor
-    xAll = torch.from_numpy(xAll).float().to(device)
-    yAll = torch.from_numpy(yAll).long().to(device)
+    # Prepare text and seq embeddings
+    x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model, device)
     x_name_emb = torch.from_numpy(x_name_emb).float().to(device)
     x_desc_emb = torch.from_numpy(x_desc_emb).float().to(device)
     x_bio_emb = torch.from_numpy(x_bio_emb).float().to(device)
+    # load embeddings into torch tensor
+    xAll = torch.from_numpy(xAll).float().to(device)
+    yAll = torch.from_numpy(yAll).long().to(device)
     all_edge_index = torch.from_numpy(all_edge_index).long()
     internal_edge_index = torch.from_numpy(internal_edge_index).long()
     ppi_edge_index = torch.from_numpy(ppi_edge_index).long()
@@ -602,7 +626,7 @@ if __name__ == "__main__":
     # Split dataset into train and test for xAll and yAll
     xTr, xTe, yTr, yTe, num_classes = split_dataset(xAll, yAll, args)
     args.num_class = num_classes
-    args.num_entity = xAll.shape[1]
+
     # Build model
     model = build_model(args, device)
     # Train the model

@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, precision_score, recall_score
 
 # custom dataloader
-from GeoDataLoader.read_geograph import read_batch
+from GeoDataLoader.read_geograph import read_batch, read_drug_batch
 from GeoDataLoader.geograph_sampler import GeoGraphLoader
 
 # custom modules
@@ -28,7 +28,7 @@ from CellTOSG_Loader import CellTOSGDataLoader
 from utils import load_and_merge_configs, save_updated_config
 
 
-def build_pretrain_model(args, num_entity, device):
+def build_pretrain_model(args, device):
     # Build the mask for edge reconstruction
     mask = MaskEdge(p=args.p)
     # Build the text, rna and protein sequence encoders
@@ -48,7 +48,7 @@ def build_pretrain_model(args, num_entity, device):
     degree_decoder = DegreeDecoder(args.pre_graph_output_dim, args.pre_decoder_dim,
                                 num_layers=args.pre_decoder_layers, dropout=args.pre_decoder_dropout)
     # Build the pretraining model
-    pretrain_model = CellTOSG_Foundation(num_entity=num_entity,
+    pretrain_model = CellTOSG_Foundation(num_entity=args.num_entity,
                     text_input_dim=args.pre_lm_emb_dim,
                     omic_input_dim=args.num_omic_feature,
                     cross_fusion_output_dim=args.pre_cross_fusion_output_dim, 
@@ -93,6 +93,7 @@ def build_model(args, device):
                         encoder=graph_encoder,
                         internal_encoder=internal_graph_encoder,
                         drug_encoder=drug_encoder,
+                        num_drug_per_point=args.num_drug_per_point,
                         entity_mlp_dims=[32, 32],  # num_entity → decrease → increase → num_entity
                         mlp_dropout=0.1,
                         ).to(device)
@@ -242,25 +243,38 @@ def write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list
 
 
 def train_model(train_dataset_loader, current_cell_num, num_entity, name_embeddings, desc_embeddings, seq_embeddings,
-                drug_chem_x, drug_chem_edge_index, pretrain_model, model, device, args):
+                train_drug_dataset_loader, pretrain_model, model, device, args):
     optimizer = torch.optim.Adam(filter(lambda p : p.requires_grad, model.parameters()), lr=args.train_lr, eps=args.train_eps, weight_decay=args.train_weight_decay)
     batch_loss = 0
-    for batch_idx, data in enumerate(train_dataset_loader):
+    for batch_idx, (cell_data, drug_data) in enumerate(zip(train_dataset_loader, train_drug_dataset_loader)):
         optimizer.zero_grad()
-        x = Variable(data.x.float(), requires_grad=False).to(device)
-        internal_edge_index = Variable(data.internal_edge_index, requires_grad=False).to(device)
-        ppi_edge_index = Variable(data.edge_index, requires_grad=False).to(device)
-        edge_index = Variable(data.all_edge_index, requires_grad=False).to(device)
-        label = Variable(data.label, requires_grad=False).to(device)
-        drug_chem_x = Variable(drug_chem_x.float(), requires_grad=False).to(device)
-        drug_chem_edge_index = Variable(drug_chem_edge_index, requires_grad=False).to(device)
+        x = Variable(cell_data.x.float(), requires_grad=False).to(device)
+        internal_edge_index = Variable(cell_data.internal_edge_index, requires_grad=False).to(device)
+        ppi_edge_index = Variable(cell_data.edge_index, requires_grad=False).to(device)
+        edge_index = Variable(cell_data.all_edge_index, requires_grad=False).to(device)
+        label = Variable(cell_data.label, requires_grad=False).to(device)
+        
+        # Extract drug data
+        drug_chem_x = Variable(drug_data.x.float(), requires_grad=False).to(device)
+        drug_chem_edge_index = Variable(drug_data.edge_index, requires_grad=False).to(device)
+        drug_batch = drug_data.batch.to(device)  # This indicates which graph each atom belongs to
 
-        # import pdb; pdb.set_trace()
         # Use pretrained model to get the embedding
         z = pretrain_model.internal_encoder(x, internal_edge_index) + x
+        # ********************** MLP Information Flow *************************
+        # Reshape: (batch*num_entity, feature) → (batch, num_entity)
+        z = z.view(current_cell_num, num_entity, -1).squeeze(-1)
+        # Apply MLP on entity dimension
+        for mlp in pretrain_model.entity_mlp_layers:
+            z = mlp(z)
+        z = pretrain_model.layer_norm(z)
+        # Expand and flatten: (batch, num_entity) → (batch*num_entity, 1)
+        z = z.reshape(-1, 1)
+        # **********************************************************************
         pre_x = pretrain_model.encoder.get_embedding(z, ppi_edge_index, mode='last') # mode='cat'
-        output, ypred = model(x, pre_x, edge_index, internal_edge_index, ppi_edge_index, 
-                              num_entity, drug_chem_x, drug_chem_edge_index, name_embeddings, desc_embeddings, seq_embeddings, current_cell_num)
+        output, ypred = model(x, pre_x, edge_index, internal_edge_index, ppi_edge_index,
+                            num_entity, drug_chem_x, drug_chem_edge_index, drug_batch, args.num_drug_per_point,
+                            name_embeddings, desc_embeddings, seq_embeddings, current_cell_num)
         loss = model.loss(output, label)
         loss.backward()
         batch_loss += loss.item()
@@ -288,6 +302,16 @@ def test_model(test_dataset_loader, current_cell_num, num_entity, name_embedding
         label = Variable(data.label, requires_grad=False).to(device)
         # Use pretrained model to get the embedding
         z = pretrain_model.internal_encoder(x, internal_edge_index) + x
+        # ********************** MLP Information Flow *************************
+        # Reshape: (batch*num_entity, feature) → (batch, num_entity)
+        z = z.view(current_cell_num, num_entity, -1).squeeze(-1)
+        # Apply MLP on entity dimension
+        for mlp in pretrain_model.entity_mlp_layers:
+            z = mlp(z)
+        z = pretrain_model.layer_norm(z)
+        # Expand and flatten: (batch, num_entity) → (batch*num_entity, 1)
+        z = z.reshape(-1, 1)
+        # **********************************************************************
         pre_x = pretrain_model.encoder.get_embedding(z, ppi_edge_index, mode='last') # mode='cat'
         output, ypred = model(x, pre_x, edge_index, internal_edge_index, ppi_edge_index, num_entity, name_embeddings, desc_embeddings, seq_embeddings, current_cell_num)
         loss = model.loss(output, label)
@@ -301,7 +325,7 @@ def test_model(test_dataset_loader, current_cell_num, num_entity, name_embedding
 
 
 def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index, 
-          drug_chem_x, drug_chem_edge_index, x_name_emb, x_desc_emb, x_bio_emb, config_groups):
+          drug_index_Tr, drug_index_Te, x_name_emb, x_desc_emb, x_bio_emb, config_groups):
     train_num_cell = xTr.shape[0]
     num_entity = xTr.shape[1]
     num_feature = args.num_omic_feature
@@ -363,9 +387,12 @@ def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_inde
                 upper_index = train_num_cell
             geo_train_datalist = read_batch(index, upper_index, xTr, yTr, num_feature, num_entity, all_edge_index, internal_edge_index, ppi_edge_index)
             train_dataset_loader = GeoGraphLoader.load_graph(geo_train_datalist, args.train_batch_size, args.train_num_workers)
+            geo_train_drug_datalist = read_drug_batch(index, upper_index, drug_index_Tr)
+            train_drug_dataset_loader = GeoGraphLoader.load_graph(geo_train_drug_datalist, args.train_batch_size * args.num_drug_per_point, args.train_num_workers)
+
             current_cell_num = upper_index - index # current batch size
             model, batch_loss, batch_acc, batch_ypred = train_model(train_dataset_loader, current_cell_num, num_entity, x_name_emb, x_desc_emb, x_bio_emb,
-                                                                    drug_chem_x, drug_chem_edge_index, pretrain_model, model, device, args)
+                                                                    train_drug_dataset_loader, pretrain_model, model, device, args)
             print('BATCH LOSS: ', batch_loss)
             print('BATCH ACCURACY: ', batch_acc)
             batch_loss_list.append(batch_loss)
@@ -593,28 +620,26 @@ if __name__ == "__main__":
             config=vars(args)
         )
 
-    # Build Pretrain Model
-    num_entity = 533458 ###############################################################################################################################################################################################
-    pretrain_model = build_pretrain_model(args, num_entity, device)
-    pretrain_model.load_state_dict(torch.load(args.pretrained_model_save_path, map_location=device))
-    pretrain_model.eval()
-    # Prepare text and seq embeddings
-    x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model, device)
-    # Prepare drug embeddings
-    drug_chem_x = dataset.drug_chem_x ########################################################################################################
-    drug_chem_edge_index = dataset.drug_chem_edge_index ######################################################################################
     # Graph feature
     xAll = dataset.data
     yAll = dataset.labels
+    # Build Pretrain Model
+    args.num_entity = xAll.shape[1]
+    pretrain_model = build_pretrain_model(args, device)
+    pretrain_model.load_state_dict(torch.load(args.pretrained_model_save_path, map_location=device))
+    pretrain_model.eval()
+
     all_edge_index = dataset.edge_index
     internal_edge_index = dataset.internal_edge_index
     ppi_edge_index = dataset.ppi_edge_index
-    # load embeddings into torch tensor
-    xAll = torch.from_numpy(xAll).float().to(device)
-    yAll = torch.from_numpy(yAll).long().to(device)
+    # Prepare text and seq embeddings
+    x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model, device)
     x_name_emb = torch.from_numpy(x_name_emb).float().to(device)
     x_desc_emb = torch.from_numpy(x_desc_emb).float().to(device)
     x_bio_emb = torch.from_numpy(x_bio_emb).float().to(device)
+    # load embeddings into torch tensor
+    xAll = torch.from_numpy(xAll).float().to(device)
+    yAll = torch.from_numpy(yAll).long().to(device)
     all_edge_index = torch.from_numpy(all_edge_index).long()
     internal_edge_index = torch.from_numpy(internal_edge_index).long()
     ppi_edge_index = torch.from_numpy(ppi_edge_index).long()
@@ -622,11 +647,39 @@ if __name__ == "__main__":
     # Split dataset into train and test for xAll and yAll
     xTr, xTe, yTr, yTe, num_classes = split_dataset(xAll, yAll, args)
     args.num_class = num_classes
-    args.num_entity = xAll.shape[1]
+
+    # Randomly generate drug indices (0-3) for training and testing sets
+    num_drug_per_point = 2
+    num_drugs = 4  # drugs indexed 0-3
+    np.random.seed(args.train_test_random_seed)  # Use same random seed for reproducibility
+    drug_index_Tr = np.random.randint(0, num_drugs, size=(yTr.shape[0], num_drug_per_point))
+    drug_index_Te = np.random.randint(0, num_drugs, size=(yTe.shape[0], num_drug_per_point))
+    print(f"\nDrug index generation:")
+    print(f"Training set drug indices shape: {drug_index_Tr.shape}")
+    print(f"Testing set drug indices shape: {drug_index_Te.shape}")
+    print(f"Unique drugs in training: {np.unique(drug_index_Tr)}")
+    print(f"Unique drugs in testing: {np.unique(drug_index_Te)}")
+    # Convert to torch tensors
+    drug_index_Tr = torch.from_numpy(drug_index_Tr).long().to(device)
+    drug_index_Te = torch.from_numpy(drug_index_Te).long().to(device)
+    num_drug_per_point = drug_index_Tr.shape[1]
+    args.num_drug_per_point = num_drug_per_point
+
+    # Argument for drug_encoder
+    args.drug_input_dim = 5
+    args.train_drug_hidden_dim = 10
+    args.train_drug_output_dim = 10
+    args.train_drug_encoder_layers = 3
+    args.train_drug_encoder_dropout = 0.2
+    args.train_drug_bn = True
+    args.train_drug_layer_type = "gat"
+    args.train_drug_encoder_activation = "relu"
+
     # Build model
     model = build_model(args, device)
+
     # Train the model
     train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index, 
-          drug_chem_x, drug_chem_edge_index, x_name_emb, x_desc_emb, x_bio_emb, config_groups)
+          drug_index_Tr, drug_index_Te, x_name_emb, x_desc_emb, x_bio_emb, config_groups)
 
-# python train.py --train_lr 0.0005 --train_batch_size 3 --train_base_layer gat --downstream_task cell_type --label_column cell_type --tissue_general brain --disease_name "Alzheimer's Disease" --sample_ratio 0.1 --dataset_output_dir ./Output/data_ad_celltype_0.1 --train_test_random_seed 42
+# python train_res.py --train_lr 0.0005 --train_batch_size 3 --train_base_layer gat --downstream_task cell_type --label_column cell_type --tissue_general brain --disease_name "Alzheimer's Disease" --sample_ratio 0.1 --dataset_output_dir ./Output/data_ad_celltype_0.1 --train_test_random_seed 42

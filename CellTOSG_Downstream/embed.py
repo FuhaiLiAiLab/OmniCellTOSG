@@ -339,19 +339,14 @@ class CellTOSG_Class(nn.Module):
         linear_hidden_dims,
         linear_activation,
         linear_dropout_rate,
-        text_encoder,
-        rna_seq_encoder,
-        prot_seq_encoder,
         encoder,
-        internal_encoder
+        internal_encoder,
+        entity_mlp_dims=[32, 32],  # num_entity → decrease → increase → num_entity
+        mlp_dropout=0.1,
     ):
         super().__init__()
 
         self.num_class = num_class
-
-        self.text_encoder = text_encoder
-        self.rna_seq_encoder = rna_seq_encoder
-        self.prot_seq_encoder = prot_seq_encoder
         self.encoder = encoder
         self.internal_encoder = internal_encoder
 
@@ -362,6 +357,22 @@ class CellTOSG_Class(nn.Module):
         self.cross_modal_fusion = nn.Linear(text_input_dim * 3 + omic_input_dim, cross_fusion_output_dim)
         self.pre_transform = nn.Linear(pre_input_output_dim, pre_input_output_dim)
         self.fusion = nn.Linear(cross_fusion_output_dim + pre_input_output_dim, final_fusion_output_dim)
+        self.internal_transform = nn.Linear(pre_input_output_dim, omic_input_dim)
+
+        # Add MLP layers for entity interaction flow
+        dims = [num_entity] + entity_mlp_dims + [num_entity]
+        
+        # Build MLP layers operating on entity dimension
+        self.entity_mlp_layers = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(dims[i], dims[i + 1]),
+                nn.ReLU(inplace=False),
+                nn.Dropout(mlp_dropout)
+            ) if i < len(dims) - 2 else nn.Linear(dims[i], dims[i + 1])
+            for i in range(len(dims) - 1)
+        ])
+
+        self.layer_norm = nn.LayerNorm(num_entity)
 
         # ========================= Graph Readout Layer Configuration =========================
         # Linear transformation for single-value output
@@ -401,6 +412,15 @@ class CellTOSG_Class(nn.Module):
         self.cross_modal_fusion.reset_parameters()
         self.pre_transform.reset_parameters()
         self.fusion.reset_parameters()
+        self.internal_transform.reset_parameters()
+
+        # Reset entity MLP layers
+        for mlp in self.entity_mlp_layers:
+            for module in mlp.modules():
+                if isinstance(module, nn.Linear):
+                    module.reset_parameters()
+        
+        self.layer_norm.reset_parameters()
 
         # Reset readout layer
         if hasattr(self, 'readout'):
@@ -445,7 +465,19 @@ class CellTOSG_Class(nn.Module):
         # Apply internal graph convolution with residual connection
         # import pdb; pdb.set_trace()
         internal_output = self.internal_encoder(fused_features, internal_edge_index)
+        internal_output = self.internal_transform(internal_output)
         z = internal_output + x  # Residual connection
+
+        # ********************** MLP Information Flow *************************
+        # Reshape: (batch*num_entity, feature) → (batch, num_entity)
+        z = z.view(batch_size, num_entity, -1).squeeze(-1)
+        # Apply MLP on entity dimension
+        for mlp in self.entity_mlp_layers:
+            z = mlp(z)
+        z = self.layer_norm(z)
+        # Expand and flatten: (batch, num_entity) → (batch*num_entity, 1)
+        z = z.reshape(-1, 1)
+        # **********************************************************************
         
         # Apply main graph convolution
         # import pdb; pdb.set_trace()

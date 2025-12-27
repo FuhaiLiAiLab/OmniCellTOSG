@@ -1,3 +1,4 @@
+import json
 import torch
 import numpy as np
 import pandas as pd
@@ -73,3 +74,41 @@ def read_batch(index, upper_index, x_input, y_input, num_feature, num_node, all_
     # print('FORMING GEOMETRIC GRAPH DATALIST ...')
     geo_datalist = ReadGeoGraph().form_geo_datalist(num_graph, graph_feature_list, graph_label_list, all_edge_index, internal_edge_index, ppi_edge_index)
     return geo_datalist
+
+
+def read_drug_batch(index, upper_index, drug_input):
+    # FORMING BATCH FILES
+    print('--------------' + str(index) + ' to ' + str(upper_index) + '--------------')
+    drugBatch = drug_input[index : upper_index, :]
+    # Flatten the array to 1D
+    drugBatch = drugBatch.flatten()
+    # import pdb; pdb.set_trace()
+    print(drugBatch.shape)
+    # Load drug database JSON file
+    with open('/storage1/fs1/fuhai.li/Active/hemingzhang/OmniCellTOSG/drug_database.json', 'r') as f:
+        drug_database = json.load(f)
+
+    # Get list of drug names (should match indices 0-4)
+    drug_names = list(drug_database.keys())
+    print(f"Available drugs: {drug_names}")
+    
+    # Create list to store drug graphs for this batch
+    drug_graph_list = []
+    
+    for drug_idx in drugBatch:
+        # Get drug name from index
+        drug_name = drug_names[drug_idx]
+        drug_info = drug_database[drug_name]
+        
+        # Extract drug features
+        smiles = drug_info['smiles']
+        atom_features = torch.tensor(drug_info['atom_features'], dtype=torch.float)
+        edge_index = torch.tensor(drug_info['edge_index'], dtype=torch.long)
+        
+        # Create PyG Data object for drug
+        drug_data = Data(x=atom_features, edge_index=edge_index)
+        drug_graph_list.append(drug_data)
+        
+        print(f"Loaded drug: {drug_name}, atoms: {atom_features.shape[0]}, edges: {edge_index.shape[1]}")
+    
+    return drug_graph_list
