@@ -365,6 +365,7 @@ def extract_for_training(
         if stratified_balancing:
             print("[Warning] task='cell_type' should not use stratified balancing, setting stratified_balancing=False.")
             stratified_balancing = False
+            
         category_col = "CMT_name"
         ref_df = ref_df[
             ref_df["CMT_name"].notna() # remove NAs
@@ -444,7 +445,7 @@ def extract_for_training(
         control_conditions[self.FIELD_ALIAS.get(balance_field, balance_field)] = balance_value
 
         control_df = self.df_all.copy()
-        
+
         if task != "pretrain" and "is_pretrain_data" in control_df.columns:
             control_df = control_df[~control_df["is_pretrain_data"].fillna(False)].copy()
 
@@ -472,6 +473,14 @@ def extract_for_training(
         else:
             reference_df = control_df
             target_df = case_df
+
+        n_ref_studies = reference_df["dataset_id"].astype(str).nunique()
+        if n_ref_studies < 2:
+            raise ValueError(
+                f"Cannot split train/test for task='{task}' with stratified_balancing: "
+                f"reference side has only {n_ref_studies} unique dataset_id. "
+                f"This usually happens when a disease (or control) comes from only one study."
+            )
 
         # study-wise split + joint balancing
         train_balanced, test_balanced, tgt_train, tgt_test, test_studies, forced_train = study_wise_split_with_balancing(

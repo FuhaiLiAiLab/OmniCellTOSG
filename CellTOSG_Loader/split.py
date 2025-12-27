@@ -176,10 +176,10 @@ def study_wise_split_pretrain(
     if "dataset_id" not in final_df.columns:
         raise KeyError("Column 'dataset_id' is required for study-wise split in pretrain task.")
 
-    # Study-wise selection by sample counts
+    # Study-wise selection by sample counts (descending)
     study_counts = final_df["dataset_id"].astype(str).value_counts().sort_values(ascending=False)
-    unique_studies = study_counts.index.tolist()
-    if len(unique_studies) < 2:
+    unique_studies_desc = study_counts.index.tolist()
+    if len(unique_studies_desc) < 2:
         raise ValueError("Study-wise split requires at least 2 distinct dataset_id.")
 
     total_n = int(study_counts.sum())
@@ -187,7 +187,7 @@ def study_wise_split_pretrain(
     hard_max  = int(np.floor(total_n * hard_cap_fraction_by_samples))
 
     test_studies, test_n = [], 0
-    for ds in reversed(unique_studies):  # from smallest upwards
+    for ds in reversed(unique_studies_desc):  # from smallest upwards
         c = int(study_counts.loc[ds])
         if test_n + c <= target_min:
             test_studies.append(ds)
@@ -196,9 +196,9 @@ def study_wise_split_pretrain(
             break
 
     # If still < target, try to add one more smallest study without exceeding hard cap
-    remaining = [ds for ds in reversed(unique_studies) if ds not in test_studies]
-    if test_n < target_min and remaining:
-        ds_extra = remaining[0]
+    remaining_desc = [ds for ds in reversed(unique_studies_desc) if ds not in test_studies]
+    if test_n < target_min and remaining_desc:
+        ds_extra = remaining_desc[0]
         c_extra = int(study_counts.loc[ds_extra])
         if test_n + c_extra <= hard_max:
             test_studies.append(ds_extra)
@@ -206,7 +206,7 @@ def study_wise_split_pretrain(
         # else keep as-is
 
     if not test_studies:
-        ds_smallest = unique_studies[-1]
+        ds_smallest = unique_studies_desc[-1]
         c_smallest = int(study_counts.loc[ds_smallest])
         if c_smallest == 0:
             raise ValueError("Cannot form a non-empty test split.")
@@ -348,11 +348,14 @@ def study_wise_split_with_balancing(
     if missing_tgt:
         raise KeyError(f"Missing match_keys in target_df: {missing_tgt}")
 
-    # Study sizes in reference (desc)
+    # Study sizes in reference (descending)
     study_counts = reference_df[study_col].astype(str).value_counts().sort_values(ascending=False)
     unique_studies_desc = study_counts.index.tolist()
     if len(unique_studies_desc) < 2:
-        raise ValueError("At least 2 distinct studies are required for a train/test split.")
+        raise ValueError(
+            f"Cannot perform study-wise train/test split: reference_df has only {len(unique_studies_desc)} "
+            f"unique '{study_col}' (need >= 2)."
+        )
 
     # forced_train by exclusivity on stage/sex (same as your original idea)
     forced_train_studies: set = set()
