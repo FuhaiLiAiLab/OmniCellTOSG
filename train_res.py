@@ -9,7 +9,6 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, precision_score, recall_score
 
 # custom dataloader
 from GeoDataLoader.read_geograph import read_batch, read_drug_batch
@@ -228,15 +227,22 @@ def split_dataset(xAll, yAll, args):
 
     return xTr, xTe, yTr, yTe, num_classes
 
-def write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list, test_loss_list, test_acc_list):
+def write_best_model_info(path, max_test_epoch_id, epoch_loss_list, epoch_pearson_list,
+                          test_loss_list, test_pearson_list):
+    """
+    Save information about the best model (based on test Pearson) to a text file.
+    """
+    # epoch indices in lists are 0-based, while epoch ids are 1-based
+    idx = max_test_epoch_id - 1
+
     best_model_info = (
-        f'\n-------------BEST TEST ACCURACY MODEL ID INFO: {max_test_acc_id} -------------\n'
+        f'\n-------------BEST TEST PEARSON MODEL ID INFO: {max_test_epoch_id} -------------\n'
         '--- TRAIN ---\n'
-        f'BEST MODEL TRAIN LOSS: {epoch_loss_list[max_test_acc_id - 1]}\n'
-        f'BEST MODEL TRAIN ACCURACY: {epoch_acc_list[max_test_acc_id - 1]}\n'
+        f'BEST MODEL TRAIN LOSS: {epoch_loss_list[idx]}\n'
+        f'BEST MODEL TRAIN PEARSON: {epoch_pearson_list[idx]}\n'
         '--- TEST ---\n'
-        f'BEST MODEL TEST LOSS: {test_loss_list[max_test_acc_id - 1]}\n'
-        f'BEST MODEL TEST ACCURACY: {test_acc_list[max_test_acc_id - 1]}\n'
+        f'BEST MODEL TEST LOSS: {test_loss_list[idx]}\n'
+        f'BEST MODEL TEST PEARSON: {test_pearson_list[idx]}\n'
     )
     with open(os.path.join(path, 'best_model_info.txt'), 'w') as file:
         file.write(best_model_info)
@@ -272,15 +278,14 @@ def train_model(train_dataset_loader, current_cell_num, num_entity, name_embeddi
         z = z.reshape(-1, 1)
         # **********************************************************************
         pre_x = pretrain_model.encoder.get_embedding(z, ppi_edge_index, mode='last') # mode='cat'
-        output, ypred = model(x, pre_x, edge_index, internal_edge_index, ppi_edge_index,
+        output = model(x, pre_x, edge_index, internal_edge_index, ppi_edge_index,
                             num_entity, drug_chem_x, drug_chem_edge_index, drug_batch, args.num_drug_per_point,
                             name_embeddings, desc_embeddings, seq_embeddings, current_cell_num)
         loss = model.loss(output, label)
         loss.backward()
         batch_loss += loss.item()
         print('Label: ', label)
-        print('Prediction: ', ypred)
-        batch_acc = accuracy_score(label.cpu().numpy(), ypred.cpu().numpy())
+        print('Prediction: ', output)
         nn.utils.clip_grad_norm_(model.parameters(), 2.0)
         optimizer.step()
         # # check pretrain model parameters
@@ -288,18 +293,23 @@ def train_model(train_dataset_loader, current_cell_num, num_entity, name_embeddi
         # print(state_dict['convs.1.lin.weight'])
         # print(model.embedding.weight.data)
     torch.cuda.empty_cache()
-    return model, batch_loss, batch_acc, ypred
+    return model, batch_loss, output
 
 
-def test_model(test_dataset_loader, current_cell_num, num_entity, name_embeddings, desc_embeddings, seq_embeddings, pretrain_model, model, device, args):
+def test_model(test_dataset_loader, current_cell_num, num_entity, test_drug_dataset_loader, name_embeddings, desc_embeddings, seq_embeddings, pretrain_model, model, device, args):
     batch_loss = 0
-    all_ypred = np.zeros((1, 1))
-    for batch_idx, data in enumerate(test_dataset_loader):
-        x = Variable(data.x.float(), requires_grad=False).to(device)
-        internal_edge_index = Variable(data.internal_edge_index, requires_grad=False).to(device)
-        ppi_edge_index = Variable(data.edge_index, requires_grad=False).to(device)
-        edge_index = Variable(data.all_edge_index, requires_grad=False).to(device)
-        label = Variable(data.label, requires_grad=False).to(device)
+    for batch_idx, (cell_data, drug_data) in enumerate(zip(test_dataset_loader, test_drug_dataset_loader)):
+        x = Variable(cell_data.x.float(), requires_grad=False).to(device)
+        internal_edge_index = Variable(cell_data.internal_edge_index, requires_grad=False).to(device)
+        ppi_edge_index = Variable(cell_data.edge_index, requires_grad=False).to(device)
+        edge_index = Variable(cell_data.all_edge_index, requires_grad=False).to(device)
+        label = Variable(cell_data.label, requires_grad=False).to(device)
+
+        # Extract drug data
+        drug_chem_x = Variable(drug_data.x.float(), requires_grad=False).to(device)
+        drug_chem_edge_index = Variable(drug_data.edge_index, requires_grad=False).to(device)
+        drug_batch = drug_data.batch.to(device)  # This indicates which graph each atom belongs to
+
         # Use pretrained model to get the embedding
         z = pretrain_model.internal_encoder(x, internal_edge_index) + x
         # ********************** MLP Information Flow *************************
@@ -313,15 +323,14 @@ def test_model(test_dataset_loader, current_cell_num, num_entity, name_embedding
         z = z.reshape(-1, 1)
         # **********************************************************************
         pre_x = pretrain_model.encoder.get_embedding(z, ppi_edge_index, mode='last') # mode='cat'
-        output, ypred = model(x, pre_x, edge_index, internal_edge_index, ppi_edge_index, num_entity, name_embeddings, desc_embeddings, seq_embeddings, current_cell_num)
+        output = model(x, pre_x, edge_index, internal_edge_index, ppi_edge_index,
+                            num_entity, drug_chem_x, drug_chem_edge_index, drug_batch, args.num_drug_per_point,
+                            name_embeddings, desc_embeddings, seq_embeddings, current_cell_num)
         loss = model.loss(output, label)
         batch_loss += loss.item()
         print('Label: ', label)
-        print('Prediction: ', ypred)
-        batch_acc = accuracy_score(label.cpu().numpy(), ypred.cpu().numpy())
-        all_ypred = np.vstack((all_ypred, ypred.cpu().numpy().reshape(-1, 1)))
-        all_ypred = np.delete(all_ypred, 0, axis=0)
-    return model, batch_loss, batch_acc, all_ypred
+        print('Prediction: ', output)
+    return model, batch_loss, output
 
 
 def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index, 
@@ -335,11 +344,11 @@ def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_inde
     train_test_random_seed = args.train_test_random_seed
 
     epoch_loss_list = []
-    epoch_acc_list = []
+    epoch_pearson_list = []
     test_loss_list = []
-    test_acc_list = []
-    max_test_acc = 0
-    max_test_acc_id = 0
+    test_pearson_list = []
+    max_test_pearson = 0
+    max_test_pearson_id = 0
 
     # Clean result previous epoch_i_pred files
     folder_name = 'epoch_' + str(epoch_num) + '_' + str(train_batch_size) + '_' + str(learning_rate) + '_' + str(train_test_random_seed)
@@ -391,10 +400,9 @@ def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_inde
             train_drug_dataset_loader = GeoGraphLoader.load_graph(geo_train_drug_datalist, args.train_batch_size * args.num_drug_per_point, args.train_num_workers)
 
             current_cell_num = upper_index - index # current batch size
-            model, batch_loss, batch_acc, batch_ypred = train_model(train_dataset_loader, current_cell_num, num_entity, x_name_emb, x_desc_emb, x_bio_emb,
+            model, batch_loss, batch_ypred = train_model(train_dataset_loader, current_cell_num, num_entity, x_name_emb, x_desc_emb, x_bio_emb,
                                                                     train_drug_dataset_loader, pretrain_model, model, device, args)
             print('BATCH LOSS: ', batch_loss)
-            print('BATCH ACCURACY: ', batch_acc)
             batch_loss_list.append(batch_loss)
             # PRESERVE PREDICTION OF BATCH TRAINING DATA
             batch_ypred = (Variable(batch_ypred).data).cpu().numpy().reshape(-1, 1)
@@ -404,32 +412,29 @@ def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_inde
         epoch_loss_list.append(epoch_loss)
         epoch_ypred = np.delete(epoch_ypred, 0, axis = 0)
         # print('ITERATION NUMBER UNTIL NOW: ' + str(iteration_num))
-        # Preserve acc corr for every epoch
+        # Preserve corr for every epoch
         score_list = yTr.detach().cpu().numpy().reshape(-1).tolist()
         epoch_ypred_list = epoch_ypred.reshape(-1).tolist()
         train_dict = {'label': score_list, 'prediction': epoch_ypred_list}
         tmp_training_input_df = pd.DataFrame(train_dict)
         # Calculating metrics
-        accuracy = accuracy_score(tmp_training_input_df['label'], tmp_training_input_df['prediction'])
         tmp_training_input_df.to_csv(path + '/TrainingPred_' + str(i) + '.txt', index=False, header=True)
-        epoch_acc_list.append(accuracy)
-
-        conf_matrix = confusion_matrix(tmp_training_input_df['label'], tmp_training_input_df['prediction'])
-        print('EPOCH ' + str(i) + ' TRAINING ACCURACY: ', accuracy)
-        print('EPOCH ' + str(i) + ' TRAINING CONFUSION MATRIX: ', conf_matrix)
-
-        print('\n-------------EPOCH TRAINING ACCURACY LIST: -------------')
-        print(epoch_acc_list)
+        epoch_pearson = tmp_training_input_df.corr(method='pearson')
+        epoch_pearson_list.append(epoch_pearson['prediction']['label'])
+        tmp_training_input_df.to_csv(path + '/TrainingPred_' + str(i) + '.txt', index=False, header=True)
+        print('EPOCH ' + str(i) + ' PEARSON CORRELATION: ', epoch_pearson)
+        print('\n-------------EPOCH TRAINING PEARSON CORRELATION LIST: -------------')
+        print(epoch_pearson_list)
         print('\n-------------EPOCH TRAINING LOSS LIST: -------------')
         print(epoch_loss_list)
 
         # # # Test model on test dataset
-        test_acc, test_loss, tmp_test_input_df = test(args, pretrain_model, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_index, x_name_emb, x_desc_emb, x_bio_emb, device, i)
-        test_acc_list.append(test_acc)
+        test_pearson, test_loss, tmp_test_input_df = test(args, pretrain_model, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_index, drug_index_Te, x_name_emb, x_desc_emb, x_bio_emb, device, i)
+        test_pearson_list.append(test_pearson['prediction']['label'])
         test_loss_list.append(test_loss)
         tmp_test_input_df.to_csv(path + '/TestPred' + str(i) + '.txt', index=False, header=True)
-        print('\n-------------EPOCH TEST ACCURACY LIST: -------------')
-        print(test_acc_list)
+        print('\n-------------EPOCH TEST PEARSON CORRELATION LIST: -------------')
+        print(test_pearson_list)
         print('\n-------------EPOCH TEST MSE LOSS LIST: -------------')
         print(test_loss_list)
 
@@ -437,30 +442,38 @@ def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_inde
             wandb.log({
                 "epoch": i,
                 "train_loss": epoch_loss_list[-1],
-                "train_acc": epoch_acc_list[-1],
+                "train_pearson": epoch_pearson_list[-1],
                 "test_loss": test_loss_list[-1],
-                "test_acc": test_acc_list[-1]
+                "test_pearson": test_pearson_list[-1]
             })
 
         # SAVE BEST TEST MODEL
-        if test_acc >= max_test_acc:
-            max_test_acc = test_acc
-            max_test_acc_id = i
+        test_pearson = test_pearson['prediction']['label']
+        if test_pearson >= max_test_pearson:
+            max_test_pearson = test_pearson
+            max_test_pearson_id = i
             # torch.save(model.state_dict(), path + '/best_train_model'+ str(i) +'.pt')
             torch.save(model.state_dict(), path + '/best_train_model.pt')
             tmp_training_input_df.to_csv(path + '/BestTrainingPred.txt', index=False, header=True)
             tmp_test_input_df.to_csv(path + '/BestTestPred.txt', index=False, header=True)
-            write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list, test_loss_list, test_acc_list)
-        print('\n-------------BEST TEST ACCURACY MODEL ID INFO:' + str(max_test_acc_id) + '-------------')
+            write_best_model_info(
+                path,
+                max_test_pearson_id,
+                epoch_loss_list,
+                epoch_pearson_list,
+                test_loss_list,
+                test_pearson_list,
+            )
+        print('\n-------------BEST TEST PEARSON CORRELATION MODEL ID INFO:' + str(max_test_pearson_id) + '-------------')
         print('--- TRAIN ---')
-        print('BEST MODEL TRAIN LOSS: ', epoch_loss_list[max_test_acc_id - 1])
-        print('BEST MODEL TRAIN ACCURACY: ', epoch_acc_list[max_test_acc_id - 1])
+        print('BEST MODEL TRAIN LOSS: ', epoch_loss_list[max_test_pearson_id - 1])
+        print('BEST MODEL TRAIN PEARSON CORRELATION: ', epoch_pearson_list[max_test_pearson_id - 1])
         print('--- TEST ---')
-        print('BEST MODEL TEST LOSS: ', test_loss_list[max_test_acc_id - 1])
-        print('BEST MODEL TEST ACCURACY: ', test_acc_list[max_test_acc_id - 1])
+        print('BEST MODEL TEST LOSS: ', test_loss_list[max_test_pearson_id - 1])
+        print('BEST MODEL TEST PEARSON CORRELATION: ', test_pearson_list[max_test_pearson_id - 1])
 
 
-def test(args, pretrain_model, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_index, x_name_emb, x_desc_emb, x_bio_emb, device, i):
+def test(args, pretrain_model, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_index, drug_index_Te, x_name_emb, x_desc_emb, x_bio_emb, device, i):
     print('-------------------------- TEST START --------------------------')
     print('-------------------------- TEST START --------------------------')
     print('-------------------------- TEST START --------------------------')
@@ -487,18 +500,20 @@ def test(args, pretrain_model, model, xTe, yTe, all_edge_index, internal_edge_in
             upper_index = test_num_cell
         geo_datalist = read_batch(index, upper_index, xTe, yTe, num_feature, num_entity, all_edge_index, internal_edge_index, ppi_edge_index)
         test_dataset_loader = GeoGraphLoader.load_graph(geo_datalist, args.train_batch_size, args.train_num_workers)
+        geo_train_drug_datalist = read_drug_batch(index, upper_index, drug_index_Te)
+        test_drug_dataset_loader = GeoGraphLoader.load_graph(geo_train_drug_datalist, args.train_batch_size * args.num_drug_per_point, args.train_num_workers)
+
         print('TEST MODEL...')
         current_cell_num = upper_index - index # current batch size
-        model, batch_loss, batch_acc, batch_ypred = test_model(test_dataset_loader, current_cell_num, num_entity, x_name_emb, x_desc_emb, x_bio_emb, pretrain_model, model, device, args)
+        model, batch_loss, batch_ypred = test_model(test_dataset_loader, current_cell_num, num_entity, test_drug_dataset_loader, x_name_emb, x_desc_emb, x_bio_emb, pretrain_model, model, device, args)
         print('BATCH LOSS: ', batch_loss)
         batch_loss_list.append(batch_loss)
-        print('BATCH ACCURACY: ', batch_acc)
         # PRESERVE PREDICTION OF BATCH TEST DATA
-        batch_ypred = batch_ypred.reshape(-1, 1)
+        batch_ypred = (Variable(batch_ypred).data).cpu().numpy().reshape(-1, 1)
         all_ypred = np.vstack((all_ypred, batch_ypred))
     test_loss = np.mean(batch_loss_list)
     print('EPOCH ' + str(i) + ' TEST LOSS: ', test_loss)
-    # Preserve accuracy for every epoch
+    # Preserve pearson correlation for every epoch
     all_ypred = np.delete(all_ypred, 0, axis=0)
     all_ypred_lists = list(all_ypred)
     all_ypred_list = [item for elem in all_ypred_lists for item in elem]
@@ -506,13 +521,9 @@ def test(args, pretrain_model, model, xTe, yTe, all_edge_index, internal_edge_in
     test_dict = {'label': score_list, 'prediction': all_ypred_list}
     # import pdb; pdb.set_trace()
     tmp_test_input_df = pd.DataFrame(test_dict)
-    # Calculating metrics
-    accuracy = accuracy_score(tmp_test_input_df['label'], tmp_test_input_df['prediction'])
-    conf_matrix = confusion_matrix(tmp_test_input_df['label'], tmp_test_input_df['prediction'])
-    print('EPOCH ' + str(i) + ' TEST ACCURACY: ', accuracy)
-    print('EPOCH ' + str(i) + ' TEST CONFUSION MATRIX: ', conf_matrix)
-    test_acc = accuracy
-    return test_acc, test_loss, tmp_test_input_df
+    test_pearson = tmp_test_input_df.corr(method = 'pearson')
+    print('PEARSON CORRELATION: ', test_pearson)
+    return test_pearson, test_loss, tmp_test_input_df
 
 
 if __name__ == "__main__":

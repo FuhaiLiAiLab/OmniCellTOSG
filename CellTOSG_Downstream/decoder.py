@@ -588,7 +588,7 @@ class CellTOSG_DrugRes(nn.Module):
         # =================================================================================
 
         # Final classification layer
-        self.classifier = nn.Linear(linear_hidden_dims[-1], num_class)
+        self.regression = nn.Linear(linear_hidden_dims[-1], 1)
 
         # Reset parameters
         self.reset_parameters()
@@ -629,8 +629,8 @@ class CellTOSG_DrugRes(nn.Module):
                 if hasattr(layer, 'reset_parameters'):
                     layer.reset_parameters()
         
-        # Reset final classifier
-        self.classifier.reset_parameters()
+        # Reset final regression
+        self.regression.reset_parameters()
 
     def forward(self, x, pre_x, edge_index, internal_edge_index, ppi_edge_index,
                 num_entity, drug_chem_x, drug_chem_edge_index, drug_batch, num_drug_per_point, x_name_emb, x_desc_emb, x_bio_emb, batch_size):
@@ -701,26 +701,13 @@ class CellTOSG_DrugRes(nn.Module):
         z = self.linear_repr(z)  # Apply MLP: (B, N+num_drug_per_point) -> (B, D')
         # ========================================================================
 
-        # ===================== Final Classification ===========================
-        output = self.classifier(z)
-        _, pred = torch.max(output, dim=1)
-        # ========================================================================
-
-        return output, pred
+        output = self.regression(z)
+        return output
     
     def loss(self, output, label):
-        # import pdb; pdb.set_trace()
-        num_class = self.num_class
-        # Use weight vector to balance the loss
-        weight_vector = torch.zeros([num_class]).to(device='cuda')
-        label = label.long()
-        for i in range(num_class):
-            n_samplei = torch.sum(label == i)
-            if n_samplei == 0:
-                weight_vector[i] = 0
-            else:
-                weight_vector[i] = len(label) / (n_samplei)
-        # Calculate the loss
-        output = torch.log_softmax(output, dim=-1)
-        loss = F.nll_loss(output, label, weight_vector)
+        # Regression loss (MSE)
+        # Ensure both are float tensors and shapes are compatible
+        output = output.view(-1).float()
+        label = label.view(-1).float()
+        loss = F.mse_loss(output, label)
         return loss
