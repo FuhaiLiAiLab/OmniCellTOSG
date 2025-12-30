@@ -6,6 +6,7 @@
 **.pyc
 **.zip
 **.csv
+!CellTOSG_Loader/**/*.csv
 **.tsv
 **.txt
 **.log
