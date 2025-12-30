@@ -209,8 +209,8 @@ python train.py \
   --train_base_layer gat \
   --train_lr 0.0005 \
   --train_batch_size 3 \
-  --train_test_random_seed 42 \
-  --dataset_output_dir ./Output/data_ad_disease_0.1
+  --random_state 42 \
+  --dataset_output_dir ./Data/train_ad_disease_0.1_42
 ```
 
 
@@ -227,8 +227,8 @@ python train.py \
   --train_base_layer gat \
   --train_lr 0.0005 \
   --train_batch_size 2 \
-  --train_test_random_seed 42 \
-  --dataset_output_dir ./Output/data_ad_gender_0.1
+  --random_state 42 \
+  --dataset_output_dir ./Data/train_ad_gender_0.1_42
 
 ```
 
@@ -245,8 +245,8 @@ python train.py \
   --train_base_layer gat \
   --train_lr 0.0001 \
   --train_batch_size 3 \
-  --train_test_random_seed 42 \
-  --dataset_output_dir ./Output/data_luad_celltype_0.2
+  --random_state 42 \
+  --dataset_output_dir ./Data/train_luad_celltype_0.2_42
 ```
 
 
