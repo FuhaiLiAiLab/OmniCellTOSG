@@ -1,7 +1,3 @@
-# Train-test dataset split parameters
-train_test_split_ratio: 0.8
-train_test_random_seed: 2025
-
 # Downstream task model hyper-parameters
 train_lr: 0.0025
 train_eps: 1e-7

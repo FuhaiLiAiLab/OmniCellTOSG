@@ -11,6 +11,7 @@ class CellTOSGDataLoader:
     LABEL_ZERO_LABELS_BY_LABEL_COLUMN: dict[str, set[str]] = {
         "gender": {"female"},
         "disease": {"normal", "unclassified", "unknown"},
+        "cell_type": {"unknown", "unclassified"},
     }
 
     def __init__(
@@ -46,7 +47,7 @@ class CellTOSGDataLoader:
         self.output_dir = output_dir
 
         self.query = CellTOSGSubsetBuilder(root=self.root)
-        print("Welcome to use CellTOSGDataset V2.0.")
+        print("Welcome to use CellTOSGDataset V2.1.0.")
         print(f"[CellTOSGDataset] Initialized with root: {self.root}")
         print("[CellTOSGDataset] Previewing sample distribution:")
         self.df_preview = self.query.view(self.conditions)
@@ -155,17 +156,18 @@ class CellTOSGDataLoader:
 
         # label_zero labels: collapse them all into class 0 if present
         label_zero_set = self.LABEL_ZERO_LABELS_BY_LABEL_COLUMN.get(label_column, set())
-        label_zero_lower = {str(p).lower() for p in label_zero_set}
+        label_zero_lower = {str(p).strip().lower() for p in label_zero_set}
 
         label_zero_present = []
         other_labels = []
         for lab in all_labels:
-            if str(lab).lower() in label_zero_lower:
+            lab_norm = str(lab).strip().lower()
+            if lab_norm in label_zero_lower:
                 label_zero_present.append(lab)
             else:
                 other_labels.append(lab)
 
-        other_labels_sorted = sorted(set(other_labels), key=lambda x: str(x).lower())
+        other_labels_sorted = sorted(set(other_labels), key=lambda x: str(x).strip().lower())
 
         mapping: dict[str, int] = {}
 
@@ -174,7 +176,9 @@ class CellTOSGDataLoader:
             mapping[lab] = 0
 
         # Map remaining labels to 1..K
-        for idx, lab in enumerate(other_labels_sorted, start=1):
+        start_idx = 1 if len(label_zero_present) > 0 else 0
+
+        for idx, lab in enumerate(other_labels_sorted, start=start_idx):
             mapping[lab] = idx
 
         # Encode

@@ -1,7 +1,3 @@
-# Train-test dataset split parameters
-train_test_split_ratio: 0.8
-train_test_random_seed: 2025
-
 # Baseline training hyperparameters
 device: 0
 num_train_epoch: 50

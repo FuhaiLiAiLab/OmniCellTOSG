@@ -21,7 +21,7 @@ from CellTOSG_Loader import CellTOSGDataLoader
 from utils import load_and_merge_configs
 
 
-def build_pretrain_model(args, num_entity, device):
+def build_pretrain_model(args, device):
     # Build the mask for edge reconstruction
     mask = MaskEdge(p=float(args.p))
     # Build the text, rna and protein sequence encoders
@@ -41,7 +41,8 @@ def build_pretrain_model(args, num_entity, device):
     degree_decoder = DegreeDecoder(args.pre_graph_output_dim, args.pre_decoder_dim,
                                 num_layers=args.pre_decoder_layers, dropout=args.pre_decoder_dropout)
     # Build the pretraining model
-    pretrain_model = CellTOSG_Foundation(num_entity=num_entity,
+    pretrain_model = CellTOSG_Foundation(
+                    num_entity=args.num_entity,
                     text_input_dim=args.pre_lm_emb_dim,
                     omic_input_dim=args.num_omic_feature,
                     cross_fusion_output_dim=args.pre_cross_fusion_output_dim, 
@@ -393,13 +394,13 @@ if __name__ == "__main__":
     internal_edge_index = torch.from_numpy(internal_edge_index).long()
     ppi_edge_index = torch.from_numpy(ppi_edge_index).long()
 
-    num_entity = xTrain.shape[1]
-    print(f"Number of entities: {num_entity}")
+    args.num_entity = xTrain.shape[1]
+    print(f"Number of entities: {args.num_entity}")
 
     print(f"Number of training cells: {xTrain.shape[0]}")
     print(f"Number of testing cells: {xTest.shape[0]}")
 
-    pretrain_model = build_pretrain_model(args, num_entity, device)
+    pretrain_model = build_pretrain_model(args, device)
     pretrain_model.reset_parameters()
 
     # Pretrain model

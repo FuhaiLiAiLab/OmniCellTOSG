@@ -49,91 +49,51 @@ def build_model(args, device):
     return model
 
 
-def split_dataset(xAll, yAll, args):
-    """
-    Split dataset into train and test sets ensuring relatively even distribution for each class.
-    Maps both numerical and textual values to vectorized values and saves mapping dictionary.
-    
-    Args:
-        xAll: Input features tensor
-        yAll: Labels tensor
-        args: Command line arguments containing split parameters
-    
-    Returns:
-        tuple: (xTr, xTe, yTr, yTe, num_entity, num_feature)
-    """    
-    # Get unique values from yAll
-    yAll = yAll.view(-1, 1)
-    unique_values = torch.unique(yAll)
-    num_classes = len(unique_values)
-    print("\n")
-    print(f"Original unique values: {unique_values}")
-    print(f"Total number of classes: {num_classes}")
-    
-    # Print class distribution
-    print("\nOriginal dataset class distribution:")
-    for class_idx in range(num_classes):
-        class_count = torch.sum(yAll == class_idx)
-        percentage = (class_count / len(yAll)) * 100
-        print(f"Class {class_idx} : {class_count} samples ({percentage:.1f}%)")
+def get_num_classes(
+    yTr: torch.Tensor,
+    yTe: torch.Tensor,
+) -> int:
 
-    # Get dataset size and create indices
-    dataset_size = xAll.shape[0]
-    indices = torch.arange(dataset_size)
+    yTr = yTr.view(-1)
+    yTe = yTe.view(-1)
 
-    # Split indices with stratification to ensure balanced distribution
-    train_indices, test_indices = train_test_split(
-        indices.numpy(), 
-        test_size=1-args.train_test_split_ratio, 
-        random_state=args.train_test_random_seed,
-        stratify=yAll.cpu().numpy()  # Ensure balanced split across all classes
-    )
+    all_y = torch.cat([yTr, yTe], dim=0)
+    unique_values = torch.unique(all_y)
+    unique_values, _ = torch.sort(unique_values)
 
-    # Convert indices back to torch tensors
-    train_indices = torch.from_numpy(train_indices).long()
-    test_indices = torch.from_numpy(test_indices).long()
+    num_classes = int(unique_values.numel())
 
-    # Use indices to split the tensors
-    xTr = xAll[train_indices]
-    xTe = xAll[test_indices]
-    yTr = yAll[train_indices]
-    yTe = yAll[test_indices]
+    train_num_cell = int(yTr.numel())
+    test_num_cell = int(yTe.numel())
 
-    # Get dimensions
-    train_num_cell = xTr.shape[0]
-    test_num_cell = xTe.shape[0]
-    num_entity = xTr.shape[1]
-    num_feature = args.num_omic_feature
-    print(f"\nDataset split summary:")
-    print(f"Training samples: {train_num_cell}")
-    print(f"Testing samples: {test_num_cell}")
-    print(f"Number of entities: {num_entity}")
+    print(f"\nUnique label values in (train+test): {unique_values}")
     print(f"Number of classes: {num_classes}")
-    
-    # Print class distribution in train and test sets
+
     print("\nTraining set class distribution:")
-    for class_idx in range(num_classes):
-        class_count = torch.sum(yTr == class_idx)
-        percentage = (class_count / train_num_cell) * 100
-        print(f"Class {class_idx}: {class_count} samples ({percentage:.1f}%)")
+    for lab in unique_values:
+        class_count = torch.sum(yTr == lab).item()
+        percentage = (class_count / train_num_cell) * 100 if train_num_cell > 0 else 0.0
+        print(f"Class {int(lab.item())}: {class_count} samples ({percentage:.1f}%)")
+
     print("\nTesting set class distribution:")
-    for class_idx in range(num_classes):
-        class_count = torch.sum(yTe == class_idx)
-        percentage = (class_count / test_num_cell) * 100
-        print(f"Class {class_idx}: {class_count} samples ({percentage:.1f}%)")
+    for lab in unique_values:
+        class_count = torch.sum(yTe == lab).item()
+        percentage = (class_count / test_num_cell) * 100 if test_num_cell > 0 else 0.0
+        print(f"Class {int(lab.item())}: {class_count} samples ({percentage:.1f}%)")
 
-    return xTr, xTe, yTr, yTe, num_classes
+    return num_classes
 
-
-def write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list, test_loss_list, test_acc_list):
+def write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list, epoch_f1_list, test_loss_list, test_acc_list, test_f1_list):
     best_model_info = (
         f'\n-------------BEST TEST ACCURACY MODEL ID INFO: {max_test_acc_id} -------------\n'
         '--- TRAIN ---\n'
         f'BEST MODEL TRAIN LOSS: {epoch_loss_list[max_test_acc_id - 1]}\n'
         f'BEST MODEL TRAIN ACCURACY: {epoch_acc_list[max_test_acc_id - 1]}\n'
+        f'BEST MODEL TRAIN F1 SCORE: {epoch_f1_list[max_test_acc_id - 1]}\n'
         '--- TEST ---\n'
         f'BEST MODEL TEST LOSS: {test_loss_list[max_test_acc_id - 1]}\n'
         f'BEST MODEL TEST ACCURACY: {test_acc_list[max_test_acc_id - 1]}\n'
+        f'BEST MODEL TEST F1 SCORE: {test_f1_list[max_test_acc_id - 1]}\n'
     )
     with open(os.path.join(path, 'best_model_info.txt'), 'w') as file:
         file.write(best_model_info)
@@ -193,21 +153,26 @@ def test_model(test_dataset_loader, current_cell_num, model, device, args):
 def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index, config_groups):
     train_num_cell = xTr.shape[0]
     num_entity = xTr.shape[1]
+    num_feature = args.num_omic_feature
     epoch_num = args.num_train_epoch
     train_batch_size = args.train_batch_size
     learning_rate = args.train_lr
-    train_test_random_seed = args.train_test_random_seed
+    random_state = args.random_state
 
     epoch_loss_list = []
     epoch_acc_list = []
+    epoch_f1_list = []
+
     test_loss_list = []
     test_acc_list = []
+    test_f1_list = []
+
     max_test_acc = 0
     max_test_acc_id = 0
 
     # Clean result previous epoch_i_pred files
     print(args.bl_train_model_name)
-    folder_name = 'epoch_' + str(epoch_num) + '_' + str(train_batch_size) + '_' + str(learning_rate) + '_' + str(train_test_random_seed)
+    folder_name = 'epoch_' + str(epoch_num) + '_' + str(train_batch_size) + '_' + str(learning_rate) + '_' + str(random_state)
 
     # Add timestamp to folder name
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -218,6 +183,8 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
         args.disease_name,
         args.bl_train_model_name
     )
+
+    os.makedirs(base_path, exist_ok=True)
 
     path = os.path.join(base_path, f"{folder_name}_{timestamp}")
 
@@ -265,6 +232,15 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
         tmp_training_input_df.to_csv(path + '/TrainingPred_' + str(i) + '.txt', index=False, header=True)
         epoch_acc_list.append(accuracy)
 
+        train_f1 = f1_score(
+            tmp_training_input_df["label"],
+            tmp_training_input_df["prediction"],
+            average="macro",
+            zero_division=0,
+        )
+
+        epoch_f1_list.append(train_f1)
+
         conf_matrix = confusion_matrix(tmp_training_input_df['label'], tmp_training_input_df['prediction'])
         print('EPOCH ' + str(i) + ' TRAINING ACCURACY: ', accuracy)
         print('EPOCH ' + str(i) + ' TRAINING CONFUSION MATRIX: ', conf_matrix)
@@ -279,6 +255,15 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
         test_acc_list.append(test_acc)
         test_loss_list.append(test_loss)
         tmp_test_input_df.to_csv(path + '/TestPred' + str(i) + '.txt', index=False, header=True)
+
+        test_f1 = f1_score(
+            tmp_test_input_df["label"],
+            tmp_test_input_df["prediction"],
+            average="macro",
+            zero_division=0,
+        )
+        test_f1_list.append(test_f1)
+
         print('\n-------------EPOCH TEST ACCURACY LIST: -------------')
         print(test_acc_list)
         print('\n-------------EPOCH TEST MSE LOSS LIST: -------------')
@@ -289,8 +274,10 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
                 "epoch": i,
                 "train_loss": epoch_loss_list[-1],
                 "train_acc": epoch_acc_list[-1],
+                "train_f1": epoch_f1_list[-1],
                 "test_loss": test_loss_list[-1],
-                "test_acc": test_acc_list[-1]
+                "test_acc": test_acc_list[-1],
+                "test_f1": test_f1_list[-1],
             })
 
         # SAVE BEST TEST MODEL
@@ -301,15 +288,16 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
             torch.save(model.state_dict(), path + '/best_train_model.pt')
             tmp_training_input_df.to_csv(path + '/BestTrainingPred.txt', index=False, header=True)
             tmp_test_input_df.to_csv(path + '/BestTestPred.txt', index=False, header=True)
-            write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list, test_loss_list, test_acc_list)
+            write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list, epoch_f1_list, test_loss_list, test_acc_list, test_f1_list)
         print('\n-------------BEST TEST ACCURACY MODEL ID INFO:' + str(max_test_acc_id) + '-------------')
         print('--- TRAIN ---')
         print('BEST MODEL TRAIN LOSS: ', epoch_loss_list[max_test_acc_id - 1])
         print('BEST MODEL TRAIN ACCURACY: ', epoch_acc_list[max_test_acc_id - 1])
+        print('BEST MODEL TRAIN F1 SCORE: ', epoch_f1_list[max_test_acc_id - 1])
         print('--- TEST ---')
         print('BEST MODEL TEST LOSS: ', test_loss_list[max_test_acc_id - 1])
         print('BEST MODEL TEST ACCURACY: ', test_acc_list[max_test_acc_id - 1])
-
+        print('BEST MODEL TEST F1 SCORE: ', test_f1_list[max_test_acc_id - 1])
 
 def test(args, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_index, device, i):
     for _ in range(5):
@@ -320,9 +308,7 @@ def test(args, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_in
     print('yTe: ', yTe.shape)
     test_num_cell = xTe.shape[0]
     num_entity = xTe.shape[1]
-    num_feature = args.num_omic_feature
 
-    # Build Pretrain Model
     num_feature = args.num_omic_feature
     test_batch_size = args.train_batch_size
     
@@ -392,7 +378,7 @@ if __name__ == "__main__":
     args.use_extracted_data = True
 
     data_dir = Path(args.dataset_output_dir)
-    required_files = ["expression_matrix_corrected.npy", "labels.npy"]
+    required_files = ["train/expression_matrix.npy", "train/labels_train.npy", "test/expression_matrix.npy", "test/labels_test.npy"]
 
     def all_required_files_exist(path, filenames):
         return all((path / f).exists() for f in filenames)
@@ -400,14 +386,17 @@ if __name__ == "__main__":
     if args.use_extracted_data and all_required_files_exist(data_dir, required_files):
         print("[Info] Using extracted data from:", data_dir)
 
-
         class FixedDataset:
             def __init__(self, dataset_root, dataset_output_dir):
                 dataset_output_dir = Path(dataset_output_dir)
                 dataset_root = Path(dataset_root)
 
-                self.data = np.load(dataset_output_dir / "expression_matrix_corrected.npy")
-                self.labels = np.load(dataset_output_dir / "labels.npy")
+                self.x_train = np.load(f"{dataset_output_dir}/train/expression_matrix.npy")
+                self.x_test = np.load(f"{dataset_output_dir}/test/expression_matrix.npy")
+
+                self.y_train = np.load(f"{dataset_output_dir}/train/labels_train.npy")
+                self.y_test = np.load(f"{dataset_output_dir}/test/labels_test.npy")
+
                 self.edge_index = np.load(dataset_root / "edge_index.npy")
                 self.internal_edge_index = np.load(dataset_root / "internal_edge_index.npy")
                 self.ppi_edge_index = np.load(dataset_root / "ppi_edge_index.npy")
@@ -437,15 +426,17 @@ if __name__ == "__main__":
                 "disease": args.disease_name,
                 # "gender": args.gender,
             },
-            downstream_task=args.downstream_task,  
+            task=args.task,  
             label_column=args.label_column,
             sample_ratio=args.sample_ratio,
             sample_size=args.sample_size,
-            balanced=args.balanced,
             shuffle=args.shuffle,
+            stratified_balancing=args.stratified_balancing,
+            extract_mode=args.extract_mode,
             random_state=args.random_state,
             train_text=args.train_text,
             train_bio=args.train_bio,
+            correction_method=args.correction_method,
             output_dir=args.dataset_output_dir
         )
 
@@ -459,32 +450,40 @@ if __name__ == "__main__":
         import wandb
         wandb.init(
             project=f"{args.downstream_task}-baseline",
-            name=f"{args.downstream_task}_{args.disease_name}_{args.bl_train_model_name}_bs{args.train_batch_size}_lr{args.train_lr}_rs{args.train_test_random_seed}",
+            name=f"{args.downstream_task}_{args.disease_name}_{args.bl_train_model_name}_bs{args.train_batch_size}_lr{args.train_lr}_rs{args.random_state}",
             config=vars(args)
         )
 
     # Graph feature
-    xAll = dataset.data
-    yAll = dataset.labels
+    xTr = dataset.x_train
+    xTe = dataset.x_test
+    yTr = dataset.y_train
+    yTe = dataset.y_test
+
+    print(f"Number of training cells: {xTr.shape[0]}")
+    print(f"Number of testing cells: {xTe.shape[0]}")
+
+    args.num_entity = xTr.shape[1]
+
     all_edge_index = dataset.edge_index
     internal_edge_index = dataset.internal_edge_index
     ppi_edge_index = dataset.ppi_edge_index
-    # load embeddings into torch tensor
-    xAll = torch.from_numpy(xAll).float().to(device)
-    yAll = torch.from_numpy(yAll).long().to(device)
+
+    # load graph into torch tensor
+    xTr = torch.from_numpy(xTr).float().to(device)
+    xTe = torch.from_numpy(xTe).float().to(device)
+    yTr = torch.from_numpy(yTr).long().view(-1, 1).to(device)
+    yTe = torch.from_numpy(yTe).long().view(-1, 1).to(device)
+
     all_edge_index = torch.from_numpy(all_edge_index).long()
     internal_edge_index = torch.from_numpy(internal_edge_index).long()
     ppi_edge_index = torch.from_numpy(ppi_edge_index).long()
-    # Split dataset into train and test for xAll and yAll
-    xTr, xTe, yTr, yTe, num_classes = split_dataset(xAll, yAll, args)
-    args.num_class = num_classes
-    args.num_entity = xAll.shape[1]
 
-    # Build Pretrain Model
-    num_feature = args.num_omic_feature
-    args.num_class = num_classes
-    args.num_entity = xAll.shape[1]
-    # Train the model depends on the task
+    # get number of classes
+    args.num_class = get_num_classes(yTr, yTe)
+
+    # Build model
     model = build_model(args, device)
+
     # Train the model
     train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge_index, ppi_edge_index, config_groups)

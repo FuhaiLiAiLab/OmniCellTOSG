@@ -117,7 +117,7 @@ def load_config(config_path: str) -> Dict[str, Any]:
     
     # Training parameters
     type_map.update({
-        'train_test_split_ratio': float, 'train_test_random_seed': int,
+        'train_test_split_ratio': float, 'train_seed': int,
         'train_lr': float, 'train_eps': float, 'train_weight_decay': float,
         'num_train_epoch': int, 'train_batch_size': int, 'train_num_workers': int
     })
@@ -272,7 +272,7 @@ def parse_command_line_overrides() -> Dict[str, Any]:
     # ================================ TRAINING PARAMETERS ================================
     # Train-test dataset split parameters
     parser.add_argument('--train_test_split_ratio', type=float, help='Train-test split ratio')
-    parser.add_argument('--train_test_random_seed', type=int, help='Train-test random seed')
+    parser.add_argument('--train_seed', type=int, help='Train-test random seed')
     
     # Downstream task model hyperparameters
     parser.add_argument('--train_lr', type=float, help='Training learning rate')

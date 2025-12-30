@@ -5,7 +5,7 @@ import pandas as pd
 from typing import Tuple, Optional
 from .data_loader import load_expression_by_metadata, l1_normalize_log1p, pad_protein_zeros, combat_seq_correction_by_tissue, build_gene_df
 from .balancing import balance_for_inference, balance_for_training
-from .split import celltype_task_sampling, study_wise_split_pretrain, study_wise_split_without_balancing, study_wise_split_with_balancing
+from .split import celltype_task_sampling, donor_wise_split_pretrain, donor_wise_split_without_balancing, donor_wise_split_with_balancing
 
 N_PROTEIN = 121_419
 
@@ -328,7 +328,7 @@ def extract_for_training(
             print("[Warning] task='pretrain' does not accept stratified balancing, setting stratified_balancing=False.")
             stratified_balancing = False
 
-        train_df, test_df, test_studies = study_wise_split_pretrain(
+        train_df, test_df, test_studies = donor_wise_split_pretrain(
             self,
             sample_ratio=sample_ratio,
             random_state=random_state,
@@ -385,13 +385,15 @@ def extract_for_training(
     # Split reference into train/test by studies
     if not stratified_balancing:
         if task == "cell_type":
-            train, test, test_studies, forced_train = study_wise_split_without_balancing(
+            train, test, test_donor_keys = donor_wise_split_without_balancing(
                 reference_df=ref_df,
                 category_col=category_col,
                 study_col="dataset_id",
+                donor_col="donor_id",
                 test_fraction_by_samples=0.20,
                 hard_cap_fraction_by_samples=0.40,
-                random_state=random_state,
+                min_samples_per_category_per_split=10,
+                min_donors_per_category_per_split=1,
             )
 
             # Downsample after split (per split)
@@ -426,13 +428,11 @@ def extract_for_training(
         
     elif stratified_balancing:
 
-        # build reference_df / target_df
         config = self.TASK_CONFIG[task]
         balance_field = config["balance_field"]
         balance_value = config["balance_value"]
         match_keys = config["match_keys"]
 
-        # case: label != balance_value & valid
         case_df = ref_df.loc[
             ref_df[balance_field].notna()
             & (ref_df[balance_field].astype(str).str.strip() != "")
@@ -440,12 +440,10 @@ def extract_for_training(
             & (~ref_df[balance_field].astype(str).str.lower().isin({"unknown", "unannotated", "unannoted", "none", ""}))
         ].copy()
 
-        # control: use view() conditions + set balance_field = balance_value, then filter valid & == balance_value
         control_conditions = self.last_query_conditions_resolved.copy()
         control_conditions[self.FIELD_ALIAS.get(balance_field, balance_field)] = balance_value
 
         control_df = self.df_all.copy()
-
         if task != "pretrain" and "is_pretrain_data" in control_df.columns:
             control_df = control_df[~control_df["is_pretrain_data"].fillna(False)].copy()
 
@@ -466,7 +464,20 @@ def extract_for_training(
                 f"Check your query or reduce filters."
             )
 
-        # Choose smaller as reference, larger as target
+        def _donor_key(df: pd.DataFrame) -> pd.Series:
+            return df["dataset_id"].astype(str).str.strip() + "||" + df["donor_id"].astype(str).str.strip()
+
+        for side_name, side_df in [("case", case_df), ("control", control_df)]:
+            if "donor_id" not in side_df.columns:
+                raise KeyError("Column 'donor_id' is required for donor-wise split.")
+            n_donors = _donor_key(side_df).replace("||", pd.NA).dropna().nunique()
+            if n_donors < 2:
+                raise ValueError(
+                    f"Cannot do donor-wise train/test split for task='{task}': "
+                    f"{side_name} side has only {n_donors} unique donor_key. "
+                    f"Need >= 2 so that {side_name} can appear in both train and test."
+                )
+
         if len(case_df) <= len(control_df):
             reference_df = case_df
             target_df = control_df
@@ -474,35 +485,26 @@ def extract_for_training(
             reference_df = control_df
             target_df = case_df
 
-        n_ref_studies = reference_df["dataset_id"].astype(str).nunique()
-        if n_ref_studies < 2:
-            raise ValueError(
-                f"Cannot split train/test for task='{task}' with stratified_balancing: "
-                f"reference side has only {n_ref_studies} unique dataset_id. "
-                f"This usually happens when a disease (or control) comes from only one study."
-            )
-
-        # study-wise split + joint balancing
-        train_balanced, test_balanced, tgt_train, tgt_test, test_studies, forced_train = study_wise_split_with_balancing(
+        train_balanced, test_balanced, tgt_train, tgt_test, test_donor_keys = donor_wise_split_with_balancing(
             reference_df=reference_df,
             target_df=target_df,
             match_keys=match_keys,
             study_col="dataset_id",
+            donor_col="donor_id",
             test_fraction_by_samples=0.20,
             hard_cap_fraction_by_samples=0.40,
             random_state=random_state,
         )
-        # Downsampling AFTER balancing (per split)
+
         if sample_ratio is not None:
             train_balanced = train_balanced.sample(frac=sample_ratio, random_state=random_state)
-            test_balanced  = test_balanced.sample(frac=sample_ratio,  random_state=random_state)
+            test_balanced = test_balanced.sample(frac=sample_ratio, random_state=random_state)
         elif sample_size is not None:
             take_tr = min(sample_size, len(train_balanced))
             take_te = min(sample_size, len(test_balanced))
             train_balanced = train_balanced.sample(n=take_tr, random_state=random_state)
-            test_balanced  = test_balanced.sample(n=take_te, random_state=random_state)
+            test_balanced = test_balanced.sample(n=take_te, random_state=random_state)
 
-        # Export with correction
         return norm_and_export_split(
             self=self,
             task=task,

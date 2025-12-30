@@ -175,6 +175,7 @@ def balance_for_training(
     tgt_test: pd.DataFrame,
     match_keys: List[str],
     study_col: str = "dataset_id",
+    donor_col: str = "donor_id",
     stage_col: str = "development_stage_category",
     max_stage_offset: int = 2,
     upsample: bool = True,
@@ -186,24 +187,53 @@ def balance_for_training(
     else:
         match_keys = list(match_keys)
 
-    for df_name, df in [("ref_train", ref_train), ("ref_test", ref_test), ("tgt_train", tgt_train), ("tgt_test", tgt_test)]:
-        if study_col not in df.columns:
-            raise KeyError(f"Column '{study_col}' not found in {df_name}.")
-        if stage_col not in df.columns:
-            raise KeyError(f"Column '{stage_col}' not found in {df_name}.")
-        missing = [k for k in match_keys if k not in df.columns]
+    required_cols = set(match_keys) | {study_col, donor_col, stage_col}
+
+    for df_name, df in [
+        ("ref_train", ref_train),
+        ("ref_test", ref_test),
+        ("tgt_train", tgt_train),
+        ("tgt_test", tgt_test),
+    ]:
+        missing = [c for c in required_cols if c not in df.columns]
         if missing:
-            raise KeyError(f"Missing match_keys in {df_name}: {missing}")
+            raise KeyError(f"Missing columns in {df_name}: {missing}")
 
-    cell_key: Optional[str] = None
-    if "CMT_id" in match_keys and "CMT_id" in tgt_train.columns and "CMT_id" in tgt_test.columns:
-        cell_key = "CMT_id"
-    elif "CMT_name" in match_keys and "CMT_name" in tgt_train.columns and "CMT_name" in tgt_test.columns:
-        cell_key = "CMT_name"
-    else:
-        raise ValueError("Neither 'CMT_id' nor 'CMT_name' available in tgt_train/tgt_test for matching.")
+    if ref_test.empty or tgt_test.empty:
+        raise ValueError(
+            f"Cannot balance test split: ref_test={len(ref_test)}, tgt_test={len(tgt_test)}. "
+            "Donor split must keep both classes in test."
+        )
+    if ref_train.empty or tgt_train.empty:
+        raise ValueError(
+            f"Cannot balance train split: ref_train={len(ref_train)}, tgt_train={len(tgt_train)}. "
+            "Donor split must keep both classes in train."
+        )
 
-    # TEST: match within tgt_test only
+    def _make_donor_key(df: pd.DataFrame) -> pd.Series:
+        return (
+            df[study_col].astype(str).str.strip()
+            + "||"
+            + df[donor_col].astype(str).str.strip()
+        )
+
+    def _align_columns(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
+        out = df.copy()
+        for c in cols:
+            if c not in out.columns:
+                out[c] = pd.NA
+        return out.loc[:, cols]
+
+    ref_cols = list(ref_train.columns)
+
+    # print(f"[Debug] ref_train size={len(ref_train)} ref_test size={len(ref_test)}")
+    # print(f"[Debug] tgt_train size={len(tgt_train)} tgt_test size={len(tgt_test)}")
+
+    # print(f"[Debug] ref_train unique donor_key={_make_donor_key(ref_train).nunique()}")
+    # print(f"[Debug] ref_test unique donor_key={_make_donor_key(ref_test).nunique()}")
+    # print(f"[Debug] tgt_train unique donor_key={_make_donor_key(tgt_train).nunique()}")
+    # print(f"[Debug] tgt_test unique donor_key={_make_donor_key(tgt_test).nunique()}")
+
     test_matched_target, test_matched_keys = balance_for_inference(
         reference_df=ref_test,
         target_df=tgt_test,
@@ -213,10 +243,20 @@ def balance_for_training(
         upsample=upsample,
         random_state=random_state,
     )
-    ref_test_keep = ref_test[ref_test[match_keys].apply(tuple, axis=1).isin(test_matched_keys)].copy()
+
+    ref_test_keep = ref_test[
+        ref_test[match_keys].apply(tuple, axis=1).isin(test_matched_keys)
+    ].copy()
+
+    test_matched_target = _align_columns(test_matched_target, ref_cols)
+    ref_test_keep = _align_columns(ref_test_keep, ref_cols)
     test_balanced = pd.concat([ref_test_keep, test_matched_target], ignore_index=True)
 
-    # TRAIN: match within tgt_train only
+    # print(f"[Debug] test_matched_keys size={len(test_matched_keys)}")
+    # print(f"[Debug] test_matched_target size={len(test_matched_target)}")
+    # print(f"[Debug] ref_test_keep size={len(ref_test_keep)}")
+    # print(f"[Debug] test_balanced size={len(test_balanced)}")
+
     train_matched_target, train_matched_keys = balance_for_inference(
         reference_df=ref_train,
         target_df=tgt_train,
@@ -226,12 +266,32 @@ def balance_for_training(
         upsample=upsample,
         random_state=random_state,
     )
-    ref_train_keep = ref_train[ref_train[match_keys].apply(tuple, axis=1).isin(train_matched_keys)].copy()
+
+    ref_train_keep = ref_train[
+        ref_train[match_keys].apply(tuple, axis=1).isin(train_matched_keys)
+    ].copy()
+
+    train_matched_target = _align_columns(train_matched_target, ref_cols)
+    ref_train_keep = _align_columns(ref_train_keep, ref_cols)
     train_balanced = pd.concat([ref_train_keep, train_matched_target], ignore_index=True)
 
-    # hard safety check: no dataset_id overlap
-    overlap = set(train_balanced[study_col].astype(str)) & set(test_balanced[study_col].astype(str))
+    # print(f"[Debug] train_matched_keys size={len(train_matched_keys)}")
+    # print(f"[Debug] train_matched_target size={len(train_matched_target)}")
+    # print(f"[Debug] ref_train_keep size={len(ref_train_keep)}")
+    # print(f"[Debug] train_balanced size={len(train_balanced)}")
+
+    if train_balanced.empty:
+        raise ValueError("train_balanced is empty after balancing; no matched keys in tgt_train.")
+    if test_balanced.empty:
+        raise ValueError(
+            "test_balanced is empty after balancing; no matched keys in tgt_test. "
+            "Match keys may be too strict or test split does not cover needed (cell, sex, stage)."
+        )
+
+    train_donors = set(_make_donor_key(train_balanced))
+    test_donors = set(_make_donor_key(test_balanced))
+    overlap = train_donors & test_donors
     if overlap:
-        raise ValueError(f"Leakage: train/test share dataset_id (examples): {sorted(list(overlap))[:10]}")
+        raise ValueError(f"Leakage: train/test share donor_key (examples): {sorted(list(overlap))[:10]}")
 
     return train_balanced, test_balanced
