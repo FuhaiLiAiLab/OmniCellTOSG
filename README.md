@@ -88,9 +88,10 @@ OmniCellTOSG_Dataset/
 
 ---
 
-## ⚙️ Dataset Loader Package Installation
+## ⚙️ Use the Dataset Loader Only
+If you only need dataset loading/extraction, clone the standalone loader repo:
 ```bash
-pip install git+https://github.com/FuhaiLiAiLab/OmniCellTOSG
+git clone https://github.com/CallOfDady/CellTOSG_Loader CellTOSG_Loader
 ```
 
 ---
@@ -112,21 +113,30 @@ conditions = {
 dataset = CellTOSGDataLoader(
     root=args.dataset_root,
     conditions=conditions,
-    downstream_task=args.downstream_task,     # "disease" | "gender" | "cell_type"
-    label_column=args.label_column,           # e.g., "disease" / "gender" / "cell_type"
-    sample_ratio=args.sample_ratio,           # or use sample_size for absolute count
+    task=args.task,                          # "disease" | "gender" | "cell_type"
+    label_column=args.label_column,          # "disease" | "gender" | "cell_type"
+    sample_ratio=args.sample_ratio,          # mutually exclusive with sample_size
     sample_size=args.sample_size,
-    balanced=args.balanced,                   # class-balance by priority labels
     shuffle=args.shuffle,
+    stratified_balancing=args.stratified_balancing,
+    extract_mode=args.extract_mode,          # "inference" | "train"
     random_state=args.random_state,
-    train_text=args.train_text,               # False → return precomputed name/desc embeddings
-    train_bio=args.train_bio,                 # False → return precomputed sequence embeddings
-    output_dir=args.dataset_output_dir,
+    train_text=args.train_text,
+    train_bio=args.train_bio,
+    correction_method=args.correction_method, # None | "combat_seq"
+    output_dir=args.output_dir,
 )
 
-# --- Access tensors/arrays ---
-x_all   = dataset.data                                # dict of feature arrays (e.g., x_name_emb / x_desc_emb / x_bio_emb)
-y_all   = dataset.labels                              # target labels aligned to rows
+# --- Access outputs ---
+if args.extract_mode == "inference":
+    X = dataset.data                         # pandas.DataFrame (expression/features)
+    y = dataset.labels                       # pandas.DataFrame
+    metadata = dataset.metadata              # pandas.DataFrame (row-aligned metadata)
+else:
+    X = dataset.data                         # dict: {"train": X_train, "test": X_test}
+    y = dataset.labels                       # dict: {"train": y_train, "test": y_test}
+    metadata = dataset.metadata              # dict: {"train": meta_train, "test": meta_test}
+
 all_edge_index = dataset.edge_index                   # full graph (COO [2, E])
 internal_edge_index = dataset.internal_edge_index     # optional transcript–protein edges
 ppi_edge_index = dataset.ppi_edge_index               # optional PPI edges     
@@ -134,22 +144,39 @@ x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model
 ```
 
 ### 🔧 Parameters (`CellTOSGDataLoader`)
-- **root** *(str, required)* — Filesystem path to the dataset root (e.g., `/path/to/OmniCellTOSG_Dataset`).
-- **conditions** *(dict, required)* — Row filters over cell metadata  
-  (e.g., `{"tissue_general": "brain", "disease_name": "Alzheimer's Disease"}`).
-- **downstream_task** *(str, required)* — `"disease"` | `"gender"` | `"cell_type"`.
+- **root** *(str, required)* — Filesystem path to the dataset root (e.g., `../OmniCellTOSG/CellTOSG_dataset_v2`).
+- **conditions** *(dict, required)* — Metadata filters used to subset rows  
+  (e.g., `{"tissue_general": "brain", "disease": "Alzheimer's disease"}`).
+- **task** *(str, required)* — Downstream task type: `"disease"` | `"gender"` | `"cell_type"`.
 - **label_column** *(str, required)* — Target label column (e.g., `"disease"`, `"gender"`, `"cell_type"`).
+- **extract_mode** *(str, required)* — Extraction mode:  
+  - `"inference"`: extract a single dataset for inference/analysis (no train/test split)  
+  - `"train"`: extract a training-ready dataset and generate splits (e.g., train/test)
 - **sample_ratio** *(float, optional)* — Fraction of rows to sample (0–1). Mutually exclusive with `sample_size`.
 - **sample_size** *(int, optional)* — Absolute number of rows to sample. Mutually exclusive with `sample_ratio`.
-- **balanced** *(bool, default: `False`)* — Enable class-balancing using task-specific priority labels.
 - **shuffle** *(bool, default: `False`)* — Shuffle rows during sampling/composition.
-- **random_state** *(int, default: `42`)* — Seed for reproducibility.
-- **train_text** *(bool, default: `False`)* — If `False`, return precomputed name/desc embeddings; if `True`, return raw text (`s_name`, `s_desc`) for custom embedding.
-- **train_bio** *(bool, default: `False`)* — If `False`, return precomputed sequence embeddings; if `True`, return raw sequences (`s_bio`) for custom embedding.
-- **output_dir** *(str, optional)* — Directory for loader-generated artifacts (splits, logs, cached subsets).
+- **stratified_balancing** *(bool, default: `False`)* — Enable stratified sampling / class balancing based on `label_column`.
+- **random_state** *(int, default: `2025`)* — Random seed for reproducibility (sampling, shuffling, splitting).
+- **train_text** *(bool, default: `False`)* — Controls text feature output:  
+  - `False`: return precomputed text embeddings (if available)  
+  - `True`: return raw text fields for custom embedding
+- **train_bio** *(bool, default: `False`)* — Controls biological sequence feature output:  
+  - `False`: return precomputed sequence embeddings (if available)  
+  - `True`: return raw sequences for custom embedding
+- **correction_method** *(str or None, default: `None`)* — Correction method:  
+  - `None`: no correction  
+  - `"combat_seq"`: apply ComBat-Seq
+- **output_dir** *(str, optional)* — Directory for loader outputs (extracted expression matrix, label，splits).
 
 > **Returns** (typical):
-> - `x, y`: features and labels for the selected split  
+> - `extract_mode="inference"`:  
+>   - `dataset.data`: `pandas.DataFrame`  
+>   - `dataset.labels`: `pandas.DataFrame`  
+>   - `dataset.metadata`: `pandas.DataFrame`
+> - `extract_mode="train"`:  
+>   - `dataset.data`: `dict` (`{"train": X_train, "test": X_test}`)  
+>   - `dataset.labels`: `dict` (`{"train": y_train, "test": y_test}`)  
+>   - `dataset.metadata`: `dict` (`{"train": meta_train, "test": meta_test}`)
 > - `edge_index`, `internal_edge_index`, `ppi_edge_index`: graph topological information  
 > - Either raw text/sequence fields (`s_name`, `s_desc`, `s_bio`) **or** their precomputed embeddings (`x_name_emb`, `x_desc_emb`, `x_bio_emb`), returned according to the `train_text`/`train_bio` flags.
 
