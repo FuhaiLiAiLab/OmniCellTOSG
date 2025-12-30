@@ -59,7 +59,7 @@ huggingface-cli download FuhaiLiAiLab/OmniCellTOSG_Dataset --repo-type dataset -
 ```
 ---
 
-## 🗂️ Dataset Layout
+## 🗂️ Dataset Structure
 ```
 OmniCellTOSG_Dataset/
 ├── expression_matrix/
@@ -71,7 +71,10 @@ OmniCellTOSG_Dataset/
 │ ├── cellxgene_small_intestine_part_0.npy
 │ └── ... (additional *.npy shards)
 ├── cell_metadata_with_mappings.csv
+├── cell_metadata_with_mappings.parquet
 ├── edge_index.npy
+├── internal_edge_index.npy
+├── ppi_edge_index.npy
 ├── s_bio.csv
 ├── s_desc.csv
 ├── s_name.csv
