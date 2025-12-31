@@ -92,10 +92,7 @@ OmniCellTOSG_Dataset/
 ---
 
 ## ⚙️ Use the Dataset Loader Only
-If you only need dataset loading/extraction, clone the standalone loader repo:
-```bash
-git clone https://github.com/CallOfDady/CellTOSG_Loader CellTOSG_Loader
-```
+If you only need dataset loading/extraction, download the standalone loader package from the [Releases](https://github.com/FuhaiLiAiLab/OmniCellTOSG/releases/tag/v2.1.0) page.
 
 ---
 
