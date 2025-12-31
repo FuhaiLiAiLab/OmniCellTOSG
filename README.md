@@ -92,6 +92,7 @@ OmniCellTOSG_Dataset/
 ---
 
 ## ⚙️ Use the Dataset Loader Only
+
 If you only need dataset loading/extraction, download the standalone loader package from the [Releases](https://github.com/FuhaiLiAiLab/OmniCellTOSG/releases/tag/v2.1.0) page.
 
 ---
@@ -168,7 +169,7 @@ x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model
   - `"combat_seq"`: apply ComBat-Seq
 - **output_dir** *(str, optional)* — Directory for loader outputs (extracted expression matrix, label，splits).
 
-> **Returns** (typical):
+> **Returns**:
 > - `extract_mode="inference"`:  
 >   - `dataset.data`: `pandas.DataFrame`  
 >   - `dataset.labels`: `pandas.DataFrame`  
@@ -226,7 +227,6 @@ python train.py \
   --train_batch_size 2 \
   --random_state 42 \
   --dataset_output_dir ./Data/train_ad_gender_0.1_42
-
 ```
 
 
