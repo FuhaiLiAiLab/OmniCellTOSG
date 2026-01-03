@@ -179,7 +179,7 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
 
     base_path = os.path.join(
         './' + args.bl_train_result_folder,
-        args.downstream_task,
+        args.task,
         args.disease_name,
         args.bl_train_model_name
     )
@@ -406,6 +406,12 @@ if __name__ == "__main__":
 
         dataset = FixedDataset(args.dataset_root, args.dataset_output_dir)
 
+        # Graph feature
+        xTr = dataset.x_train
+        xTe = dataset.x_test
+        yTr = dataset.y_train
+        yTe = dataset.y_test
+
     else:
         if not data_dir.exists():
             print(f"[Info] Output directory '{data_dir}' not found. It will be created.")
@@ -439,6 +445,16 @@ if __name__ == "__main__":
             correction_method=args.correction_method,
             output_dir=args.dataset_output_dir
         )
+    
+        # Graph feature
+        X = dataset.data            # dict: {"train": X_train, "test": X_test}
+        Y = dataset.labels          # dict: {"train": y_train, "test": y_test}
+        metadata = dataset.metadata # dict: {"train": df_train, "test": df_test}
+
+        xTr = X["train"]
+        xTe = X["test"]
+        yTr = Y["train"]
+        yTe = Y["test"]
 
     # Replace spaces and quotes in disease name after loading the dataset
     args.disease_name = args.disease_name.replace("'", "").replace(" ", "_")
@@ -449,8 +465,8 @@ if __name__ == "__main__":
     if args.use_wandb:
         import wandb
         wandb.init(
-            project=f"{args.downstream_task}-baseline",
-            name=f"{args.downstream_task}_{args.disease_name}_{args.bl_train_model_name}_bs{args.train_batch_size}_lr{args.train_lr}_rs{args.random_state}",
+            project=f"{args.task}-baseline",
+            name=f"{args.task}_{args.disease_name}_{args.bl_train_model_name}_bs{args.train_batch_size}_lr{args.train_lr}_rs{args.random_state}",
             config=vars(args)
         )
 

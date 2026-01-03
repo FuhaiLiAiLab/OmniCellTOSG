@@ -46,23 +46,29 @@ def norm_and_export_split(
         train_corr = combat_seq_correction_by_tissue(
             matrix=train_matrix,
             meta=train_df,
+            task=task,
             tissue_col="tissue_general",
             disease_col="disease_BMG_name",
+            sex_col="sex_normalized",
             dataset_id_col="dataset_id",
             fallback_cols=["source", "tissue", "suspension_type", "assay"],
             min_batches_per_group=2,
             min_per_disease=5,
+            timeout_minutes=30,
         )
 
         test_corr = combat_seq_correction_by_tissue(
             matrix=test_matrix,
             meta=test_df,
+            task=task,
             tissue_col="tissue_general",
             disease_col="disease_BMG_name",
+            sex_col="sex_normalized",
             dataset_id_col="dataset_id",
             fallback_cols=["source", "tissue", "suspension_type", "assay"],
             min_batches_per_group=2,
             min_per_disease=5,
+            timeout_minutes=30,
         )
     else:
         raise ValueError(f"Unsupported correction_method: {correction_method}")
@@ -282,6 +288,7 @@ def extract_for_inference(
         expression_matrix=expression_matrix,
         bmg_gene_index_csv=self.bmg_gene_index_csv,
         n_col_expected=412039,
+        task=task,
         correction_method=correction_method,
     )
 

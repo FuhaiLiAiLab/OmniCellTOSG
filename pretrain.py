@@ -335,22 +335,24 @@ if __name__ == "__main__":
     # dataset = CellTOSGDataLoader(
     #     root=args.data_root,
     #     conditions={
-    #         "tissue_general": args.tissue_general,
+    #         # "tissue_general": args.tissue_general,
     #         # "tissue": args.tissue,
     #         # "suspension_type": args.suspension_type,
     #         # "cell_type": args.cell_type,
-    #         "disease": args.disease_name,
+    #         # "disease": args.disease_name,
     #         # "gender": args.gender,
     #     },
-    #     downstream_task=args.downstream_task,  
+    #     task=args.task,
     #     label_column=args.label_column,
     #     sample_ratio=args.sample_ratio,
     #     sample_size=args.sample_size,
-    #     balanced=args.balanced,
     #     shuffle=args.shuffle,
+    #     stratified_balancing=args.stratified_balancing,
+    #     extract_mode=args.extract_mode,
     #     random_state=args.random_state,
     #     train_text=args.train_text,
     #     train_bio=args.train_bio,
+    #     correction_method=args.correction_method,
     #     output_dir=args.dataset_output_dir
     # )
 

@@ -4,8 +4,27 @@ import pandas as pd
 import csv
 import scanpy as sc
 import anndata as ad
+import signal
+from contextlib import contextmanager
 import matplotlib.pyplot as plt
 from typing import Tuple, Optional
+
+@contextmanager
+def time_limit(seconds: Optional[float]):
+    if seconds is None or seconds <= 0:
+        yield
+        return
+
+    def _handler(signum, frame):
+        raise TimeoutError(f"timeout after {seconds} seconds")
+
+    old_handler = signal.signal(signal.SIGALRM, _handler)
+    signal.setitimer(signal.ITIMER_REAL, float(seconds))
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, old_handler)
 
 def load_expression_by_metadata(df_meta, dataset_dir):
     all_expr_parts = []
@@ -68,7 +87,6 @@ def pad_protein_zeros(matrix: np.ndarray, n_protein_cols: int = 121_419, dtype=N
     zeros = np.zeros((matrix.shape[0], n_protein_cols), dtype=dtype)
     return np.concatenate([matrix, zeros], axis=1)
 
-
 def combat_seq_correction(
     matrix: np.ndarray,
     meta: pd.DataFrame,
@@ -81,6 +99,7 @@ def combat_seq_correction(
     gene_subset_n: Optional[int] = None,
     ref_batch: Optional[str] = None,
     na_cov_action: str = "raise",
+    timeout_minutes: Optional[float] = None,
 ) -> np.ndarray:
     try:
         from inmoose.pycombat import pycombat_seq
@@ -98,7 +117,6 @@ def combat_seq_correction(
     meta = meta.copy()
 
     batch_source = "unknown"
-
     if batch_id_col in meta.columns:
         batch = meta[batch_id_col].fillna("NA").astype(str).values
         batch_source = batch_id_col
@@ -129,7 +147,7 @@ def combat_seq_correction(
     print(
         f"[ComBat-Seq] Start: samples={n_samples}, features={n_features}, "
         f"batch_source={batch_source}, n_batches={n_batches}, covar_cols={covar_info}, "
-        f"shrink={shrink}, shrink_disp={shrink_disp}"
+        f"shrink={shrink}, shrink_disp={shrink_disp}, timeout_min={timeout_minutes}"
     )
 
     if np.any(counts < 0):
@@ -139,16 +157,23 @@ def combat_seq_correction(
     else:
         counts = counts.astype(np.int64, copy=False)
 
-    corrected_gxs = pycombat_seq(
-        counts=counts.T,
-        batch=batch,
-        covar_mod=covar_mod,
-        shrink=shrink,
-        shrink_disp=shrink_disp,
-        gene_subset_n=gene_subset_n,
-        ref_batch=ref_batch,
-        na_cov_action=na_cov_action,
-    )
+    timeout_seconds = None if timeout_minutes is None else float(timeout_minutes) * 60.0
+
+    try:
+        with time_limit(timeout_seconds):
+            corrected_gxs = pycombat_seq(
+                counts=counts.T,
+                batch=batch,
+                covar_mod=covar_mod,
+                shrink=shrink,
+                shrink_disp=shrink_disp,
+                gene_subset_n=gene_subset_n,
+                ref_batch=ref_batch,
+                na_cov_action=na_cov_action,
+            )
+    except TimeoutError:
+        print("[ComBat-Seq] Timeout.")
+        return np.asarray(matrix)
 
     corrected = np.asarray(corrected_gxs).T
     corrected = np.clip(corrected, 0, None)
@@ -156,7 +181,6 @@ def combat_seq_correction(
         corrected = np.rint(corrected).astype(np.int64)
 
     print("[ComBat-Seq] Done.")
-
     return corrected
 
 def _safe_str_col(meta: pd.DataFrame, col: str) -> pd.Series:
@@ -184,15 +208,100 @@ def build_batch_series(
 
     return ds.where(ds_valid, fb)
 
+def _normalize_label_col(sub_meta: pd.DataFrame, col: str) -> pd.Series:
+    return sub_meta[col].fillna("NA").astype(str).str.strip()
+
+
+def _eligible_levels(y: pd.Series, min_per_class: int) -> Tuple[int, int, pd.Index]:
+    vc = y.value_counts(dropna=False)
+    ok_mask = vc >= min_per_class
+    ok = int(ok_mask.sum())
+    return int(y.nunique(dropna=False)), ok, vc.index[ok_mask]
+
+def _is_strongly_confounded_with_batch(
+    sub_meta: pd.DataFrame,
+    covar_col: str,
+    batch_col: str,
+    ok_levels: pd.Index,
+) -> Tuple[bool, str]:
+    if len(ok_levels) < 2:
+        return True, "too_few_ok_levels"
+
+    confounded_levels = []
+    for level in ok_levels:
+        batches = sub_meta.loc[sub_meta[covar_col] == level, batch_col].astype(str)
+        if batches.nunique(dropna=False) < 2:
+            confounded_levels.append(str(level))
+
+    if confounded_levels:
+        return True, f"levels_in_single_batch={confounded_levels}"
+
+    return False, "pass"
+
+def choose_covar_cols_for_task(
+    sub_meta: pd.DataFrame,
+    task: str,
+    batch_col: str,
+    disease_col: str,
+    sex_col: str,
+    min_per_disease: int,
+) -> Tuple[Optional[list[str]], str]:
+    if task == "cell_type":
+        return None, "no covar (task=cell_type)"
+
+    if task == "gender":
+        if sex_col not in sub_meta.columns:
+            return None, f"no covar (missing '{sex_col}')"
+        sub_meta[sex_col] = _normalize_label_col(sub_meta, sex_col)
+        n_cls, ok, ok_levels = _eligible_levels(sub_meta[sex_col], min_per_disease)
+        if n_cls < 2:
+            return None, f"no covar ({sex_col} n_classes={n_cls})"
+        if ok < 2:
+            return None, f"no covar ({sex_col} n_classes={n_cls}, ok_classes={ok} < 2)"
+        is_conf, reason = _is_strongly_confounded_with_batch(
+            sub_meta=sub_meta,
+            covar_col=sex_col,
+            batch_col=batch_col,
+            ok_levels=ok_levels,
+        )
+        if is_conf:
+            return None, f"no covar ({sex_col} confounded_with_batch: {reason})"
+        return [sex_col], f"use {sex_col} (n_classes={n_cls}, ok_classes={ok})"
+
+    if task == "disease" or task == "pretrain":
+        if disease_col not in sub_meta.columns:
+            return None, f"no covar (missing '{disease_col}')"
+        sub_meta[disease_col] = _normalize_label_col(sub_meta, disease_col)
+        n_cls, ok, ok_levels = _eligible_levels(sub_meta[disease_col], min_per_disease)
+        if n_cls < 2:
+            return None, f"no covar ({disease_col} n_classes={n_cls})"
+        if ok < 2:
+            return None, f"no covar ({disease_col} n_classes={n_cls}, ok_classes={ok} < 2)"
+        is_conf, reason = _is_strongly_confounded_with_batch(
+            sub_meta=sub_meta,
+            covar_col=disease_col,
+            batch_col=batch_col,
+            ok_levels=ok_levels,
+        )
+        if is_conf:
+            return None, f"no covar ({disease_col} confounded_with_batch: {reason})"
+        return [disease_col], f"use {disease_col} (n_classes={n_cls}, ok_classes={ok})"
+
+    raise ValueError(f"Unknown task='{task}'. Expected one of: pretrain, disease, gender, cell_type.")
+
+
 def combat_seq_correction_by_tissue(
     matrix: np.ndarray,
     meta: pd.DataFrame,
+    task: str,
     tissue_col: str = "tissue_general",
     disease_col: str = "disease_BMG_name",
+    sex_col: str = "sex_normalized",
     dataset_id_col: str = "dataset_id",
     fallback_cols: Optional[list[str]] = None,
     min_batches_per_group: int = 2,
     min_per_disease: int = 5,
+    timeout_minutes: Optional[float] = None,
 ) -> np.ndarray:
     if tissue_col not in meta.columns:
         raise KeyError(f"Missing '{tissue_col}' in meta.")
@@ -201,7 +310,7 @@ def combat_seq_correction_by_tissue(
     meta = meta.reset_index(drop=True)
 
     total_groups = meta[tissue_col].nunique(dropna=False)
-    print(f"[ComBat-Seq] Grouping by '{tissue_col}', total_groups={total_groups}")
+    print(f"[ComBat-Seq] Grouping by '{tissue_col}', total_groups={total_groups}, task={task}")
 
     for tissue_value, idx in meta.groupby(tissue_col).groups.items():
         idx = np.array(list(idx), dtype=int)
@@ -224,27 +333,14 @@ def combat_seq_correction_by_tissue(
             )
             continue
 
-        covar_cols = None
-        disease_info = "NA"
-        if disease_col in sub_meta.columns:
-            sub_meta[disease_col] = (
-                sub_meta[disease_col].fillna("NA").astype(str).str.strip()
-            )
-            disease = sub_meta[disease_col]
-            n_disease = disease.nunique(dropna=False)
-
-            if n_disease >= 2:
-                vc = disease.value_counts()
-                ok = (vc >= min_per_disease).sum()
-                if ok >= 2:
-                    covar_cols = [disease_col]
-                    disease_info = f"use {disease_col} (n_disease={n_disease}, ok_classes={ok})"
-                else:
-                    disease_info = f"no covar (n_disease={n_disease}, ok_classes={ok} < 2)"
-            else:
-                disease_info = f"no covar (n_disease={n_disease})"
-        else:
-            disease_info = f"no covar (missing '{disease_col}')"
+        covar_cols, covar_info = choose_covar_cols_for_task(
+            sub_meta=sub_meta,
+            task=task,
+            batch_col="combat_batch",
+            disease_col=disease_col,
+            sex_col=sex_col,
+            min_per_disease=min_per_disease,
+        )
 
         batch_counts = sub_meta["combat_batch"].value_counts(dropna=False)
         singleton_batches = set(batch_counts[batch_counts < 2].index.tolist())
@@ -258,7 +354,7 @@ def combat_seq_correction_by_tissue(
             print(
                 f"[ComBat-Seq] tissue='{tissue_value}': drop_singleton_batches_samples={n_drop}, "
                 f"kept_samples={n_keep}, batches_before={n_batches_before}, batches_after={n_batches_after}, "
-                f"{disease_info}"
+                f"{covar_info}"
             )
 
             if n_keep == 0 or n_batches_after < min_batches_per_group:
@@ -271,26 +367,54 @@ def combat_seq_correction_by_tissue(
             sub_meta_keep = sub_meta.loc[keep_mask].copy()
             sub_mat_keep = sub_mat[keep_mask.values]
 
-            if covar_cols is not None and disease_col in sub_meta_keep.columns:
-                vc_keep = sub_meta_keep[disease_col].value_counts(dropna=False)
-                ok_keep = (vc_keep >= min_per_disease).sum()
-                if ok_keep < 2:
-                    covar_cols_keep = None
-                else:
-                    covar_cols_keep = covar_cols
-            else:
-                covar_cols_keep = None
-
-            corrected_keep = combat_seq_correction(
-                matrix=sub_mat_keep,
-                meta=sub_meta_keep,
-                batch_id_col="combat_batch",
-                covar_cols=covar_cols_keep,
-                shrink=False,
-                shrink_disp=False,
-                ref_batch=None,
-                na_cov_action="raise",
+            covar_cols_keep, covar_info_keep = choose_covar_cols_for_task(
+                sub_meta=sub_meta_keep,
+                task=task,
+                batch_col="combat_batch",
+                disease_col=disease_col,
+                sex_col=sex_col,
+                min_per_disease=min_per_disease,
             )
+
+            try:
+                corrected_keep = combat_seq_correction(
+                    matrix=sub_mat_keep,
+                    meta=sub_meta_keep,
+                    batch_id_col="combat_batch",
+                    covar_cols=covar_cols_keep,
+                    shrink=False,
+                    shrink_disp=False,
+                    ref_batch=None,
+                    na_cov_action="raise",
+                    timeout_minutes=timeout_minutes,
+                )
+            except ValueError as e:
+                msg = str(e).lower()
+                retryable = (
+                    ("confounded" in msg)
+                    or ("not full rank" in msg)
+                    or ("full rank" in msg)
+                    or ("not estimable" in msg)
+                    or ("coefficients are not estimable" in msg)
+                )
+                if retryable and (covar_cols_keep is not None):
+                    print(
+                        f"[ComBat-Seq] tissue='{tissue_value}': design issue after filtering, "
+                        f"retry without covariates. ({covar_info_keep})"
+                    )
+                    corrected_keep = combat_seq_correction(
+                        matrix=sub_mat_keep,
+                        meta=sub_meta_keep,
+                        batch_id_col="combat_batch",
+                        covar_cols=None,
+                        shrink=False,
+                        shrink_disp=False,
+                        ref_batch=None,
+                        na_cov_action="raise",
+                        timeout_minutes=timeout_minutes,
+                    )
+                else:
+                    raise
 
             sub_corr = sub_mat.copy()
             sub_corr[keep_mask.values] = corrected_keep
@@ -299,7 +423,7 @@ def combat_seq_correction_by_tissue(
 
         print(
             f"[ComBat-Seq] Run tissue='{tissue_value}': samples={n_samples}, "
-            f"n_batches={n_batches_before}, {disease_info}"
+            f"n_batches={n_batches_before}, {covar_info}"
         )
 
         try:
@@ -312,8 +436,8 @@ def combat_seq_correction_by_tissue(
                 shrink_disp=False,
                 ref_batch=None,
                 na_cov_action="raise",
+                timeout_minutes=timeout_minutes,
             )
-
         except ValueError as e:
             msg = str(e).lower()
             retryable = (
@@ -324,7 +448,7 @@ def combat_seq_correction_by_tissue(
                 or ("coefficients are not estimable" in msg)
             )
             if retryable and (covar_cols is not None):
-                print(f"[ComBat-Seq] tissue='{tissue_value}': design issue, retry without covariates.")
+                print(f"[ComBat-Seq] tissue='{tissue_value}': design issue, retry without covariates. ({covar_info})")
                 sub_corr = combat_seq_correction(
                     matrix=sub_mat,
                     meta=sub_meta,
@@ -334,6 +458,7 @@ def combat_seq_correction_by_tissue(
                     shrink_disp=False,
                     ref_batch=None,
                     na_cov_action="raise",
+                    timeout_minutes=timeout_minutes,
                 )
             else:
                 raise
@@ -342,7 +467,6 @@ def combat_seq_correction_by_tissue(
 
     print("[ComBat-Seq] Finished all tissue groups.")
     return corrected
-
 
 def load_bmg_gene_index(csv_path: str) -> list[tuple[str, list[int]]]:
     genes: list[tuple[str, list[int]]] = []
@@ -496,9 +620,11 @@ def build_gene_df(
     expression_matrix: np.ndarray,
     bmg_gene_index_csv: str,
     n_col_expected: int,
+    task: str,
     correction_method: Optional[str] = None,
     tissue_col: str = "tissue_general",
     disease_col: str = "disease_BMG_name",
+    sex_col: str = "sex_normalized",
     dataset_id_col: str = "dataset_id",
     fallback_cols: Optional[list[str]] = None,
     min_batches_per_group: int = 2,
@@ -537,12 +663,15 @@ def build_gene_df(
     corrected_counts = combat_seq_correction_by_tissue(
         matrix=gene_df_raw.to_numpy(),
         meta=final_df_out,
+        task=task,
         tissue_col=tissue_col,
         disease_col=disease_col,
+        sex_col=sex_col,
         dataset_id_col=dataset_id_col,
         fallback_cols=fallback_cols,
         min_batches_per_group=min_batches_per_group,
         min_per_disease=min_per_disease,
+        timeout_minutes=30,
     )
 
     gene_df_corrected = pd.DataFrame(
