@@ -9,7 +9,6 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, precision_score, recall_score
 
 # custom dataloader
@@ -48,7 +47,9 @@ def build_pretrain_model(args, device):
     degree_decoder = DegreeDecoder(args.pre_graph_output_dim, args.pre_decoder_dim,
                                 num_layers=args.pre_decoder_layers, dropout=args.pre_decoder_dropout)
     # Build the pretraining model
-    pretrain_model = CellTOSG_Foundation(text_input_dim=args.pre_lm_emb_dim,
+    pretrain_model = CellTOSG_Foundation(
+                    num_entity=args.num_entity,
+                    text_input_dim=args.pre_lm_emb_dim,
                     omic_input_dim=args.num_omic_feature,
                     cross_fusion_output_dim=args.pre_cross_fusion_output_dim, 
                     text_encoder=text_encoder,
@@ -58,15 +59,13 @@ def build_pretrain_model(args, device):
                     internal_encoder=internal_graph_encoder,
                     edge_decoder=edge_decoder,
                     degree_decoder=degree_decoder,
-                    mask=mask).to(device)
+                    mask=mask,
+                    entity_mlp_dims=args.entity_mlp_dims,
+                    ).to(device)
     return pretrain_model
 
 
 def build_model(args, device):
-    # Build the text, rna and protein sequence encoders
-    text_encoder = TextEncoder(args.text_lm_model_path, device)
-    rna_seq_encoder = RNAGPT_LM(args.rna_seq_lm_model_path, args.rna_model_name, device)
-    prot_seq_encoder = ProtGPT_LM(args.prot_model_name, device)
     # Build the internal GNN encoder, graph GNN encoder
     internal_graph_encoder = DownGNNEncoder(args.train_internal_input_dim, args.train_internal_hidden_dim, args.train_internal_output_dim,
                             num_layers=args.train_internal_encoder_layers, dropout=args.train_internal_encoder_dropout,
@@ -85,11 +84,11 @@ def build_model(args, device):
                     linear_hidden_dims=args.train_linear_hidden_dims,
                     linear_activation=args.train_linear_activation,
                     linear_dropout_rate=args.train_linear_dropout,
-                    text_encoder=text_encoder,
-                    rna_seq_encoder=rna_seq_encoder,
-                    prot_seq_encoder=prot_seq_encoder,
                     encoder=graph_encoder,
-                    internal_encoder=internal_graph_encoder).to(device)
+                    internal_encoder=internal_graph_encoder,
+                    entity_mlp_dims=args.entity_mlp_dims,  # num_entity → decrease → increase → num_entity
+                    mlp_dropout=0.1,
+                    ).to(device)
     return model
 
 def embed_model(dataset_loader, current_cell_num, num_entity, name_embeddings, desc_embeddings, seq_embeddings, pretrain_model, model, device, args):
@@ -102,6 +101,16 @@ def embed_model(dataset_loader, current_cell_num, num_entity, name_embeddings, d
         label = Variable(data.label, requires_grad=False).to(device)
         # Use pretrained model to get the embedding
         z = pretrain_model.internal_encoder(x, internal_edge_index) + x
+        # ********************** MLP Information Flow *************************
+        # Reshape: (batch*num_entity, feature) → (batch, num_entity)
+        z = z.view(current_cell_num, num_entity, -1).squeeze(-1)
+        # Apply MLP on entity dimension
+        for mlp in pretrain_model.entity_mlp_layers:
+            z = mlp(z)
+        z = pretrain_model.layer_norm(z)
+        # Expand and flatten: (batch, num_entity) → (batch*num_entity, 1)
+        z = z.reshape(-1, 1)
+        # **********************************************************************
         pre_x = pretrain_model.encoder.get_embedding(z, ppi_edge_index, mode='last') # mode='cat'
         output, ypred, embed_out = model(x, pre_x, edge_index, internal_edge_index, ppi_edge_index, num_entity, name_embeddings, desc_embeddings, seq_embeddings, current_cell_num)
         loss = model.loss(output, label)
@@ -114,7 +123,7 @@ def embed_model(dataset_loader, current_cell_num, num_entity, name_embeddings, d
     return model, batch_loss, batch_acc, batch_pre_embed, batch_embed
 
 
-def embed(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_edge_index, ppi_edge_index, x_name_emb, x_desc_emb, x_bio_emb, device):
+def embed(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_edge_index, ppi_edge_index, x_name_emb, x_desc_emb, x_bio_emb, device, saved_model_path):
     print('-------------------------- EMBED START --------------------------')
     print('-------------------------- EMBED START --------------------------')
     print('-------------------------- EMBED START --------------------------')
@@ -127,7 +136,7 @@ def embed(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_edge
     analysis_num_cell = xAll.shape[0]
     num_entity = xAll.shape[1]
     num_feature = args.num_omic_feature
-    analysis_batch_size = 4
+    analysis_batch_size = 1
     
     # Run analysis model
     model.eval()
@@ -162,27 +171,10 @@ def embed(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_edge
 
 
 if __name__ == "__main__":
-    import sys
-    
-    downstream_tasks = ["disease", "gender", "cell_type"]
-    diseases = [
-        "Alzheimers_Disease",
-        "Lung_Adenocarcinoma",
-        "Crohn_disease",
-        "Lupus_Erythematosus,_Systemic",
-    ]
-    
-    # Check if path is provided as command line argument
-    if len(sys.argv) > 1:
-        saved_model_path = Path(sys.argv[1])
-        print(f"Using provided model path: {saved_model_path}")
-    else:
-        # Default path (you can remove this if you always want to pass the path)
-        print("Error: Please provide the saved_model_path as an argument")
-        print("Usage: python embed.py <saved_model_path>")
-        sys.exit(1)
+    print('-------------------------- LOAD CONFIGS --------------------------')
+    saved_model_path = "/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG_model/CellTOSG_model_results/disease/Alzheimers_Disease/gat/epoch_50_4_0.0005_42_20251230_010158"
 
-    config_file = saved_model_path / "config.yaml"
+    config_file = os.path.join(saved_model_path, "config.yaml")
     args, config_groups = load_and_merge_configs(str(config_file))
 
     def _absorb_group(ns, group_name):
@@ -198,7 +190,7 @@ if __name__ == "__main__":
         if hasattr(args, group):
             delattr(args, group)
 
-    best_model_file = saved_model_path / "best_train_model.pt"
+    best_model_file = os.path.join(saved_model_path, "best_train_model.pt")
 
     # Set internal and graph layer types to the same base layer type
     args.train_internal_layer_type = args.train_base_layer
@@ -213,36 +205,40 @@ if __name__ == "__main__":
         device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     torch.cuda.empty_cache()
 
-    # Build Pretrain Model
-    pretrain_model = build_pretrain_model(args, device)
-    pretrain_model.load_state_dict(torch.load(args.pretrained_model_save_path, map_location=device))
-    pretrain_model.eval()
+    
     # Load the dataset
-    x_bio_emb = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs/x_bio_emb.npy', allow_pickle=True)
-    x_desc_emb = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs/x_desc_emb.npy', allow_pickle=True)
-    x_name_emb = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs/x_name_emb.npy', allow_pickle=True)
-    all_edge_index = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs/edge_index.npy', allow_pickle=True)
-    internal_edge_index = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs/internal_edge_index.npy', allow_pickle=True)
-    ppi_edge_index = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/dataset_outputs/ppi_edge_index.npy', allow_pickle=True)
-    xTe = np.load(os.path.join(saved_model_path, 'xTe.npy'), allow_pickle=True)
-    yTe = np.load(os.path.join(saved_model_path, 'yTe.npy'), allow_pickle=True)
-    print('xTe: ', xTe.shape)
-    print('yTe: ', yTe.shape)
+    x_bio_emb = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/CellTOSG_dataset_v2/x_bio_emb.npy', allow_pickle=True)
+    x_desc_emb = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/CellTOSG_dataset_v2/x_desc_emb.npy', allow_pickle=True)
+    x_name_emb = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/CellTOSG_dataset_v2/x_name_emb.npy', allow_pickle=True)
+    all_edge_index = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/CellTOSG_dataset_v2/edge_index.npy', allow_pickle=True)
+    internal_edge_index = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/CellTOSG_dataset_v2/internal_edge_index.npy', allow_pickle=True)
+    ppi_edge_index = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG/CellTOSG_dataset_v2/ppi_edge_index.npy', allow_pickle=True)
+    # xTe = np.load(os.path.join(saved_model_path, 'xTe.npy'), allow_pickle=True)
+    xTe = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG_model/Data/train_ad_disease_0.1_42/test/expression_matrix.npy', allow_pickle=True)
+    yTe = np.load('/storage1/fs1/fuhai.li/Active/tianqi.x/OmniCellTOSG_model/Data/train_ad_disease_0.1_42/test/labels_test.npy')
     num_classes = len(np.unique(yTe))
     args.num_class = num_classes
     args.num_entity = xTe.shape[1]
+    print(f"Number of entities: {args.num_entity}")
     # Convert to torch tensor
     xTe =  torch.from_numpy(xTe).float().to(device)
-    yTe =  torch.from_numpy(yTe).long().to(device)
+    yTe =  torch.from_numpy(yTe).long().view(-1, 1).to(device)
     x_name_emb = torch.from_numpy(x_name_emb).float().to(device)
     x_desc_emb = torch.from_numpy(x_desc_emb).float().to(device)
     x_bio_emb = torch.from_numpy(x_bio_emb).float().to(device)
     all_edge_index = torch.from_numpy(all_edge_index).long()
     internal_edge_index = torch.from_numpy(internal_edge_index).long()
     ppi_edge_index = torch.from_numpy(ppi_edge_index).long()
+    print('xTe: ', xTe.shape)
+    print('yTe: ', yTe.shape)
+
+    # Build Pretrain Model
+    pretrain_model = build_pretrain_model(args, device)
+    pretrain_model.load_state_dict(torch.load(args.pretrained_model_save_path, map_location=device))
+    pretrain_model.eval()
 
     # Build model
     model = build_model(args, device)
     model.load_state_dict(torch.load(best_model_file, map_location=device))
     # Analyze the model
-    embed(args, pretrain_model, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_index, x_name_emb, x_desc_emb, x_bio_emb, device)
+    embed(args, pretrain_model, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_index, x_name_emb, x_desc_emb, x_bio_emb, device, saved_model_path)
