@@ -108,14 +108,14 @@ conditions = {
     "disease_name": args.disease_name,   # or: "disease": args.disease_name
     # "suspension_type": args.suspension_type,
     # "cell_type": args.cell_type,
-    # "gender": args.gender,
+    # "sex": args.sex,
 }
 
 dataset = CellTOSGDataLoader(
     root=args.dataset_root,
     conditions=conditions,
-    task=args.task,                          # "disease" | "gender" | "cell_type"
-    label_column=args.label_column,          # "disease" | "gender" | "cell_type"
+    task=args.task,                          # "disease" | "sex" | "cell_type"
+    label_column=args.label_column,          # "disease" | "sex" | "cell_type"
     sample_ratio=args.sample_ratio,          # mutually exclusive with sample_size
     sample_size=args.sample_size,
     shuffle=args.shuffle,
@@ -148,8 +148,8 @@ x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model
 - **root** *(str, required)* — Filesystem path to the dataset root (e.g., `../OmniCellTOSG/CellTOSG_dataset_v2`).
 - **conditions** *(dict, required)* — Metadata filters used to subset rows  
   (e.g., `{"tissue_general": "brain", "disease": "Alzheimer's disease"}`).
-- **task** *(str, required)* — Downstream task type: `"disease"` | `"gender"` | `"cell_type"`.
-- **label_column** *(str, required)* — Target label column (e.g., `"disease"`, `"gender"`, `"cell_type"`).
+- **task** *(str, required)* — Downstream task type: `"disease"` | `"sex"` | `"cell_type"`.
+- **label_column** *(str, required)* — Target label column (e.g., `"disease"`, `"sex"`, `"cell_type"`).
 - **extract_mode** *(str, required)* — Extraction mode:  
   - `"inference"`: extract a single dataset for inference/analysis (no train/test split)  
   - `"train"`: extract a training-ready dataset and generate splits (e.g., train/test)
@@ -213,12 +213,12 @@ python train.py \
 
 
 
-### 2) Gender Classification
+### 2) sex Classification
 ```bash
 # Alzheimer's Disease (Take AD as an example)
 python train.py \
-  --downstream_task gender \
-  --label_column gender \
+  --downstream_task sex \
+  --label_column sex \
   --tissue_general brain \
   --disease_name "Alzheimer's Disease" \
   --sample_ratio 0.1 \
@@ -226,7 +226,7 @@ python train.py \
   --train_lr 0.0005 \
   --train_batch_size 2 \
   --random_state 42 \
-  --dataset_output_dir ./Data/train_ad_gender_0.1_42
+  --dataset_output_dir ./Data/train_ad_sex_0.1_42
 ```
 
 
