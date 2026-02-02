@@ -9,7 +9,7 @@ class CellTOSGSubsetBuilder:
         "cell_type": "CMT_name",
         "disease": "disease_BMG_name",
         "development_stage": "development_stage_category",
-        "gender": "sex_normalized"
+        "sex": "sex_normalized"
     }
 
     TASK_CONFIG = {
@@ -19,7 +19,7 @@ class CellTOSGSubsetBuilder:
             "balance_value": "normal",
             "match_keys": ["CMT_id", "sex_normalized", "development_stage_category"]
         },
-        "gender": {
+        "sex": {
             "balance_field": "sex_normalized",
             "balance_value": "male",
             "match_keys": ["CMT_id", "development_stage_category"]

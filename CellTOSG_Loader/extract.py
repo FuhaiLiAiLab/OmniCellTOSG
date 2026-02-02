@@ -54,7 +54,7 @@ def norm_and_export_split(
             fallback_cols=["source", "tissue", "suspension_type", "assay"],
             min_batches_per_group=2,
             min_per_disease=5,
-            timeout_minutes=30,
+            timeout_minutes=60,
         )
 
         test_corr = combat_seq_correction_by_tissue(
@@ -68,7 +68,7 @@ def norm_and_export_split(
             fallback_cols=["source", "tissue", "suspension_type", "assay"],
             min_batches_per_group=2,
             min_per_disease=5,
-            timeout_minutes=30,
+            timeout_minutes=60,
         )
     else:
         raise ValueError(f"Unsupported correction_method: {correction_method}")
@@ -137,7 +137,7 @@ def extract_for_inference(
     ----------
     shuffle        Shuffle rows before exporting.
     stratified_balancing       Perform class balancing only for tasks that support it.
-    task One of {"disease", "gender", "cell_type"}.
+    task One of {"disease", "sex", "cell_type"}.
     output_dir     If provided, persist labels + expression to this directory.
     sample_ratio   Fraction (0-1) of rows to keep.
     sample_size    Exact number of rows to keep.
@@ -182,7 +182,7 @@ def extract_for_inference(
             min_per_class=10,
         )
     else:
-        # disease / gender
+        # disease / sex
         config = self.TASK_CONFIG[task]
         balance_field = config["balance_field"]
         balance_value = config["balance_value"]
@@ -192,7 +192,7 @@ def extract_for_inference(
 
         # Unbalanced path
         if not stratified_balancing:
-            if task in ("disease", "gender"):
+            if task in ("disease", "sex"):
                 label_col = balance_field
                 df = df[df[label_col].notna() & (df[label_col].astype(str).str.strip() != "")]
             if sample_size:
@@ -292,10 +292,10 @@ def extract_for_inference(
         correction_method=correction_method,
     )
 
-    print(f"gene_df_raw shape: {gene_df_raw.shape}")
-    print(f"gene_df_corr shape: {gene_df_corr.shape}")
-    print(f"first 5x5 gene_df_raw:\n{gene_df_raw.iloc[:5, :5]}")
-    print(f"first 5x5 gene_df_corr:\n{gene_df_corr.iloc[:5, :5]}")
+    # print(f"gene_df_raw shape: {gene_df_raw.shape}")
+    # print(f"gene_df_corr shape: {gene_df_corr.shape}")
+    # print(f"first 5x5 gene_df_raw:\n{gene_df_raw.iloc[:5, :5]}")
+    # print(f"first 5x5 gene_df_corr:\n{gene_df_corr.iloc[:5, :5]}")
 
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)

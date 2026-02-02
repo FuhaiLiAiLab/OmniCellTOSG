@@ -651,16 +651,16 @@ class CellTOSG_Class(nn.Module):
         internal_output = self.internal_transform(internal_output)
         z = internal_output + x  # Residual connection
 
-        # ********************** MLP Information Flow *************************
-        # Reshape: (batch*num_entity, feature) → (batch, num_entity)
-        z = z.view(batch_size, num_entity, -1).squeeze(-1)
-        # Apply MLP on entity dimension
-        for mlp in self.entity_mlp_layers:
-            z = mlp(z)
-        z = self.layer_norm(z)
-        # Expand and flatten: (batch, num_entity) → (batch*num_entity, 1)
-        z = z.reshape(-1, 1)
-        # **********************************************************************
+        # # ********************** MLP Information Flow *************************
+        # # Reshape: (batch*num_entity, feature) → (batch, num_entity)
+        # z = z.view(batch_size, num_entity, -1).squeeze(-1)
+        # # Apply MLP on entity dimension
+        # for mlp in self.entity_mlp_layers:
+        #     z = mlp(z)
+        # z = self.layer_norm(z)
+        # # Expand and flatten: (batch, num_entity) → (batch*num_entity, 1)
+        # z = z.reshape(-1, 1)
+        # # **********************************************************************
         
         # Apply main graph convolution
         z, attention_weights = self.encoder.forward_with_attention(z, ppi_edge_index)

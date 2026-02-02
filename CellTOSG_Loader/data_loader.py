@@ -249,7 +249,7 @@ def choose_covar_cols_for_task(
     if task == "cell_type":
         return None, "no covar (task=cell_type)"
 
-    if task == "gender":
+    if task == "sex":
         if sex_col not in sub_meta.columns:
             return None, f"no covar (missing '{sex_col}')"
         sub_meta[sex_col] = _normalize_label_col(sub_meta, sex_col)
@@ -287,7 +287,7 @@ def choose_covar_cols_for_task(
             return None, f"no covar ({disease_col} confounded_with_batch: {reason})"
         return [disease_col], f"use {disease_col} (n_classes={n_cls}, ok_classes={ok})"
 
-    raise ValueError(f"Unknown task='{task}'. Expected one of: pretrain, disease, gender, cell_type.")
+    raise ValueError(f"Unknown task='{task}'. Expected one of: pretrain, disease, sex, cell_type.")
 
 
 def combat_seq_correction_by_tissue(
@@ -671,7 +671,7 @@ def build_gene_df(
         fallback_cols=fallback_cols,
         min_batches_per_group=min_batches_per_group,
         min_per_disease=min_per_disease,
-        timeout_minutes=30,
+        timeout_minutes=60,
     )
 
     gene_df_corrected = pd.DataFrame(

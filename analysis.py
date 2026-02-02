@@ -4,12 +4,12 @@ import numpy as np
 from pathlib import Path
 
 from datetime import datetime
+from tqdm.auto import tqdm
 
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, precision_score, recall_score
 
 # custom dataloader
@@ -27,7 +27,6 @@ from CellTOSG_Loader import CellTOSGDataLoader
 
 # Config loading
 from utils import load_and_merge_configs, save_updated_config
-
 
 def build_pretrain_model(args, device):
     # Build the mask for edge reconstruction
@@ -49,7 +48,9 @@ def build_pretrain_model(args, device):
     degree_decoder = DegreeDecoder(args.pre_graph_output_dim, args.pre_decoder_dim,
                                 num_layers=args.pre_decoder_layers, dropout=args.pre_decoder_dropout)
     # Build the pretraining model
-    pretrain_model = CellTOSG_Foundation(text_input_dim=args.pre_lm_emb_dim,
+    pretrain_model = CellTOSG_Foundation(
+                    num_entity=args.num_entity,
+                    text_input_dim=args.pre_lm_emb_dim,
                     omic_input_dim=args.num_omic_feature,
                     cross_fusion_output_dim=args.pre_cross_fusion_output_dim, 
                     text_encoder=text_encoder,
@@ -59,7 +60,9 @@ def build_pretrain_model(args, device):
                     internal_encoder=internal_graph_encoder,
                     edge_decoder=edge_decoder,
                     degree_decoder=degree_decoder,
-                    mask=mask).to(device)
+                    mask=mask,
+                    entity_mlp_dims=args.entity_mlp_dims,
+                    ).to(device)
     return pretrain_model
 
 
@@ -90,7 +93,10 @@ def build_model(args, device):
                     rna_seq_encoder=rna_seq_encoder,
                     prot_seq_encoder=prot_seq_encoder,
                     encoder=graph_encoder,
-                    internal_encoder=internal_graph_encoder).to(device)
+                    internal_encoder=internal_graph_encoder,
+                    entity_mlp_dims=args.entity_mlp_dims,  # num_entity → decrease → increase → num_entity
+                    mlp_dropout=0.1, 
+                    ).to(device)
     return model
 
 
@@ -190,25 +196,36 @@ def analyze(args, pretrain_model, model, xAll, yAll, all_edge_index, internal_ed
     all_ypred = np.zeros((1, 1))
     upper_index = 0
     batch_loss_list = []
-    for index in range(0, analysis_num_cell, analysis_batch_size):
-        if (index + analysis_batch_size) < analysis_num_cell:
-            upper_index = index + analysis_batch_size
-        else:
-            upper_index = analysis_num_cell
-        geo_datalist = read_batch(index, upper_index, xAll, yAll, num_feature, num_entity, all_edge_index, internal_edge_index, ppi_edge_index)
-        dataset_loader = GeoGraphLoader.load_graph(geo_datalist, analysis_batch_size, args.train_num_workers)
-        print('ANALYZE MODEL...')
-        current_cell_num = upper_index - index # current batch size
-        model, batch_loss, batch_acc, batch_ypred = analyze_model(dataset_loader, current_cell_num, num_entity, x_name_emb, x_desc_emb, x_bio_emb, pretrain_model, model, device, args, index)
-        print('BATCH LOSS: ', batch_loss)
-        batch_loss_list.append(batch_loss)
-        print('BATCH ACCURACY: ', batch_acc)
+
+    total_batches = (analysis_num_cell + analysis_batch_size - 1) // analysis_batch_size
+
+    with tqdm(total=total_batches, desc="Analyze batches", unit="batch") as pbar:
+        for index in range(0, analysis_num_cell, analysis_batch_size):
+            if (index + analysis_batch_size) < analysis_num_cell:
+                upper_index = index + analysis_batch_size
+            else:
+                upper_index = analysis_num_cell
+            geo_datalist = read_batch(index, upper_index, xAll, yAll, num_feature, num_entity, all_edge_index, internal_edge_index, ppi_edge_index)
+            dataset_loader = GeoGraphLoader.load_graph(geo_datalist, analysis_batch_size, args.train_num_workers)
+            tqdm.write("ANALYZE MODEL...")
+            current_cell_num = upper_index - index # current batch size
+            model, batch_loss, batch_acc, batch_ypred = analyze_model(dataset_loader, current_cell_num, num_entity, x_name_emb, x_desc_emb, x_bio_emb, pretrain_model, model, device, args, index)
+            tqdm.write(f"BATCH LOSS: {batch_loss:.8f}")
+            batch_loss_list.append(batch_loss)
+            tqdm.write(f"BATCH ACCURACY: {batch_acc:.8f}")
+
+            pbar.set_postfix({
+            "cells": f"{upper_index}/{analysis_num_cell}",
+            "loss": f"{batch_loss:.8f}",
+            "acc": f"{batch_acc:.8f}",
+            })
+            pbar.update(1)
 
 
 if __name__ == "__main__":
     # Load and merge configurations with command line override support
     saved_model_path = Path(
-        "./CellTOSG_model_results/disease/Alzheimers_Disease/gat/epoch_50_3_0.0005_42_20250925_024246"
+        "./CellTOSG_model_results/disease/Lung_Adenocarcinoma/gat/epoch_50_3_0.0005_3407_20260103_201909"
     )
 
     config_file = saved_model_path / "config.yaml"
@@ -254,26 +271,31 @@ if __name__ == "__main__":
     args.gender = None
 
     # Use extracted data if available
-    from pathlib import Path    
-    args.use_extracted_data = True
-
     data_dir = Path(args.dataset_output_dir)
-    required_files = ["expression_matrix.npy", "labels.npy"]
+    required_files = ["train/expression_matrix.npy", "train/labels_train.npy", "test/expression_matrix.npy", "test/labels_test.npy"]
 
     def all_required_files_exist(path, filenames):
         return all((path / f).exists() for f in filenames)
 
-    if args.use_extracted_data and all_required_files_exist(data_dir, required_files):
+    if all_required_files_exist(data_dir, required_files):
         print("[Info] Using extracted data from:", data_dir)
 
-
         class FixedDataset:
-            def __init__(self, dataset_root, dataset_output_dir):
+            def __init__(self, dataset_root, task, dataset_output_dir):
                 dataset_output_dir = Path(dataset_output_dir)
                 dataset_root = Path(dataset_root)
 
-                self.data = np.load(dataset_output_dir / "expression_matrix.npy")
-                self.labels = np.load(dataset_output_dir / "labels.npy")
+                self.x_train = np.load(f"{dataset_output_dir}/train/expression_matrix.npy")
+                self.x_test = np.load(f"{dataset_output_dir}/test/expression_matrix.npy")
+
+                self.y_train = np.load(f"{dataset_output_dir}/train/labels_train.npy")
+                self.y_test = np.load(f"{dataset_output_dir}/test/labels_test.npy")
+
+                self.label_train = pd.read_csv(f"{dataset_output_dir}/train/labels.csv")
+                self.label_test = pd.read_csv(f"{dataset_output_dir}/test/labels.csv")
+
+                self.label_mapping_table = pd.read_csv(f"{dataset_output_dir}/label_mapping_{task}.csv")
+
                 self.edge_index = np.load(dataset_root / "edge_index.npy")
                 self.internal_edge_index = np.load(dataset_root / "internal_edge_index.npy")
                 self.ppi_edge_index = np.load(dataset_root / "ppi_edge_index.npy")
@@ -281,72 +303,96 @@ if __name__ == "__main__":
                 self.x_desc_emb = np.load(dataset_root / "x_desc_emb.npy")
                 self.x_bio_emb = np.load(dataset_root / "x_bio_emb.npy")
 
-        dataset = FixedDataset(args.dataset_root, args.dataset_output_dir)
+        dataset = FixedDataset(args.dataset_root, args.task, args.dataset_output_dir)
+
+        # Graph feature
+        xTr = dataset.x_train
+        xTe = dataset.x_test
+        yTr = dataset.y_train
+        yTe = dataset.y_test
+        label_train = dataset.label_train
+        label_test = dataset.label_test
+        label_mapping_table = dataset.label_mapping_table
 
     else:
-        if not data_dir.exists():
-            print(f"[Info] Output directory '{data_dir}' not found. It will be created.")
-        else:
-            missing = [f for f in required_files if not (data_dir / f).exists()]
-            print(f"[Info] Missing files in extracted data: {missing}. Running data extraction.")
-
-        print("[Info] Running CellTOSGDataLoader to extract data...")
-
-        # Load dataset with conditions
-        dataset = CellTOSGDataLoader(
-            root=args.dataset_root,
-            conditions={
-                "tissue_general": args.tissue_general,
-                # "tissue": args.tissue,
-                # "suspension_type": args.suspension_type,
-                # "cell_type": args.cell_type,
-                "disease": args.disease_name,
-                # "gender": args.gender,
-            },
-            downstream_task=args.downstream_task,  
-            label_column=args.label_column,
-            sample_ratio=args.sample_ratio,
-            sample_size=args.sample_size,
-            balanced=args.balanced,
-            shuffle=args.shuffle,
-            random_state=args.random_state,
-            train_text=args.train_text,
-            train_bio=args.train_bio,
-            output_dir=args.dataset_output_dir
-        )
+        raise FileNotFoundError("Required extracted data files are missing. Please check the data.")
 
     # Replace spaces and quotes in disease name after loading the dataset
     args.disease_name = args.disease_name.replace("'", "").replace(" ", "_")
+
+    args.num_entity = xTr.shape[1]
+    print(f"Number of entities: {args.num_entity}")
 
     # Build Pretrain Model
     pretrain_model = build_pretrain_model(args, device)
     pretrain_model.load_state_dict(torch.load(args.pretrained_model_save_path, map_location=device))
     pretrain_model.eval()
-    # Prepare text and seq embeddings
-    x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model, device)
-    # Graph feature
-    xAll = dataset.data
-    yAll = dataset.labels
+
     all_edge_index = dataset.edge_index
     internal_edge_index = dataset.internal_edge_index
     ppi_edge_index = dataset.ppi_edge_index
-    # load embeddings into torch tensor
-    xAll = torch.from_numpy(xAll).float().to(device)
-    yAll = torch.from_numpy(yAll).long().to(device)
+
+    # Prepare text and seq embeddings
+    x_name_emb, x_desc_emb, x_bio_emb = pre_embed_text(args, dataset, pretrain_model, device)
     x_name_emb = torch.from_numpy(x_name_emb).float().to(device)
     x_desc_emb = torch.from_numpy(x_desc_emb).float().to(device)
     x_bio_emb = torch.from_numpy(x_bio_emb).float().to(device)
 
+    print("Mapping table:")
+    print(label_mapping_table)
+
+    xAll = np.vstack((xTr, xTe))
+    print(f"\n[Debug] xAll shape: {xAll.shape}")
+
+    print("\n[Debug] xAll (start) [:5, :5]:")
+    print(xAll[:5, :5])
+
+    yTr2 = yTr.reshape(-1, 1)
+    yTe2 = yTe.reshape(-1, 1)
+
+    yAll = np.vstack((yTr2, yTe2))
+    print(f"\n[Debug] yAll shape: {yAll.shape}")
+
+    print("\n[Debug] yAll (start) [:5]:")
+    print(yAll[:5])
+
+    labelAll = pd.concat([label_train, label_test], axis=0).reset_index(drop=True)
+    print("\n[Debug] labelAll (start) head(5):")
+    print(labelAll.head(5))
+
+    merged_dir = Path(str(args.analysis_output_dir.replace("CellTOSG_analysis_results", "CellTOSG_analysis_data")))
+    merged_dir.mkdir(parents=True, exist_ok=True)
+
+    xall_path = merged_dir / "xAll.npy"
+    yall_path = merged_dir / "yAll.npy"
+    labelall_path = merged_dir / "labelAll.csv"
+
+    np.save(xall_path, xAll)
+    np.save(yall_path, yAll)
+
+    labelAll.to_csv(labelall_path, index=False)
+
+    label_mapping_table.to_csv(merged_dir / f"label_mapping_{args.task}.csv", index=False)
+
+    print(f"[Info] Saved xAll to: {xall_path}")
+    print(f"[Info] Saved yAll to: {yall_path}")
+    print(f"[Info] Saved labelAll to: {labelall_path}")
+    print(f"[Info] Saved label_mapping_table to: {merged_dir / f'label_mapping_{args.task}.csv'}")
+
+
+    # load graph into torch tensor
+    xAll = torch.from_numpy(xAll).float().to(device)
+    yAll = torch.from_numpy(yAll).long().view(-1, 1).to(device)
+
     all_edge_index = torch.from_numpy(all_edge_index).long()
     internal_edge_index = torch.from_numpy(internal_edge_index).long()
     ppi_edge_index = torch.from_numpy(ppi_edge_index).long()
-    
+
     # Get unique values from yAll
-    yAll = yAll.view(-1, 1)
     unique_values = torch.unique(yAll)
     num_classes = len(unique_values)
     args.num_class = num_classes
-    args.num_entity = xAll.shape[1]
+
     # Build model
     model = build_model(args, device)
     model.load_state_dict(torch.load(best_model_file, map_location=device))

@@ -25,6 +25,7 @@
 /sc_meta_cell/*
 /sc_raw_data/*
 /**dataset**/*
+/**_data**/*
 /Output/*
 /Output_old/*
 /Data/*
@@ -78,7 +79,11 @@ match_npy2labels.py
 sum_model_results.py
 inspect_ckpt.py
 exam_data.py
+umap_correction_plot.py
 
 **/run_*.sh
 **/generate_*.py
 download_from_box.py
+embed.py
+batch_embed.py
+embed.py

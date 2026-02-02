@@ -9,7 +9,7 @@ from .subset_builder import CellTOSGSubsetBuilder
 
 class CellTOSGDataLoader:
     LABEL_ZERO_LABELS_BY_LABEL_COLUMN: dict[str, set[str]] = {
-        "gender": {"female"},
+        "sex": {"female"},
         "disease": {"normal", "unclassified", "unknown"},
         "cell_type": {"unknown", "unclassified"},
     }
