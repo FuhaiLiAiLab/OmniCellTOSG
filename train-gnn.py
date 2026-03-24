@@ -400,9 +400,6 @@ if __name__ == "__main__":
                 self.edge_index = np.load(dataset_root / "edge_index.npy")
                 self.internal_edge_index = np.load(dataset_root / "internal_edge_index.npy")
                 self.ppi_edge_index = np.load(dataset_root / "ppi_edge_index.npy")
-                self.x_name_emb = np.load(dataset_root / "x_name_emb.npy")
-                self.x_desc_emb = np.load(dataset_root / "x_desc_emb.npy")
-                self.x_bio_emb = np.load(dataset_root / "x_bio_emb.npy")
 
         dataset = FixedDataset(args.dataset_root, args.dataset_output_dir)
 
