@@ -177,22 +177,21 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
     # Add timestamp to folder name
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
-    base_path = os.path.join(
-        './' + args.bl_train_result_folder,
-        args.task,
-        args.disease_name,
-        args.bl_train_model_name
+    base_path = (
+        Path(args.bl_train_result_folder)
+        / args.task
+        / args.disease_name
+        / args.bl_train_model_name
     )
 
-    os.makedirs(base_path, exist_ok=True)
+    base_path.mkdir(parents=True, exist_ok=True)
 
-    path = os.path.join(base_path, f"{folder_name}_{timestamp}")
-
-    os.makedirs(path, exist_ok=False)
+    path = base_path / f"{folder_name}_{timestamp}"
+    path.mkdir(parents=True, exist_ok=False)
 
     # Save final configuration for reference
-    config_save_path = os.path.join(path, 'config.yaml')
-    save_updated_config(config_groups, config_save_path)
+    config_save_path = path / 'config.yaml'
+    save_updated_config(config_groups, str(config_save_path))
     print(f"[Config] Saved to {config_save_path}")
 
     for i in range(1, epoch_num + 1):

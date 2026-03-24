@@ -295,21 +295,21 @@ def train(args, pretrain_model, model, device, xTr, xTe, yTr, yTe, all_edge_inde
     #Add timestamp to folder name
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
-    base_path = os.path.join(
-        '.', args.train_result_folder,
-        args.task,
-        args.disease_name,
-        args.train_base_layer
+    base_path = (
+        Path(args.train_result_folder)
+        / args.task
+        / args.disease_name.replace(' ', '_')
+        / args.train_base_layer
     )
 
-    os.makedirs(base_path, exist_ok=True)
+    base_path.mkdir(parents=True, exist_ok=True)
 
-    path = os.path.join(base_path, f"{folder_name}_{timestamp}")
-    os.mkdir(path)
+    path = base_path / f"{folder_name}_{timestamp}"
+    path.mkdir(exist_ok=False)
 
     # Save final configuration for reference
-    config_save_path = os.path.join(path, 'config.yaml')
-    save_updated_config(config_groups, config_save_path)
+    config_save_path = path / 'config.yaml'
+    save_updated_config(config_groups, str(config_save_path))
     print(f"[Config] Saved to {config_save_path}")
 
     # np.save(os.path.join(path, "xTr.npy"), xTr.cpu().numpy())
