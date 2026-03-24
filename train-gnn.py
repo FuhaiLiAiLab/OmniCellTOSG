@@ -2,6 +2,7 @@ import os
 import argparse
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 from datetime import datetime
 
@@ -95,7 +96,8 @@ def write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list
         f'BEST MODEL TEST ACCURACY: {test_acc_list[max_test_acc_id - 1]}\n'
         f'BEST MODEL TEST F1 SCORE: {test_f1_list[max_test_acc_id - 1]}\n'
     )
-    with open(os.path.join(path, 'best_model_info.txt'), 'w') as file:
+    info_file = path / 'best_model_info.txt'
+    with open(info_file, 'w') as file:
         file.write(best_model_info)
 
 
@@ -228,7 +230,8 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
         tmp_training_input_df = pd.DataFrame(train_dict)
         # Calculating metrics
         accuracy = accuracy_score(tmp_training_input_df['label'], tmp_training_input_df['prediction'])
-        tmp_training_input_df.to_csv(path + '/TrainingPred_' + str(i) + '.txt', index=False, header=True)
+        train_pred_file = path / f'TrainingPred_epoch_{i}.txt'
+        tmp_training_input_df.to_csv(train_pred_file, index=False, header=True)
         epoch_acc_list.append(accuracy)
 
         train_f1 = f1_score(
@@ -253,7 +256,8 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
         test_acc, test_loss, tmp_test_input_df = test(args, model, xTe, yTe, all_edge_index, internal_edge_index, ppi_edge_index, device, i)
         test_acc_list.append(test_acc)
         test_loss_list.append(test_loss)
-        tmp_test_input_df.to_csv(path + '/TestPred' + str(i) + '.txt', index=False, header=True)
+        test_pred_file = path / f"TestPred{i}.txt"
+        tmp_test_input_df.to_csv(test_pred_file, index=False, header=True)
 
         test_f1 = f1_score(
             tmp_test_input_df["label"],
@@ -284,9 +288,12 @@ def train(args, device, model, xTr, xTe, yTr, yTe, all_edge_index, internal_edge
             max_test_acc = test_acc
             max_test_acc_id = i
             # torch.save(model.state_dict(), path + '/best_train_model'+ str(i) +'.pt')
-            torch.save(model.state_dict(), path + '/best_train_model.pt')
-            tmp_training_input_df.to_csv(path + '/BestTrainingPred.txt', index=False, header=True)
-            tmp_test_input_df.to_csv(path + '/BestTestPred.txt', index=False, header=True)
+            best_model_file = path / 'best_train_model.pt'
+            torch.save(model.state_dict(), best_model_file)
+            best_train_pred_file = path / 'BestTrainingPred.txt'
+            tmp_training_input_df.to_csv(best_train_pred_file, index=False, header=True)
+            best_test_pred_file = path / 'BestTestPred.txt'
+            tmp_test_input_df.to_csv(best_test_pred_file, index=False, header=True)
             write_best_model_info(path, max_test_acc_id, epoch_loss_list, epoch_acc_list, epoch_f1_list, test_loss_list, test_acc_list, test_f1_list)
         print('\n-------------BEST TEST ACCURACY MODEL ID INFO:' + str(max_test_acc_id) + '-------------')
         print('--- TRAIN ---')
@@ -373,7 +380,6 @@ if __name__ == "__main__":
     args.gender = None
 
     # Use extracted data if available
-    from pathlib import Path    
     args.use_extracted_data = True
 
     data_dir = Path(args.dataset_output_dir)
