@@ -129,14 +129,25 @@ dataset = CellTOSGDataLoader(
 )
 
 # --- Access outputs ---
+X = dataset.data
+Y = dataset.labels
+metadata = dataset.metadata
+
 if args.extract_mode == "inference":
-    X = dataset.data                         # pandas.DataFrame (expression/features)
-    y = dataset.labels                       # pandas.DataFrame
-    metadata = dataset.metadata              # pandas.DataFrame (row-aligned metadata)
-else:
-    X = dataset.data                         # dict: {"train": X_train, "test": X_test}
-    y = dataset.labels                       # dict: {"train": y_train, "test": y_test}
-    metadata = dataset.metadata              # dict: {"train": meta_train, "test": meta_test}
+    # X, Y, and metadata are pandas.DataFrame objects
+    print(X.shape)
+    print(Y.shape)
+    print(metadata.shape)
+else:  # args.extract_mode == "train"
+    # X, Y, and metadata are dictionaries containing train/test splits
+    X_train = X["train"]
+    X_test = X["test"]
+
+    Y_train = Y["train"]
+    Y_test = Y["test"]
+
+    metadata_train = metadata["train"]
+    metadata_test = metadata["test"]
 
 all_edge_index = dataset.edge_index                   # full graph (COO [2, E])
 internal_edge_index = dataset.internal_edge_index     # optional transcript–protein edges
