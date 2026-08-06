@@ -134,10 +134,15 @@ Y = dataset.labels
 metadata = dataset.metadata
 
 if args.extract_mode == "inference":
-    # X, Y, and metadata are pandas.DataFrame objects
-    print(X.shape)
-    print(Y.shape)
-    print(metadata.shape)
+    # X, Y, and metadata are pandas.DataFrame objects containing all selected samples
+    print("X shape:", X.shape)
+    print("X first 5 rows x 5 columns:\n", X.iloc[:5, :5])
+
+    print("Y shape:", Y.shape)
+    print("Y first 5 rows:\n", Y.iloc[:5])
+
+    print("metadata shape:", metadata.shape)
+    print("metadata first 5 rows x 5 columns:\n", metadata.iloc[:5, :5])
 else:  # args.extract_mode == "train"
     # X, Y, and metadata are dictionaries containing train/test splits
     X_train = X["train"]
@@ -148,6 +153,21 @@ else:  # args.extract_mode == "train"
 
     metadata_train = metadata["train"]
     metadata_test = metadata["test"]
+
+    print("X_train shape:", X_train.shape)
+    print("X_train first 5 rows x 5 columns:\n", X_train[:5, :5])
+    print("X_test shape:", X_test.shape)
+    print("X_test first 5 rows x 5 columns:\n", X_test[:5, :5])
+
+    print("Y_train shape:", Y_train.shape)
+    print("Y_train first 5 values:\n", Y_train[:5])
+    print("Y_test shape:", Y_test.shape)
+    print("Y_test first 5 values:\n", Y_test[:5])
+
+    print("metadata_train shape:", metadata_train.shape)
+    print("metadata_train first 5 rows x 5 columns:\n", metadata_train.iloc[:5, :5])
+    print("metadata_test shape:", metadata_test.shape)
+    print("metadata_test first 5 rows x 5 columns:\n", metadata_test.iloc[:5, :5])
 
 all_edge_index = dataset.edge_index                   # full graph (COO [2, E])
 internal_edge_index = dataset.internal_edge_index     # optional transcript–protein edges
